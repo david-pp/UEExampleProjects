@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{1C42886A-7A4C-3F3C-CD5C-AABE9427655C}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "HelloUE",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

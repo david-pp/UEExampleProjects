@@ -77,6 +77,11 @@ void AHelloUECharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 }
 
 
+void AHelloUECharacter::HelloWorld()
+{
+	UE_LOG(LogTemp, Display, TEXT("Hello world"));
+}
+
 void AHelloUECharacter::OnResetVR()
 {
 	// If HelloUE is added to a project via 'Add Feature' in the Unreal Editor the dependency on HeadMountedDisplay in HelloUE.Build.cs is not automatically propagated

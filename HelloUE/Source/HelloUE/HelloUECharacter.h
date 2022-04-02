@@ -6,6 +6,12 @@
 #include "GameFramework/Character.h"
 #include "HelloUECharacter.generated.h"
 
+UENUM()
+enum EMyEnum
+{
+	
+};
+
 UCLASS(config=Game)
 class AHelloUECharacter : public ACharacter
 {
@@ -28,6 +34,12 @@ public:
 	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
+
+	UFUNCTION(BlueprintCallable, Category=Hello)
+	void HelloWorld();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
+	float MoveSpeed;
 
 protected:
 

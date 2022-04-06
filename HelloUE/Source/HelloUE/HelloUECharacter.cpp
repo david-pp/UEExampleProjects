@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "HelloUE.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AHelloUECharacter
@@ -79,7 +80,48 @@ void AHelloUECharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 void AHelloUECharacter::HelloWorld()
 {
-	UE_LOG(LogTemp, Display, TEXT("Hello world"));
+	// UE_LOG(LogMy, Fatal, TEXT("致命错误")); // 会直接Crash掉
+	UE_LOG(LogHello, Error, TEXT("错误"));
+	UE_LOG(LogHello, Warning, TEXT("警告"));
+	UE_LOG(LogHello, Display, TEXT("显示"));
+	UE_LOG(LogHello, Log, TEXT("Log .."));
+	UE_LOG(LogHello, Verbose, TEXT("Verbose Log .."));
+	UE_LOG(LogHello, VeryVerbose, TEXT("Very Verbose Log ..."));
+}
+
+AMyActor* AHelloUECharacter::SpawnMyActor(TSubclassOf<AMyActor> MyActorClass, const FName& MyName, const FVector& Location, const FRotator& Rotator)
+{
+	AActor* Actor = GetWorld()->SpawnActor(MyActorClass, &Location, &Rotator);
+	AMyActor* MyActor = Cast<AMyActor>(Actor);
+	if (MyActor)
+	{
+		MyActor->MyName = MyName;
+	}
+
+	return MyActor;
+}
+
+void AHelloUECharacter::CreateMyObjects()
+{
+	MyObject1 = NewObject<UMyObject>();
+	MyObject1->Value = 1;
+
+	MyObject2 = NewObject<UMyObject>();
+	MyObject2->Value = 2;
+
+	// MyObject3 = new UMyObject();
+	// MyObject3->Value = 3;
+
+	UE_LOG(LogTemp, Log, TEXT("Create Objects"));
+}
+
+void AHelloUECharacter::DestroMyObjects()
+{
+	MyObject1 = nullptr;
+	MyObject2 = nullptr;
+	MyObject3 = nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("Destroy Objects"));
 }
 
 void AHelloUECharacter::OnResetVR()

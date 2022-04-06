@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "MyActor.h"
+#include "MyObject.h"
 #include "HelloUECharacter.generated.h"
 
 UENUM()
@@ -11,6 +13,7 @@ enum EMyEnum
 {
 	
 };
+
 
 UCLASS(config=Game)
 class AHelloUECharacter : public ACharacter
@@ -41,6 +44,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
 	float MoveSpeed;
 
+	// 当前关卡创建一个Actor
+	UFUNCTION(BlueprintCallable, Category=Hello)
+	AMyActor* SpawnMyActor(TSubclassOf<AMyActor> MyActorClass, const FName& MyName, const FVector& Location, const FRotator& Rotator = FRotator::ZeroRotator);
+
+
+	// 支持GC
+	UPROPERTY()
+	UMyObject* MyObject1;
+	// 不支持GC
+	UMyObject* MyObject2;
+	
+	UMyObject* MyObject3;
+	
+	UFUNCTION(BlueprintCallable, Category=Hello)
+	void CreateMyObjects();
+
+	UFUNCTION(BlueprintCallable, Category=Hello)
+	void DestroMyObjects();
+	
 protected:
 
 	/** Resets HMD orientation in VR. */

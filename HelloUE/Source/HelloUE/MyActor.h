@@ -18,8 +18,29 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	void CalculateDPS();
 
+	// per-instance modified values
+	virtual void PostInitProperties() override;
+
+#ifdef WITH_EDITOR
+virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
+	
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=HelloUE)
+	int32 TotalDamage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HelloUE")
+	float DamageTimeInSeconds;
+
+	// 中间变量(Transient-不保存设置)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category=HelloUE)
+	float DamagePerSecond;
+
+	FName MyName;
 };

@@ -63,6 +63,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Hello)
 	void DestroMyObjects();
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
+	UMyObject* MyObject;
+	
 protected:
 
 	/** Resets HMD orientation in VR. */

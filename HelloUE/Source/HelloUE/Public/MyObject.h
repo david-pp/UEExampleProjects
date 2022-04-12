@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "MyStruct.h"
 #include "MyObject.generated.h"
 
 /**
  * 
  */
-UCLASS()
+UCLASS(BlueprintType)
 class HELLOUE_API UMyObject : public UObject
 {
 	GENERATED_BODY()
@@ -22,4 +23,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
 	int32 Value;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
+	FMyStruct MyStruct;
 };

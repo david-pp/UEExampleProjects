@@ -41,7 +41,8 @@ AHelloUECharacter::AHelloUECharacter()
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
@@ -92,7 +93,8 @@ void AHelloUECharacter::HelloWorld()
 	UE_LOG(LogHello, VeryVerbose, TEXT("Very Verbose Log ..."));
 }
 
-AMyActor* AHelloUECharacter::SpawnMyActor(TSubclassOf<AMyActor> MyActorClass, const FName& MyName, const FVector& Location, const FRotator& Rotator)
+AMyActor* AHelloUECharacter::SpawnMyActor(TSubclassOf<AMyActor> MyActorClass, const FName& MyName,
+                                          const FVector& Location, const FRotator& Rotator)
 {
 	AActor* Actor = GetWorld()->SpawnActor(MyActorClass, &Location, &Rotator);
 	AMyActor* MyActor = Cast<AMyActor>(Actor);
@@ -116,6 +118,28 @@ void AHelloUECharacter::CreateMyObjects()
 	// MyObject3->Value = 3;
 
 	UE_LOG(LogTemp, Log, TEXT("Create Objects"));
+
+	// c++ class (No U)
+	UClass* Class = FindObject<UClass>(ANY_PACKAGE, TEXT("MyDerivedObject2"));
+	if (Class)
+	{
+		UMyObject* Object = NewObject<UMyObject>(GetTransientPackage(), Class);
+		if (Object)
+		{
+			Object->HelloWorld();
+		}
+	}
+
+	// blueprint class (Name_C)
+	TSubclassOf<UMyObject> BPClass = LoadClass<UMyObject>(NULL, TEXT("Blueprint'/Game/HelloUE/BP_MyObject.BP_MyObject_C'"));
+	if (BPClass)
+	{
+		UMyObject* Object = NewObject<UMyObject>(GetTransientPackage(), BPClass);
+		if (Object)
+		{
+			Object->HelloWorld();
+		}
+	}
 }
 
 void AHelloUECharacter::DestroMyObjects()
@@ -140,12 +164,12 @@ void AHelloUECharacter::OnResetVR()
 
 void AHelloUECharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
 {
-		Jump();
+	Jump();
 }
 
 void AHelloUECharacter::TouchStopped(ETouchIndex::Type FingerIndex, FVector Location)
 {
-		StopJumping();
+	StopJumping();
 }
 
 void AHelloUECharacter::TurnAtRate(float Rate)
@@ -176,12 +200,12 @@ void AHelloUECharacter::MoveForward(float Value)
 
 void AHelloUECharacter::MoveRight(float Value)
 {
-	if ( (Controller != nullptr) && (Value != 0.0f) )
+	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is right
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-	
+
 		// get right vector 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction

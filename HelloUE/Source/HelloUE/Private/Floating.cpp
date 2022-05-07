@@ -9,13 +9,7 @@ AFloating::AFloating()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-}
 
-// Called when the game starts or when spawned
-void AFloating::BeginPlay()
-{
-	Super::BeginPlay();
-	
 	VisualMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	VisualMesh->SetupAttachment(RootComponent);
 
@@ -26,6 +20,12 @@ void AFloating::BeginPlay()
 		VisualMesh->SetStaticMesh(CubeVisualAsset.Object);
 		VisualMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 	}
+}
+
+// Called when the game starts or when spawned
+void AFloating::BeginPlay()
+{
+	Super::BeginPlay();
 }
 
 // Called every frame

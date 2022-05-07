@@ -40,6 +40,13 @@ void AMyActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void AMyActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	UE_LOG(LogTemp, Display, TEXT("删除一个AMyActor, TotalDamge=%d, DPS=%f"), TotalDamage, DamagePerSecond);
+}
+
 // Called every frame
 void AMyActor::Tick(float DeltaTime)
 {

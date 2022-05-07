@@ -18,7 +18,8 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	void CalculateDPS();
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
 	// per-instance modified values
 	virtual void PostInitProperties() override;
@@ -26,11 +27,12 @@ protected:
 #ifdef WITH_EDITOR
 virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	
+
+	// Called when removed from the level
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	void CalculateDPS();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=HelloUE)
 	int32 TotalDamage;

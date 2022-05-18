@@ -44,5 +44,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category=HelloUE)
 	float DamagePerSecond;
 
+	UPROPERTY(BlueprintReadWrite, Category="HelloUE", meta=(ExposeOnSpawn=true))
 	FName MyName;
 };

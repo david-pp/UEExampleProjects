@@ -1,11 +1,11 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Floating.h"
+#include "FloatingActor.h"
 
 
 // Sets default values
-AFloating::AFloating()
+AFloatingActor::AFloatingActor()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -23,13 +23,15 @@ AFloating::AFloating()
 }
 
 // Called when the game starts or when spawned
-void AFloating::BeginPlay()
+void AFloatingActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	UE_LOG(LogTemp, Display, TEXT("AFloatingActor, Name=%s"), *MyName.ToString());
 }
 
 // Called every frame
-void AFloating::Tick(float DeltaTime)
+void AFloatingActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 

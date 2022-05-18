@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Floating.generated.h"
+#include "FloatingActor.generated.h"
 
-UCLASS()
-class HELLOUE_API AFloating : public AActor
+UCLASS(Blueprintable)
+class HELLOUE_API AFloatingActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	AFloating();
+	AFloatingActor();
 
 protected:
 	// Called when the game starts or when spawned
@@ -25,4 +25,8 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+		
+	UPROPERTY(EditAnywhere)
+	FName MyName;
 };

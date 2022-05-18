@@ -6,13 +6,21 @@
 #include "GameFramework/GameModeBase.h"
 #include "HelloUEGameMode.generated.h"
 
-UCLASS(minimalapi)
+class AFloatingActor;
+
+UCLASS(Blueprintable)
 class AHelloUEGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
 	AHelloUEGameMode();
+
+	UFUNCTION(BlueprintCallable)
+	AFloatingActor* SpawnMyActor(FName Name);
+
+	UFUNCTION(BlueprintCallable)
+	AFloatingActor* SpawnMyActor2(FName Name);
 };
 
 

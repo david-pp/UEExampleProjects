@@ -21,6 +21,7 @@ void AMyActor::BeginPlay()
 	
 	CalculateDPS();
 	UE_LOG(LogTemp, Display, TEXT("创建一个AMyActor, TotalDamge=%d, DPS=%f"), TotalDamage, DamagePerSecond);
+	UE_LOG(LogTemp, Display, TEXT("创建一个AMyActor, Name=%s"), *MyName.ToString());
 }
 
 void AMyActor::CalculateDPS()

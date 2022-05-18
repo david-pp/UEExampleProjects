@@ -21,7 +21,7 @@ public:
 
 	virtual ~UMyObject() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello, meta=(ExposeOnSpawn=true))
 	int32 Value;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Hello)

@@ -16,7 +16,10 @@ public class HelloUE : ModuleRules
 			"InputCore", 
 			"HeadMountedDisplay",
 			"UMG",
-			"Slate"
+			"Slate",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks"
 		});
 	}
 }

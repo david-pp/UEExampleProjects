@@ -55,8 +55,8 @@ public:
 	UStaticMeshComponent* BodyMesh;
 
 	/** Hard Object Reference: 前面有class时，可以不用包含所在头文件，或前向声明 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HelloUE")
-	class UGameplayAbility* GrandAbility;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HelloUE")
+	// class UGameplayAbility* GrandAbility;
 
 	/** Hard Class Reference */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HelloUE")
@@ -110,7 +110,7 @@ public:
 	TSoftClassPtr<AActor> SoftClassPtr_Actor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftClassPtr")
-	TSoftClassPtr<AMyActor> SoftClassPtr_Drone;
+	TSoftClassPtr<AMyActor> SoftClassPtr_Actor2;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftClassPtr")
 	TSoftClassPtr<UUserWidget> SoftClassPtr_UserWidget;

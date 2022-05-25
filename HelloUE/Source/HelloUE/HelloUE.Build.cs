@@ -17,7 +17,6 @@ public class HelloUE : ModuleRules
 			"HeadMountedDisplay",
 			"UMG",
 			"Slate",
-			"GameplayAbilities",
 			"GameplayTags",
 			"GameplayTasks"
 		});

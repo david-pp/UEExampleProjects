@@ -11,7 +11,8 @@
 UENUM()
 enum EMyEnum
 {
-	
+	Enum_1,
+	Enum_2,
 };
 
 

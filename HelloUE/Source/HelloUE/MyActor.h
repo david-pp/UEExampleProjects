@@ -69,7 +69,8 @@ public:
 	// ...... Asset Reference Snippets - Soft Reference
 
 	/** Soft Object Reference - FSoftObjectPath */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject", meta = (AllowedClasses = "SkeletalMesh, StaticMesh" ))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject",
+		meta = (AllowedClasses = "SkeletalMesh, StaticMesh" ))
 	FSoftObjectPath SoftObjectPath1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject", meta = (AllowedClasses = "Texture2D"))
@@ -78,7 +79,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject", meta = (AllowedClasses = "Blueprint Class"))
 	FSoftObjectPath SoftObjectPath3;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject", meta = (AllowedClasses = "MyActor")) //自定义类型 不推荐
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftObject",
+		meta = (AllowedClasses = "MyActor")) //自定义类型 不推荐
 	FSoftObjectPath SoftObjectPath4;
 
 	/** Soft Object Reference - FSoftClassPath */
@@ -114,5 +116,11 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SoftClassPtr")
 	TSoftClassPtr<UUserWidget> SoftClassPtr_UserWidget;
-	
+
+public:
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Actor)
+	FString DavidTag;
+#endif
 };

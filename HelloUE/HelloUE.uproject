@@ -12,11 +12,28 @@
 				"Engine",
 				"CoreUObject"
 			]
+		},
+		{
+			"Name": "CustomUMeshComponent",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		},
+		{
+			"Name": "DeformMesh",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "Volumetrics",
+			"Enabled": true
+		},
+		{
+			"Name": "RenderDocPlugin",
 			"Enabled": true
 		}
 	]

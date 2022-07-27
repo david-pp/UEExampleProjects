@@ -9,6 +9,11 @@ public class HelloUEEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
-		ExtraModuleNames.Add("HelloUE");
+		ExtraModuleNames.AddRange(new string[]
+		{
+			"HelloUE", 
+			"CustomUMeshComponent", 
+			"DeformMesh"
+		});
 	}
 }

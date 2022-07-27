@@ -6,6 +6,22 @@
 #include "GameFramework/Actor.h"
 #include "MyActor.generated.h"
 
+////////////////////////////////
+
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EMyActorFlags : uint8
+{
+	None,
+	Flag1 = 0x01,
+	Flag2 = 0x02,
+	FlagAll = Flag1 & Flag2,
+};
+
+ENUM_CLASS_FLAGS(EMyActorFlags);
+
+
+////////////////////////////////
+
 UCLASS()
 class HELLOUE_API AMyActor : public AActor
 {
@@ -46,6 +62,18 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category="HelloUE", meta=(ExposeOnSpawn=true))
 	FName MyName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Bitmask, BitmaskEnum = EMyActorFlags), Category="HelloUE")
+	EMyActorFlags MyFlags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Bitmask, BitmaskEnum = EMyActorFlags), Category="HelloUE")
+	int32 MyFlags2;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsMatchFlag2(UPARAM(meta = (Bitmask, BitmaskEnum = EMyActorFlags)) int32 Bitmask)
+	{
+		return (Bitmask&MyFlags2) == Bitmask;
+	}
 
 public:
 	// ...... Asset Reference Snippets - Hard Reference 
@@ -118,7 +146,6 @@ public:
 	TSoftClassPtr<UUserWidget> SoftClassPtr_UserWidget;
 
 public:
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Actor)
 	FString DavidTag;

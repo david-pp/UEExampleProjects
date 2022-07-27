@@ -9,6 +9,11 @@ public class HelloUETarget : TargetRules
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
-		ExtraModuleNames.Add("HelloUE");
+		ExtraModuleNames.AddRange(new string[]
+		{
+			"HelloUE", 
+			"CustomUMeshComponent", 
+			"DeformMesh"
+		});
 	}
 }

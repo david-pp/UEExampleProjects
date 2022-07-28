@@ -35,6 +35,10 @@
 		{
 			"Name": "RenderDocPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "SmoothNormalTool",
+			"Enabled": true
 		}
 	]
 }

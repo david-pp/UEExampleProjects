@@ -1,0 +1,11 @@
+﻿
+float3 DavidFunction()
+{
+	#ifdef DavidDefine
+	float3 Vec = {1, 0, 0};
+	#else
+	float3 Vec = {0, 1, 0};
+	#endif
+
+	return Vec;
+}

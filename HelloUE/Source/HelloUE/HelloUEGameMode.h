@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "MySaveGame.h"
 #include "HelloUEGameMode.generated.h"
 
 class AFloatingActor;
@@ -21,7 +22,24 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	AFloatingActor* SpawnMyActor2(FName Name);
+
+public:
+	/** SaveGame **/
+	UFUNCTION(BlueprintCallable)
+	void SaveGame(int32 UserIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void LoadGame(int32 UserIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void AsyncSaveGame(int32 UserIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void AsyncLoadGame(int32 UserIndex);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnAsyncSaved(const FString& SlotName, const int32 UserIndex, bool IsSucess);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnAsyncLoaded(const FString& SlotName, const int32 UserIndex, UMySaveGame* SaveGame);
 };
-
-
-

@@ -24,12 +24,23 @@ public:
 	AFloatingActor* SpawnMyActor2(FName Name);
 
 public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Classes)
+	TSubclassOf<UMySaveGame> SaveGameClass;
+	
 	/** SaveGame **/
 	UFUNCTION(BlueprintCallable)
 	void SaveGame(int32 UserIndex);
 
 	UFUNCTION(BlueprintCallable)
 	void LoadGame(int32 UserIndex);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnSave(const FString& SlotName, const int32 UserIndex, UMySaveGame* SaveGame);
+	
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnLoaded(const FString& SlotName, const int32 UserIndex, UMySaveGame* SaveGame);
+	
 
 	UFUNCTION(BlueprintCallable)
 	void AsyncSaveGame(int32 UserIndex);

@@ -16,6 +16,8 @@ AHelloUEGameMode::AHelloUEGameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+
+	SaveGameClass = UMySaveGame::StaticClass();
 }
 
 AFloatingActor* AHelloUEGameMode::SpawnMyActor(FName Name)
@@ -66,13 +68,14 @@ static FString SlotNameString = TEXT("HelloUE");
 
 void AHelloUEGameMode::SaveGame(int32 UserIndex)
 {
-	UMySaveGame* SaveGame = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
+	UMySaveGame* SaveGame = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(SaveGameClass));
 	if (SaveGame)
 	{
 		SaveGame->PlayerName = FString::Printf(TEXT("Player-%d"), UserIndex);
 		SaveGame->UserIndex = UserIndex;
 		SaveGame->SaveSlotName = SlotNameString;
-		// SaveGame->AddString1 = TEXT("AddedValue");
+		// SaveGame->AddString1 = TEXT("AddedValue")
+		OnSave(SlotNameString, UserIndex, SaveGame);
 
 		// Save the data immediately.
 		if (UGameplayStatics::SaveGameToSlot(SaveGame, SlotNameString, UserIndex))
@@ -93,6 +96,8 @@ void AHelloUEGameMode::LoadGame(int32 UserIndex)
 
 		UE_LOG(LogTemp, Warning, TEXT("LOADED: %s,%d,%s"),
 			*LoadedGame->PlayerName, LoadedGame->UserIndex, *LoadedGame->SaveSlotName);
+
+		OnLoaded(SlotNameString, LoadedGame->UserIndex, LoadedGame);
 	}
 }
 

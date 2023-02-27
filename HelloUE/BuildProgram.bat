@@ -1,5 +1,4 @@
-
-set UBT=E:\UnrealEngine-4.27.2\Engine\Binaries\DotNET\UnrealBuildTool.exe
+@echo off
 set PROGRAME=%1
-%UBT% %PROGRAME% Win64 Development -Project="%cd%\HelloUE.uproject"
+%UnrealEnginePath%\Engine\Binaries\DotNET\UnrealBuildTool.exe %PROGRAME% Win64 Development -Project="%cd%\HelloUE.uproject"
 

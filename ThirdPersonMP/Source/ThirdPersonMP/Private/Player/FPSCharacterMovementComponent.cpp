@@ -39,11 +39,11 @@ UFPSCharacterMovementComponent::UFPSCharacterMovementComponent(const FObjectInit
 	MaxWalkSpeedProne = 300.0f;
 	SprintSideMultiplier = 0.1f;
 	
-	static ConstructorHelpers::FObjectFinder<UCurveFloat> SprintAccelerationCurveClass(TEXT("CurveFloat'/Game/Player/BP_SprintAccCurve.BP_SprintAccCurve'"));
-	if (SprintAccelerationCurveClass.Object != NULL)
-	{
-		SprintAccelerationCurve = SprintAccelerationCurveClass.Object;
-	}
+	// static ConstructorHelpers::FObjectFinder<UCurveFloat> SprintAccelerationCurveClass(TEXT("CurveFloat'/Game/Player/BP_SprintAccCurve.BP_SprintAccCurve'"));
+	// if (SprintAccelerationCurveClass.Object != NULL)
+	// {
+	// 	SprintAccelerationCurve = SprintAccelerationCurveClass.Object;
+	// }
 }
 
 float UFPSCharacterMovementComponent::GetMaxSpeed() const

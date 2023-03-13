@@ -1,11 +1,9 @@
 // Copyright 2019 Dulan Wettasinghe. All Rights Reserved.
 
-#include "FPSCharacterBase.h"
-#include "FPSGame.h"
-#include "FPSCharacterMovementComponent.h"
+#include "Player/FPSCharacterBase.h"
+#include "Player/FPSCharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Utility/FPSHitBoxesManager.h"
 #include "Net/UnrealNetwork.h"
 #include "DrawDebugHelpers.h"
 
@@ -51,7 +49,7 @@ void AFPSCharacterBase::PostInitializeComponents()
 	/*Set the default values for the characterhalfheight and eye height*/
 	if (CameraComponent)
 	{
-		BaseEyeHeight = CameraComponent->RelativeLocation.Z;
+		BaseEyeHeight = CameraComponent->GetRelativeLocation().Z;
 		DefaultEyeHeight = BaseEyeHeight;
 /*
 		UE_LOG(LogTemp, Warning, TEXT("PostInitializeComponents BaseEyeHeight = %f"), BaseEyeHeight);
@@ -194,8 +192,10 @@ void AFPSCharacterBase::CapsuleAdjusted(float HalfHeightAdjust, float ScaledHalf
 	const ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());
 	if (GetMesh() && DefaultChar->GetMesh())
 	{
-		GetMesh()->RelativeLocation.Z = DefaultChar->GetMesh()->RelativeLocation.Z + HalfHeightAdjust;
-		BaseTranslationOffset.Z = GetMesh()->RelativeLocation.Z;
+		FVector RelativeLocation = GetMesh()->GetRelativeLocation();
+		RelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z + HalfHeightAdjust;
+		GetMesh()->SetRelativeLocation(RelativeLocation);
+		BaseTranslationOffset.Z = GetMesh()->GetRelativeLocation().Z;
 	}
 	else
 	{

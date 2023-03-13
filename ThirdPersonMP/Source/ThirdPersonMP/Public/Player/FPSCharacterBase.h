@@ -11,7 +11,7 @@ class UCapsuleComponent;
 class UFPSHitBoxesManager;
 
 UCLASS()
-class FPSGAME_API AFPSCharacterBase : public ACharacter
+class AFPSCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
@@ -26,8 +26,8 @@ private:
 	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* CameraComponent;
 
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UFPSHitBoxesManager* HitBoxManager;
+	// UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	// UFPSHitBoxesManager* HitBoxManager;
 
 protected:
 	/* Called when the game starts or when spawned*/
@@ -95,5 +95,5 @@ public:
 	virtual void CapsuleAdjusted(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 
 	/** @return true if this character is currently able to crouch (and is not currently crouched) */
-	virtual bool CanCrouch() override;
+	virtual bool CanCrouch() ;
 };

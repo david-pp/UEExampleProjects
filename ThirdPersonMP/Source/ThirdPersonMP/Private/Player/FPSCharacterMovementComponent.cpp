@@ -1,6 +1,6 @@
 // Copyright 2019 Dulan Wettasinghe. All Rights Reserved.
 
-#include "FPSCharacterMovementComponent.h"
+#include "Player/FPSCharacterMovementComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Net/UnrealNetwork.h"
 #include "Math/TransformNonVectorized.h"
@@ -135,7 +135,7 @@ bool UFPSCharacterMovementComponent::IsMovingForward()
 void UFPSCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity)
 {
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
-	if (CharacterOwner->Role != ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
 		return;
 	
 	if (bCheckCrouch)
@@ -198,7 +198,7 @@ void UFPSCharacterMovementComponent::Crouch(bool bClientSimulation /*= false*/, 
 
 	// restore collision size before crouching
 	ACharacter* DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>();
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		CharacterOwner->GetCapsuleComponent()->SetCapsuleSize(DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());
 		bShrinkProxyCapsule = true;
@@ -379,7 +379,7 @@ bool UFPSCharacterMovementComponent::ShrinkCapsule(float NewUnscaledHalfHeight, 
 	FPSCharacterOwner->CapsuleAdjusted(HalfHeightAdjust, ScaledHalfHeightAdjust);
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)
@@ -517,7 +517,7 @@ bool UFPSCharacterMovementComponent::ExpandCapsule(float NewUnscaledHalfHeight, 
 	FPSCharacterOwner->CapsuleAdjusted(HalfHeightAdjust, ScaledHalfHeightAdjust);
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)

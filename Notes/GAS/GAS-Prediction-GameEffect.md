@@ -323,4 +323,264 @@ void FGameplayEffectSpec::Initialize(const UGameplayEffect* InDef, const FGamepl
 }
 ```
 
+GE同步的关键：
 
+```c++
+	void PreReplicatedRemove(const struct FActiveGameplayEffectsContainer &InArray);
+	void PostReplicatedAdd(const struct FActiveGameplayEffectsContainer &InArray);
+	void PostReplicatedChange(const struct FActiveGameplayEffectsContainer &InArray);
+```
+
+InternalOnActiveGameplayEffectAdded -> 在不同端都会执行
+
+
+## GT
+
+
+```c++
+/** Acceleration map for all gameplay tags (OwnedGameplayTags from GEs and explicit GameplayCueTags) */
+FGameplayTagCountContainer GameplayTagCountContainer;
+
+UPROPERTY(Replicated)
+FMinimalReplicationTagCountMap MinimalReplicationTags;
+
+
+FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModifiers() 
+{
+	// ...
+	// Update our owner with the tags this GameplayEffect grants them
+	Owner->UpdateTagMap(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags, 1);
+	Owner->UpdateTagMap(Effect.Spec.DynamicGrantedTags, 1);
+	if (ShouldUseMinimalReplication())
+	{
+		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags);
+		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.DynamicGrantedTags);
+	}
+}
+```
+
+### Full Mode
+
+Authority Stack：
+
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag &,int) GameplayEffectTypes.cpp:524
+UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer &,int) AbilitySystemComponent.cpp:494
+FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModifiers(FActiveGameplayEffect &,bool) GameplayEffect.cpp:3160
+FActiveGameplayEffect::CheckOngoingTagRequirements(const FGameplayTagContainer &,FActiveGameplayEffectsContainer &,bool) GameplayEffect.cpp:1719
+FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectAdded(FActiveGameplayEffect &) GameplayEffect.cpp:3097
+
+
+FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(const FGameplayEffectSpec &,FPredictionKey &,bool &) GameplayEffect.cpp:3040
+UAbilitySystemComponent::ApplyGameplayEffectSpecToSelf(const FGameplayEffectSpec &,FPredictionKey) AbilitySystemComponent.cpp:750
+UAbilitySystemComponent::BP_ApplyGameplayEffectSpecToSelf(const FGameplayEffectSpecHandle &) AbilitySystemComponent.cpp:900
+```
+
+Simulated/Autonomous Stack：
+
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag &,int) GameplayEffectTypes.cpp:524
+UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer &,int) AbilitySystemComponent.cpp:494
+FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModifiers(FActiveGameplayEffect &,bool) GameplayEffect.cpp:3160
+FActiveGameplayEffect::CheckOngoingTagRequirements(const FGameplayTagContainer &,FActiveGameplayEffectsContainer &,bool) GameplayEffect.cpp:1719
+FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectAdded(FActiveGameplayEffect &) GameplayEffect.cpp:3097
+
+
+FActiveGameplayEffect::PostReplicatedAdd(const FActiveGameplayEffectsContainer &) GameplayEffect.cpp:1836
+```
+
+### Mixed Mode
+
+Authority Stack： 同上（Full Mode）
+Autonomous Stack：同上 (Full Mode)
+Simulated Stack：
+
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag &,int) GameplayEffectTypes.cpp:524
+FMinimalReplicationTagCountMap::UpdateOwnerTagMap() GameplayEffectTypes.cpp:1203
+FMinimalReplicationTagCountMap::NetSerialize(FArchive &,UPackageMap *,bool &) GameplayEffectTypes.cpp:1164
+```
+
+### Minimal Mode
+
+Authority Stack： 同上（Full Mode）
+Autonomous Stack：同上
+Simulated Stack：同上
+
+
+### Removal
+
+定时：
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer &,int) AbilitySystemComponent.cpp:524
+FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers(const FActiveGameplayEffect &,bool) GameplayEffect.cpp:3453
+FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectRemoved(FActiveGameplayEffect &,bool,const FGameplayEffectRemovalInfo &) GameplayEffect.cpp:3418
+FActiveGameplayEffectsContainer::InternalRemoveActiveGameplayEffect(int,int,bool) GameplayEffect.cpp:3338
+FActiveGameplayEffectsContainer::CheckDuration(FActiveGameplayEffectHandle) GameplayEffect.cpp:3985
+UAbilitySystemComponent::CheckDurationExpired(FActiveGameplayEffectHandle) AbilitySystemComponent.cpp:939
+```
+
+Autonoumous：
+
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer &,int) AbilitySystemComponent.cpp:524
+FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers(const FActiveGameplayEffect &,bool) GameplayEffect.cpp:3453
+FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectRemoved(FActiveGameplayEffect &,bool,const FGameplayEffectRemovalInfo &) GameplayEffect.cpp:3418
+
+FActiveGameplayEffect::PreReplicatedRemove(const FActiveGameplayEffectsContainer &) GameplayEffect.cpp:1768
+```
+
+Simulated：
+
+```c++
+AGDPlayerState::StunTagChanged(FGameplayTag,int) GDPlayerState.cpp:392
+TBaseUObjectMethodDelegateInstance<0,AGDPlayerState,void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::ExecuteIfSafe(FGameplayTag,int) DelegateInstancesImpl.h:609
+TMulticastDelegate<void __cdecl(FGameplayTag,int),FDefaultDelegateUserPolicy>::Broadcast(FGameplayTag,int) DelegateSignatureImpl.inl:955
+TBaseFunctorDelegateInstance<void __cdecl(void),FDefaultDelegateUserPolicy,<lambda_b7068143640515ba05ce316b14425dc9> >::Execute() DelegateInstancesImpl.h:830
+FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag &,int) GameplayEffectTypes.cpp:524
+FMinimalReplicationTagCountMap::UpdateOwnerTagMap() GameplayEffectTypes.cpp:1203
+FMinimalReplicationTagCountMap::NetSerialize(FArchive &,UPackageMap *,bool &) GameplayEffectTypes.cpp:1164
+```
+
+
+## GC
+
+
+```c++
+	/** List of all active gameplay cues, including ones applied manually */
+	UPROPERTY(Replicated)
+	FActiveGameplayCueContainer ActiveGameplayCues;
+
+	/** Replicated gameplaycues when in minimal replication mode. These are cues that would come normally come from ActiveGameplayEffects */
+	UPROPERTY(Replicated)
+	FActiveGameplayCueContainer MinimalReplicationGameplayCues;
+
+```
+
+
+```c++
+FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModifiers() 
+{
+// Update GameplayCue tags and events
+	if (!Owner->bSuppressGameplayCues)
+	{
+		for (const FGameplayEffectCue& Cue : Effect.Spec.Def->GameplayCues)
+		{
+			Owner->UpdateTagMap(Cue.GameplayCueTags, 1);
+
+			if (bInvokeGameplayCueEvents)
+			{
+				Owner->InvokeGameplayCueEvent(Effect.Spec, EGameplayCueEvent::OnActive);
+				Owner->InvokeGameplayCueEvent(Effect.Spec, EGameplayCueEvent::WhileActive);
+			}
+
+			if (ShouldUseMinimalReplication())
+			{
+				for (const FGameplayTag& CueTag : Cue.GameplayCueTags)
+				{
+					// We are now replicating the EffectContext in minimally replicated cues. It may be worth allowing this be determined on a per cue basis one day.
+					// (not sending the EffectContext can make things wrong. E.g, the EffectCauser becomes the target of the GE rather than the source)
+					Owner->AddGameplayCue_MinimalReplication(CueTag, Effect.Spec.GetEffectContext());
+				}
+			}
+		}
+	}
+}
+```
+
+
+
+```c++
+UAbilitySystemComponent::AddGameplayCue_Internal() 
+{
+	// Finally, call the RPC to play the OnActive event
+	if (IAbilitySystemReplicationProxyInterface* ReplicationInterface = GetReplicationInterface())
+	{
+		ReplicationInterface->Call_InvokeGameplayCueAdded_WithParams(GameplayCueTag, PredictionKeyForRPC, GameplayCueParameters);
+	}
+}
+```
+
+
+#### Mixed - Auto：
+
+OnActive/WhileActive：
+
+```c++
+AGameplayCueNotify_Actor::HandleGameplayCue(AActor *,Type,const FGameplayCueParameters &) GameplayCueNotify_Actor.cpp:149
+UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor *,int,Type,FGameplayCueParameters &) GameplayCueSet.cpp:276
+UGameplayCueSet::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &) GameplayCueSet.cpp:42
+UGameplayCueManager::RouteGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:211
+UGameplayCueManager::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:153
+UGameplayCueManager::HandleGameplayCues(AActor *,const FGameplayTagContainer &,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:126
+UAbilitySystemComponent::InvokeGameplayCueEvent(const FGameplayEffectSpecForRPC &,Type) AbilitySystemComponent.cpp:1141
+
+UAbilitySystemComponent::HandleDeferredGameplayCues(const FActiveGameplayEffectsContainer *) AbilitySystemComponent.cpp:1720
+FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo &) GameplayEffect.cpp:3858
+```
+
+Remove：
+
+```c++
+AGameplayCueNotify_Actor::HandleGameplayCue(AActor *,Type,const FGameplayCueParameters &) GameplayCueNotify_Actor.cpp:151
+UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor *,int,Type,FGameplayCueParameters &) GameplayCueSet.cpp:276
+UGameplayCueSet::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &) GameplayCueSet.cpp:42
+UGameplayCueManager::RouteGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:211
+UGameplayCueManager::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:153
+UGameplayCueManager::HandleGameplayCues(AActor *,const FGameplayTagContainer &,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:126
+UAbilitySystemComponent::InvokeGameplayCueEvent(const FGameplayEffectSpecForRPC &,Type) AbilitySystemComponent.cpp:1141
+
+FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers(const FActiveGameplayEffect &,bool) GameplayEffect.cpp:3509
+FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectRemoved(FActiveGameplayEffect &,bool,const FGameplayEffectRemovalInfo &) GameplayEffect.cpp:3418
+FActiveGameplayEffect::PreReplicatedRemove(const FActiveGameplayEffectsContainer &) GameplayEffect.cpp:1768
+```
+
+
+Mixed - Simulated：
+
+
+Remove - 同上：
+
+WhileActive - 同上：
+
+OnActive：
+
+```c++
+AGameplayCueNotify_Actor::HandleGameplayCue(AActor *,Type,const FGameplayCueParameters &) GameplayCueNotify_Actor.cpp:149
+UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor *,int,Type,FGameplayCueParameters &) GameplayCueSet.cpp:276
+UGameplayCueSet::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &) GameplayCueSet.cpp:42
+UGameplayCueManager::RouteGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:211
+UGameplayCueManager::HandleGameplayCue(AActor *,FGameplayTag,Type,const FGameplayCueParameters &,EGameplayCueExecutionOptions) GameplayCueManager.cpp:153
+UAbilitySystemComponent::InvokeGameplayCueEvent(FGameplayTag,Type,const FGameplayCueParameters &) AbilitySystemComponent.cpp:1161
+
+UAbilitySystemComponent::NetMulticast_InvokeGameplayCueAdded_WithParams_Implementation(FGameplayTag,FPredictionKey,FGameplayCueParameters) AbilitySystemComponent.cpp:1368
+```
+
+
+关键：
+
+```c++
+	void PreReplicatedRemove(const struct FActiveGameplayCueContainer &InArray);
+	void PostReplicatedAdd(const struct FActiveGameplayCueContainer &InArray);
+	void PostReplicatedChange(const struct FActiveGameplayCueContainer &InArray) { }
+```

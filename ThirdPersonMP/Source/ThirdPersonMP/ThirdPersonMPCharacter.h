@@ -11,6 +11,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterBTDelegate, class UBehaviorTreeCom
 struct FCharacterAnimNotifyDelegateInfo
 {
 	FDelegateHandle Handle;
+	FCharacterBTDelegate BTDelegate;
 	float Ratio = 0.f;
 	bool bIsTriggered = false;
 };
@@ -113,7 +114,8 @@ public:
 
 	/** Event for taking damage. Overridden from APawn.*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
-	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator,
+	                 AActor* DamageCauser) override;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile")
@@ -146,6 +148,7 @@ public:
 
 	FCharacterBTDelegate OnMovingDelegates;
 
-	FCharacterBTDelegate OnAnimNotifies;
+	void OnMontageAdvanced(UBehaviorTreeComponent& BTComp, float LastRatio, float CurrentRatio);
+
 	TMultiMap<FDelegateHandle, FCharacterAnimNotifyDelegateInfo> OnAnimNotifyHandles;
 };

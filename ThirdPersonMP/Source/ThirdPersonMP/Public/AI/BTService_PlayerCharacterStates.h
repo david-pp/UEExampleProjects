@@ -25,4 +25,7 @@ protected:
 	/** allows adding random time to wait time */
 	UPROPERTY(Category = Debug, EditAnywhere)
 	bool EnableLog = false;
+
+	
+	float LastAnimMontageRatio = 0.f;
 };

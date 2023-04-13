@@ -89,7 +89,7 @@ void AThirdPersonMPCharacter::SetupPlayerInputComponent(class UInputComponent* P
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AThirdPersonMPCharacter::OnResetVR);
-	
+
 	// Handle firing projectiles
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AThirdPersonMPCharacter::StartFire);
 }
@@ -251,4 +251,25 @@ void AThirdPersonMPCharacter::HandleFire_Implementation()
 
 	AThirdPersonMPProjectile* spawnedProjectile = GetWorld()->SpawnActor<AThirdPersonMPProjectile>(
 		spawnLocation, spawnRotation, spawnParameters);
+}
+
+
+void AThirdPersonMPCharacter::OnMontageAdvanced(UBehaviorTreeComponent& BTComp, float LastRatio, float CurrentRatio)
+{
+	TArray<FDelegateHandle> TriggeredHandles;
+
+	for (auto& Item : OnAnimNotifyHandles)
+	{
+		if (FMath::IsWithin(Item.Value.Ratio, LastRatio, CurrentRatio))
+		{
+			Item.Value.bIsTriggered = true;
+			Item.Value.BTDelegate.Broadcast(BTComp);
+			// TriggeredHandles.Add(Item.Key);
+		}
+	}
+
+	for (auto& Handle : TriggeredHandles)
+	{
+		OnAnimNotifyHandles.Remove(Handle);
+	}
 }

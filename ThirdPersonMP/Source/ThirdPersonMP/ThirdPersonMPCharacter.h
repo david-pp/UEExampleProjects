@@ -6,6 +6,9 @@
 #include "GameFramework/Character.h"
 #include "ThirdPersonMPCharacter.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FBTMovingDelete, class UBehaviorTreeComponent& BTC)
+
+
 UCLASS(config=Game)
 class AThirdPersonMPCharacter : public ACharacter
 {
@@ -18,6 +21,7 @@ class AThirdPersonMPCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
 public:
 	AThirdPersonMPCharacter();
 
@@ -30,7 +34,6 @@ public:
 	float BaseLookUpRate;
 
 protected:
-
 	/** Resets HMD orientation in VR. */
 	void OnResetVR();
 
@@ -104,8 +107,7 @@ public:
 
 	/** Event for taking damage. Overridden from APawn.*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
-	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator,
-	                 AActor* DamageCauser) override;
+	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile")
@@ -132,4 +134,9 @@ public:
 
 	/** A timer handle used for providing the fire rate delay in-between spawns.*/
 	FTimerHandle FiringTimer;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bIsMoving = false;
+
+	FBTMovingDelete OnMovingDelegates;
 };

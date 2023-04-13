@@ -52,15 +52,36 @@ class THIRDPERSONMP_API UBTDecorator_MontageRatioRange : public UBTDecorator
 protected:
 	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
 
-	/** called when execution flow controller becomes active */
-	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-
-	/** called when execution flow controller becomes inactive */
-	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 	UPROPERTY(Category = ThirdPersonMP, EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float RatioMin = 0.f;
 
 	UPROPERTY(Category = ThirdPersonMP, EditAnywhere, meta = (ClampMax = "1.0", UIMax = "1.0"))
 	float RatioMax = 1.0f;
+};
+
+
+UCLASS()
+class THIRDPERSONMP_API UBTDecorator_MontageRatio : public UBTDecorator
+{
+	GENERATED_BODY()
+
+	UBTDecorator_MontageRatio(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+
+	/** called when execution flow controller becomes active */
+	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+	/** called when execution flow controller becomes inactive */
+	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+	void OnAnimNotify(UBehaviorTreeComponent& OwnerComp);
+
+	UPROPERTY(Category = ThirdPersonMP, EditAnywhere, meta = (ClampMax = "1.0", UIMax = "1.0"))
+	float Ratio = 1.0f;
+
+protected:
+	FDelegateHandle DelegateHandle;
 };

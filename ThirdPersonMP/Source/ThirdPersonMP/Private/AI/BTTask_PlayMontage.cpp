@@ -4,6 +4,8 @@
 #include "AI/BTTask_PlayMontage.h"
 #include "AIController.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 
 UBTTask_PlayMontage::UBTTask_PlayMontage(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -92,12 +94,75 @@ bool UBTDecorator_MontageRatioRange::CalculateRawConditionValue(UBehaviorTreeCom
 	return false;
 }
 
-void UBTDecorator_MontageRatioRange::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+/**
+ * @brief 
+ * @param ObjectInitializer ///
+ */
+UBTDecorator_MontageRatio::UBTDecorator_MontageRatio(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
+	NodeName = "MontageRatio";
+	FlowAbortMode = EBTFlowAbortMode::LowerPriority;
+
+	// Must or Use NodeMemory
+	bCreateNodeInstance = true;
+
+	bNotifyBecomeRelevant = true;
+	bNotifyCeaseRelevant = true;
 }
 
-void UBTDecorator_MontageRatioRange::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+bool UBTDecorator_MontageRatio::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AThirdPersonMPCharacter* Character = Cast<AThirdPersonMPCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
+		if (Character)
+		{
+			FCharacterAnimNotifyDelegateInfo* Info = Character->OnAnimNotifyHandles.Find(DelegateHandle);
+			if (Info && Info->bIsTriggered)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void UBTDecorator_MontageRatio::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AThirdPersonMPCharacter* Character = Cast<AThirdPersonMPCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
+		if (Character)
+		{
+			DelegateHandle = Character->OnMovingDelegates.AddUObject(this, &UBTDecorator_MontageRatio::OnAnimNotify);
+
+			FCharacterAnimNotifyDelegateInfo Info;
+			Info.Handle = DelegateHandle;
+			Info.Ratio = Ratio;
+			Info.bIsTriggered = false;
+			Character->OnAnimNotifyHandles.Add(DelegateHandle, Info);
+		}
+	}
+}
+
+void UBTDecorator_MontageRatio::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AThirdPersonMPCharacter* Character = Cast<AThirdPersonMPCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
+		if (Character)
+		{
+			Character->OnAnimNotifyHandles.Remove(DelegateHandle);
+			Character->OnMovingDelegates.Remove(DelegateHandle);
+		}
+	}
+}
+
+void UBTDecorator_MontageRatio::OnAnimNotify(UBehaviorTreeComponent& BehaviorComp)
+{
+	BehaviorComp.RequestExecution(this);
 }

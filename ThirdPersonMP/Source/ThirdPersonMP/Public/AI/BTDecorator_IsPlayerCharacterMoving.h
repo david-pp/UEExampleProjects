@@ -29,6 +29,6 @@ protected:
 
 
 	void OnMovingChange(UBehaviorTreeComponent& OwnerComp);
-
+	
 	FDelegateHandle DelegateHandle;
 };

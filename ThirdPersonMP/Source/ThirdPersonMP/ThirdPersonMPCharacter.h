@@ -6,8 +6,14 @@
 #include "GameFramework/Character.h"
 #include "ThirdPersonMPCharacter.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FBTMovingDelete, class UBehaviorTreeComponent& BTC)
+DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterBTDelegate, class UBehaviorTreeComponent& BTC)
 
+struct FCharacterAnimNotifyDelegateInfo
+{
+	FDelegateHandle Handle;
+	float Ratio = 0.f;
+	bool bIsTriggered = false;
+};
 
 UCLASS(config=Game)
 class AThirdPersonMPCharacter : public ACharacter
@@ -138,5 +144,8 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsMoving = false;
 
-	FBTMovingDelete OnMovingDelegates;
+	FCharacterBTDelegate OnMovingDelegates;
+
+	FCharacterBTDelegate OnAnimNotifies;
+	TMultiMap<FDelegateHandle, FCharacterAnimNotifyDelegateInfo> OnAnimNotifyHandles;
 };

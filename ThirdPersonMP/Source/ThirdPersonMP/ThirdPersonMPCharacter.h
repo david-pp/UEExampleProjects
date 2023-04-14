@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CharacterBTComponent.h"
+#include "CharacterBBComponent.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BehaviorTreeTypes.h"
 #include "GameFramework/Character.h"
 #include "ThirdPersonMPCharacter.generated.h"
 
@@ -114,8 +118,7 @@ public:
 
 	/** Event for taking damage. Overridden from APawn.*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
-	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator,
-	                 AActor* DamageCauser) override;
+	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile")
@@ -143,6 +146,11 @@ public:
 	/** A timer handle used for providing the fire rate delay in-between spawns.*/
 	FTimerHandle FiringTimer;
 
+public:
+	//
+	// Examples for BT
+	// 
+
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsMoving = false;
 
@@ -151,4 +159,50 @@ public:
 	void OnMontageAdvanced(UBehaviorTreeComponent& BTComp, float LastRatio, float CurrentRatio);
 
 	TMultiMap<FDelegateHandle, FCharacterAnimNotifyDelegateInfo> OnAnimNotifyHandles;
+
+public:
+	//
+	// Examples for BT
+	//
+
+	/** Component responsible for behaviors. */
+	UPROPERTY(BlueprintReadWrite, Category = AI)
+	UCharacterBTComponent* BTComponent;
+
+	UPROPERTY(BlueprintReadWrite, Category = AI)
+	UCharacterBBComponent* Blackboard;
+
+
+	/** Starts executing behavior tree. */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	bool RunBehaviorTree(UBehaviorTree* BTAsset);
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	bool RunBehaviorTreeSingleRun(UBehaviorTree* BTAsset);
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void StopBehaviorTree();
+
+	// Call by Local
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void RunBehaviorTreeEx(UBehaviorTree* BTAsset, bool Autonoumous = true, bool Authority = false, bool Simulated = false);
+
+	UFUNCTION(Server, Reliable)
+	void RunBehaviorTreeOnServer(UBehaviorTree* BTAsset, bool Autonoumous = true, bool Authority = false, bool Simulated = false);
+	UFUNCTION(NetMulticast, Reliable)
+	void RunBehaviorTreeOnClients(UBehaviorTree* BTAsset, bool Autonoumous = true, bool Authority = false, bool Simulated = false);
+
+
+	virtual bool RunBehaviorTreeImpl(UBehaviorTree* BTAsset, EBTExecutionMode::Type ExecuteMode = EBTExecutionMode::Looped);
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	bool UseBlackboard(UBlackboardData* BlackboardAsset, UBlackboardComponent*& BlackboardComponent);
+
+	//
+	// /** does this AIController allow given UBlackboardComponent sync data with it */
+	// virtual bool ShouldSyncBlackboardWith(const UBlackboardComponent& OtherBlackboardComponent) const;
+	//
+	//
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnUsingBlackBoard(UBlackboardComponent* BlackboardComp, UBlackboardData* BlackboardAsset);
+
+	virtual bool InitializeBlackboard(UBlackboardComponent& BlackboardComp, UBlackboardData& BlackboardAsset);
 };

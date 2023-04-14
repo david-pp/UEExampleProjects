@@ -22,28 +22,22 @@ EBTNodeResult::Type UBTTask_PlayMontage::ExecuteTask(UBehaviorTreeComponent& Own
 {
 	MyOwnerComp = &OwnerComp;
 
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MontageToPlay && MyController && MyController->GetPawn())
+	if (MontageToPlay)
 	{
+		ACharacter* Character = GetBTCompOwnerCharacter();
 		USkeletalMeshComponent* SkelMesh = nullptr;
-		ACharacter* const Character = Cast<ACharacter>(MyController->GetPawn());
 		if (Character)
 		{
 			SkelMesh = Character->GetMesh();
 		}
-		else
-		{
-			SkelMesh = MyController->GetPawn()->FindComponentByClass<USkeletalMeshComponent>();
-		}
 
-		ACharacter* const MyCharacter = Cast<ACharacter>(MyController->GetPawn());
-		if (MyCharacter && SkelMesh)
+		if (Character && SkelMesh)
 		{
 			CachedSkelMesh = SkelMesh;
 
-			MyCharacter->PlayAnimMontage(MontageToPlay, PlayRate, StartSectionName);
+			Character->PlayAnimMontage(MontageToPlay, PlayRate, StartSectionName);
 
-			UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
+			UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance();
 			if (AnimInstance)
 			{
 				if (bNonBlocking == false)
@@ -72,8 +66,7 @@ EBTNodeResult::Type UBTTask_PlayMontage::AbortTask(UBehaviorTreeComponent& Owner
 {
 	OnMontageInterrupted();
 
-	if (bNonStopMontage == false)
-		StopPlayingMontage();
+	if (bNonStopMontage == false) StopPlayingMontage();
 
 	return Super::AbortTask(OwnerComp, NodeMemory);
 }
@@ -89,6 +82,24 @@ void UBTTask_PlayMontage::OnMontageInterrupted()
 void UBTTask_PlayMontage::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	FinishLatentTask(*MyOwnerComp, EBTNodeResult::Succeeded);
+}
+
+ACharacter* UBTTask_PlayMontage::GetBTCompOwnerCharacter()
+{
+	if (MyOwnerComp)
+	{
+		// first, for AI
+		AAIController* AIController = MyOwnerComp->GetAIOwner();
+		if (AIController && AIController->GetPawn())
+		{
+			return Cast<ACharacter>(AIController->GetPawn());
+		}
+
+		// second, check BTComp's Owner
+		return Cast<ACharacter>(MyOwnerComp->GetOwner());
+	}
+
+	return nullptr;
 }
 
 bool UBTTask_PlayMontage::StopPlayingMontage()
@@ -118,27 +129,41 @@ bool UBTTask_PlayMontage::StopPlayingMontage()
 
 // -------------------------------
 
+static ACharacter* GetBTCompOwnerCharacter(UBehaviorTreeComponent* BTComp)
+{
+	if (BTComp)
+	{
+		// first, for AI
+		AAIController* AIController = BTComp->GetAIOwner();
+		if (AIController && AIController->GetPawn())
+		{
+			return Cast<ACharacter>(AIController->GetPawn());
+		}
+
+		// second, check BTComp's Owner
+		return Cast<ACharacter>(BTComp->GetOwner());
+	}
+
+	return nullptr;
+}
+
+
 UBTTask_StopMontage::UBTTask_StopMontage(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 }
 
 EBTNodeResult::Type UBTTask_StopMontage::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	ACharacter* const MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
+	if (MyCharacter)
 	{
-		ACharacter* const MyCharacter = Cast<ACharacter>(MyController->GetPawn());
-		if (MyCharacter)
-		{
-			MyCharacter->StopAnimMontage();
-		}
+		MyCharacter->StopAnimMontage();
 	}
 
 	return Super::ExecuteTask(OwnerComp, NodeMemory);
 }
 
-UBTDecorator_MontageRatioRange::UBTDecorator_MontageRatioRange(const FObjectInitializer& ObjectInitializer) : Super(
-	ObjectInitializer)
+UBTDecorator_MontageRatioRange::UBTDecorator_MontageRatioRange(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "MontageRatioRange";
 	// FlowAbortMode = EBTFlowAbortMode::LowerPriority;
@@ -147,38 +172,33 @@ UBTDecorator_MontageRatioRange::UBTDecorator_MontageRatioRange(const FObjectInit
 	// bNotifyCeaseRelevant = true;
 }
 
-bool UBTDecorator_MontageRatioRange::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp,
-                                                                uint8* NodeMemory) const
+bool UBTDecorator_MontageRatioRange::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	ACharacter* MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
+	if (MyCharacter && MyCharacter->GetMesh())
 	{
-		ACharacter* const MyCharacter = Cast<ACharacter>(MyController->GetPawn());
-		if (MyCharacter && MyCharacter->GetMesh())
+		UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
+		if (AnimInstance)
 		{
-			UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
-			if (AnimInstance)
+			// UAnimMontage* Montage = AnimInstance->GetCurrentActiveMontage();
+			// if (Montage)
+			// {
+			// 	
+			// 	float Position = AnimInstance->Montage_GetPosition(Montage);
+			// 	float Length = Montage->GetPlayLength();
+			// 	float Ratio = Position / Length;
+			//
+			// 	return FMath::IsWithin(Ratio, RatioMin, RatioMax);
+			// }
+
+			FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance();
+			if (MontageInstance)
 			{
-				// UAnimMontage* Montage = AnimInstance->GetCurrentActiveMontage();
-				// if (Montage)
-				// {
-				// 	
-				// 	float Position = AnimInstance->Montage_GetPosition(Montage);
-				// 	float Length = Montage->GetPlayLength();
-				// 	float Ratio = Position / Length;
-				//
-				// 	return FMath::IsWithin(Ratio, RatioMin, RatioMax);
-				// }
+				float Position = MontageInstance->GetPosition();
+				float Length = MontageInstance->Montage->GetPlayLength();
+				float Ratio = Position / Length;
 
-				FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance();
-				if (MontageInstance)
-				{
-					float Position = MontageInstance->GetPosition();
-					float Length = MontageInstance->Montage->GetPlayLength();
-					float Ratio = Position / Length;
-
-					return FMath::IsWithin(Ratio, RatioMin, RatioMax);
-				}
+				return FMath::IsWithin(Ratio, RatioMin, RatioMax);
 			}
 		}
 	}
@@ -186,43 +206,38 @@ bool UBTDecorator_MontageRatioRange::CalculateRawConditionValue(UBehaviorTreeCom
 	return false;
 }
 
-UBTDecorator_MontageRatioCheck::UBTDecorator_MontageRatioCheck(const FObjectInitializer& ObjectInitializer) : Super(
-	ObjectInitializer)
+UBTDecorator_MontageRatioCheck::UBTDecorator_MontageRatioCheck(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = TEXT("MontageRatioCheck");
 	bCreateNodeInstance = true;
 	bNotifyTick = true;
 }
 
-bool UBTDecorator_MontageRatioCheck::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp,
-                                                                uint8* NodeMemory) const
+bool UBTDecorator_MontageRatioCheck::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
 	UBTDecorator_MontageRatioCheck* MutableThis = const_cast<UBTDecorator_MontageRatioCheck*>(this);
 
+	ACharacter* MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
 	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	if (MyCharacter && MyCharacter->GetMesh())
 	{
-		ACharacter* const MyCharacter = Cast<ACharacter>(MyController->GetPawn());
-		if (MyCharacter && MyCharacter->GetMesh())
+		UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
+		if (AnimInstance)
 		{
-			UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
-			if (AnimInstance)
+			FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance();
+			if (MontageInstance)
 			{
-				FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance();
-				if (MontageInstance)
-				{
-					float Position = MontageInstance->GetPosition();
-					float Length = MontageInstance->Montage->GetPlayLength();
-					float CurrentRatio = Position / Length;
+				float Position = MontageInstance->GetPosition();
+				float Length = MontageInstance->Montage->GetPlayLength();
+				float CurrentRatio = Position / Length;
 
-					bool Result = false;
-					if (FMath::IsWithin(Ratio, LastAnimRatio, CurrentRatio))
-					{
-						Result = true;
-					}
-					MutableThis->LastAnimRatio = CurrentRatio;
-					return Result;
+				bool Result = false;
+				if (FMath::IsWithin(Ratio, LastAnimRatio, CurrentRatio))
+				{
+					Result = true;
 				}
+				MutableThis->LastAnimRatio = CurrentRatio;
+				return Result;
 			}
 		}
 	}
@@ -264,8 +279,7 @@ void UBTDecorator_MontageRatioCheck::TickNode(UBehaviorTreeComponent& OwnerComp,
  * @brief 
  * @param ObjectInitializer ///
  */
-UBTDecorator_MontageRatio::UBTDecorator_MontageRatio(const FObjectInitializer& ObjectInitializer) : Super(
-	ObjectInitializer)
+UBTDecorator_MontageRatio::UBTDecorator_MontageRatio(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "MontageRatio";
 	FlowAbortMode = EBTFlowAbortMode::LowerPriority;
@@ -279,17 +293,13 @@ UBTDecorator_MontageRatio::UBTDecorator_MontageRatio(const FObjectInitializer& O
 
 bool UBTDecorator_MontageRatio::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	if (MyCharacter)
 	{
-		AThirdPersonMPCharacter* const MyCharacter = Cast<AThirdPersonMPCharacter>(MyController->GetPawn());
-		if (MyCharacter)
+		FCharacterAnimNotifyDelegateInfo* Info = MyCharacter->OnAnimNotifyHandles.Find(DelegateHandle);
+		if (Info && Info->bIsTriggered)
 		{
-			FCharacterAnimNotifyDelegateInfo* Info = MyCharacter->OnAnimNotifyHandles.Find(DelegateHandle);
-			if (Info && Info->bIsTriggered)
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 
@@ -298,39 +308,59 @@ bool UBTDecorator_MontageRatio::CalculateRawConditionValue(UBehaviorTreeComponen
 
 void UBTDecorator_MontageRatio::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	if (MyCharacter)
 	{
-		AThirdPersonMPCharacter* const MyCharacter = Cast<AThirdPersonMPCharacter>(MyController->GetPawn());
-		if (MyCharacter)
-		{
-			FCharacterBTDelegate BTDelegate;
-			DelegateHandle = BTDelegate.AddUObject(this, &UBTDecorator_MontageRatio::OnAnimNotify);
+		FCharacterBTDelegate BTDelegate;
+		DelegateHandle = BTDelegate.AddUObject(this, &UBTDecorator_MontageRatio::OnAnimNotify);
 
-			FCharacterAnimNotifyDelegateInfo Info;
-			Info.Handle = DelegateHandle;
-			Info.BTDelegate = BTDelegate;
-			Info.Ratio = Ratio;
-			Info.bIsTriggered = false;
-			MyCharacter->OnAnimNotifyHandles.Add(DelegateHandle, Info);
-		}
+		FCharacterAnimNotifyDelegateInfo Info;
+		Info.Handle = DelegateHandle;
+		Info.BTDelegate = BTDelegate;
+		Info.Ratio = Ratio;
+		Info.bIsTriggered = false;
+		MyCharacter->OnAnimNotifyHandles.Add(DelegateHandle, Info);
 	}
 }
 
 void UBTDecorator_MontageRatio::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	AAIController* const MyController = OwnerComp.GetAIOwner();
-	if (MyController && MyController->GetPawn())
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	if (MyCharacter)
 	{
-		AThirdPersonMPCharacter* const MyCharacter = Cast<AThirdPersonMPCharacter>(MyController->GetPawn());
-		if (MyCharacter)
-		{
-			MyCharacter->OnAnimNotifyHandles.Remove(DelegateHandle);
-		}
+		MyCharacter->OnAnimNotifyHandles.Remove(DelegateHandle);
 	}
 }
 
 void UBTDecorator_MontageRatio::OnAnimNotify(UBehaviorTreeComponent& BehaviorComp)
 {
 	BehaviorComp.RequestExecution(this);
+}
+
+// ----------------
+
+UBTDecorator_CheckNetRole::UBTDecorator_CheckNetRole(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+{
+}
+
+bool UBTDecorator_CheckNetRole::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
+{
+	ACharacter* Character = GetBTCompOwnerCharacter(&OwnerComp);
+	if (Character)
+	{
+		return Character->GetLocalRole() == NetRole;
+	}
+
+	return false;
+}
+
+void UBTDecorator_CheckNetRole::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const
+{
+	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
+}
+
+FString UBTDecorator_CheckNetRole::GetStaticDescription() const
+{
+	FString RoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), NetRole.GetValue());
+	return FString::Printf(TEXT("%s: %s"), *Super::GetStaticDescription(), *RoleString);
 }

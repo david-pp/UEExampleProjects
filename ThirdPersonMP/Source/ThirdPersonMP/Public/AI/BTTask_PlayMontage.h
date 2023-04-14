@@ -46,6 +46,7 @@ public:
 
 	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	ACharacter* GetBTCompOwnerCharacter();
 
 	UPROPERTY()
 	UBehaviorTreeComponent* MyOwnerComp;
@@ -133,4 +134,23 @@ protected:
 
 protected:
 	FDelegateHandle DelegateHandle;
+};
+
+
+UCLASS()
+class THIRDPERSONMP_API UBTDecorator_CheckNetRole : public UBTDecorator
+{
+	GENERATED_BODY()
+
+	UBTDecorator_CheckNetRole(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+
+	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	virtual FString GetStaticDescription() const override;
+
+	
+	UPROPERTY(Category = ThirdPersonMP, EditAnywhere)
+	TEnumAsByte<ENetRole> NetRole = ENetRole::ROLE_AutonomousProxy;
 };

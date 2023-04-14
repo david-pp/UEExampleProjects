@@ -3,11 +3,29 @@
 
 #include "AI/BTService_PlayerCharacterStates.h"
 
+#include "AIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 
-UBTService_PlayerCharacterStates::UBTService_PlayerCharacterStates(const FObjectInitializer& ObjectInitializer) : Super(
-	ObjectInitializer)
+static ACharacter* GetBTCompOwnerCharacter(UBehaviorTreeComponent* BTComp)
+{
+	if (BTComp)
+	{
+		// first, for AI
+		AAIController* AIController = BTComp->GetAIOwner();
+		if (AIController && AIController->GetPawn())
+		{
+			return Cast<ACharacter>(AIController->GetPawn());
+		}
+
+		// second, check BTComp's Owner
+		return Cast<ACharacter>(BTComp->GetOwner());
+	}
+
+	return nullptr;
+}
+
+UBTService_PlayerCharacterStates::UBTService_PlayerCharacterStates(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "PlayerCharacterStatesService";
 
@@ -27,25 +45,15 @@ void UBTService_PlayerCharacterStates::OnCeaseRelevant(UBehaviorTreeComponent& O
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
 
-void UBTService_PlayerCharacterStates::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory,
-                                                float DeltaSeconds)
+void UBTService_PlayerCharacterStates::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
-	// Get Controlled Owner
-	AActor* QueryOwner = OwnerComp.GetOwner();
-	AController* ControllerOwner = Cast<AController>(QueryOwner);
-	if (ControllerOwner)
-	{
-		QueryOwner = ControllerOwner->GetPawn();
-	}
-
+	// Get Player Input (Global)
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		// Get Player Input
-		AThirdPersonMPCharacter* Character = Cast<AThirdPersonMPCharacter>(
-			UGameplayStatics::GetPlayerCharacter(World, 0));
+		AThirdPersonMPCharacter* Character = Cast<AThirdPersonMPCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
 		if (Character)
 		{
 			bool OldIsMoving = Character->bIsMoving;
@@ -59,8 +67,8 @@ void UBTService_PlayerCharacterStates::TickNode(UBehaviorTreeComponent& OwnerCom
 		}
 	}
 
-	// Trigger Anim ...
-	AThirdPersonMPCharacter* OwnerCharacter = Cast<AThirdPersonMPCharacter>(QueryOwner);
+	// Get Owner's Anim Trigger ...
+	AThirdPersonMPCharacter* OwnerCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
 	if (OwnerCharacter)
 	{
 		// Trigger Notify

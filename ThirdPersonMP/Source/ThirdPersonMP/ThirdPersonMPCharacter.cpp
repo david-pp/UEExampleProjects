@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThirdPersonMPCharacter.h"
+
+#include "CharacterBBComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -11,6 +13,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "ThirdPersonMPProjectile.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AThirdPersonMPCharacter
@@ -60,6 +63,12 @@ AThirdPersonMPCharacter::AThirdPersonMPCharacter()
 	//Initialize fire rate
 	FireRate = 0.25f;
 	bIsFiringWeapon = false;
+
+	// BTComponent = CreateDefaultSubobject<UCharacterBTComponent>(TEXT("BTComponent"));
+	// BTComponent->RegisterComponent();
+
+	// Blackboard = CreateDefaultSubobject<UCharacterBBComponent>(TEXT("Blackboard"));
+	// Blackboard->RegisterComponent();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -176,8 +185,7 @@ void AThirdPersonMPCharacter::OnHealthUpdate()
 	//Server-specific functionality
 	if (GetLocalRole() == ROLE_Authority)
 	{
-		FString healthMessage = FString::Printf(
-			TEXT("%s now has %f health remaining."), *GetFName().ToString(), CurrentHealth);
+		FString healthMessage = FString::Printf(TEXT("%s now has %f health remaining."), *GetFName().ToString(), CurrentHealth);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);
 	}
 
@@ -214,8 +222,7 @@ void AThirdPersonMPCharacter::SetCurrentHealth(float healthValue)
 	}
 }
 
-float AThirdPersonMPCharacter::TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent,
-                                          AController* EventInstigator, AActor* DamageCauser)
+float AThirdPersonMPCharacter::TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	float damageApplied = CurrentHealth - DamageTaken;
 	SetCurrentHealth(damageApplied);
@@ -241,16 +248,14 @@ void AThirdPersonMPCharacter::StopFire()
 
 void AThirdPersonMPCharacter::HandleFire_Implementation()
 {
-	FVector spawnLocation = GetActorLocation() + (GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f
-	);
+	FVector spawnLocation = GetActorLocation() + (GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
 	FRotator spawnRotation = GetControlRotation();
 
 	FActorSpawnParameters spawnParameters;
 	spawnParameters.Instigator = GetInstigator();
 	spawnParameters.Owner = this;
 
-	AThirdPersonMPProjectile* spawnedProjectile = GetWorld()->SpawnActor<AThirdPersonMPProjectile>(
-		spawnLocation, spawnRotation, spawnParameters);
+	AThirdPersonMPProjectile* spawnedProjectile = GetWorld()->SpawnActor<AThirdPersonMPProjectile>(spawnLocation, spawnRotation, spawnParameters);
 }
 
 
@@ -272,4 +277,147 @@ void AThirdPersonMPCharacter::OnMontageAdvanced(UBehaviorTreeComponent& BTComp, 
 	{
 		OnAnimNotifyHandles.Remove(Handle);
 	}
+}
+
+bool AThirdPersonMPCharacter::RunBehaviorTree(UBehaviorTree* BTAsset)
+{
+	return RunBehaviorTreeImpl(BTAsset, EBTExecutionMode::Looped);
+}
+
+bool AThirdPersonMPCharacter::RunBehaviorTreeSingleRun(UBehaviorTree* BTAsset)
+{
+	return RunBehaviorTreeImpl(BTAsset, EBTExecutionMode::SingleRun);
+}
+
+void AThirdPersonMPCharacter::StopBehaviorTree()
+{
+	if (BTComponent)
+	{
+		BTComponent->StopTree();
+	}
+}
+
+void AThirdPersonMPCharacter::RunBehaviorTreeEx(UBehaviorTree* BTAsset, bool Autonoumous, bool Authority, bool Simulated)
+{
+	if (IsLocallyControlled())
+	{
+		if (Autonoumous)
+		{
+			RunBehaviorTree(BTAsset);
+		}
+
+		if (Authority || Simulated)
+		{
+			RunBehaviorTreeOnServer(BTAsset, Autonoumous, Authority, Simulated);
+		}
+	}
+}
+
+void AThirdPersonMPCharacter::RunBehaviorTreeOnServer_Implementation(UBehaviorTree* BTAsset, bool Autonoumous, bool Authority, bool Simulated)
+{
+	if (Authority)
+	{
+		RunBehaviorTree(BTAsset);
+	}
+
+	if (Simulated)
+	{
+		RunBehaviorTreeOnClients(BTAsset, Autonoumous, Authority, Simulated);
+	}
+}
+
+void AThirdPersonMPCharacter::RunBehaviorTreeOnClients_Implementation(UBehaviorTree* BTAsset, bool Autonoumous, bool Authority, bool Simulated)
+{
+	if (Simulated && GetLocalRole() == ENetRole::ROLE_SimulatedProxy)
+	{
+		RunBehaviorTree(BTAsset);
+	}
+}
+
+bool AThirdPersonMPCharacter::RunBehaviorTreeImpl(UBehaviorTree* BTAsset, EBTExecutionMode::Type ExecuteMode/*= EBTExecutionMode::Looped*/)
+{
+	if (BTAsset == NULL)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RunBehaviorTree: Unable to run NULL behavior tree"));
+		return false;
+	}
+
+	bool bSuccess = true;
+
+	// see if need a blackboard component at all
+	UBlackboardComponent* BlackboardComp = Blackboard;
+	if (BTAsset->BlackboardAsset && (Blackboard == nullptr || Blackboard->IsCompatibleWith(BTAsset->BlackboardAsset) == false))
+	{
+		bSuccess = UseBlackboard(BTAsset->BlackboardAsset, BlackboardComp);
+	}
+
+	if (bSuccess)
+	{
+		if (BTComponent == NULL)
+		{
+			UE_LOG(LogTemp, Log, TEXT("RunBehaviorTree: spawning BehaviorTreeComponent.."));
+
+			BTComponent = NewObject<UCharacterBTComponent>(this, TEXT("BTComponent"));
+			BTComponent->RegisterComponent();
+		}
+
+		check(BTComponent != NULL);
+		BTComponent->StartTree(*BTAsset, ExecuteMode);
+	}
+
+	return bSuccess;
+}
+
+bool AThirdPersonMPCharacter::UseBlackboard(UBlackboardData* BlackboardAsset, UBlackboardComponent*& BlackboardComponent)
+{
+	if (BlackboardAsset == nullptr)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UseBlackboard: trying to use NULL Blackboard asset. Ignoring"));
+		return false;
+	}
+
+	bool bSuccess = true;
+	Blackboard = FindComponentByClass<UCharacterBBComponent>();
+
+	if (Blackboard == nullptr)
+	{
+		Blackboard = NewObject<UCharacterBBComponent>(this, TEXT("BlackboardComponent"));
+		if (Blackboard != nullptr)
+		{
+			InitializeBlackboard(*Blackboard, *BlackboardAsset);
+			Blackboard->RegisterComponent();
+		}
+	}
+	else if (Blackboard->GetBlackboardAsset() == nullptr)
+	{
+		InitializeBlackboard(*Blackboard, *BlackboardAsset);
+	}
+	else if (Blackboard->GetBlackboardAsset() != BlackboardAsset)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UseBlackboard: requested blackboard %s while already has %s instantiated. Forcing new BB."), *GetNameSafe(BlackboardAsset), *GetNameSafe(Blackboard->GetBlackboardAsset()));
+		InitializeBlackboard(*Blackboard, *BlackboardAsset);
+	}
+
+	BlackboardComponent = Blackboard;
+
+	return bSuccess;
+}
+
+bool AThirdPersonMPCharacter::InitializeBlackboard(UBlackboardComponent& BlackboardComp, UBlackboardData& BlackboardAsset)
+{
+	check(BlackboardComp.GetOwner() == this);
+
+	if (BlackboardComp.InitializeBlackboard(BlackboardAsset))
+	{
+		// find the "self" key and set it to our pawn
+		const FBlackboard::FKey SelfKey = BlackboardAsset.GetKeyID(FBlackboard::KeySelf);
+		if (SelfKey != FBlackboard::InvalidKey)
+		{
+			BlackboardComp.SetValue<UBlackboardKeyType_Object>(SelfKey, this);
+		}
+
+		OnUsingBlackBoard(&BlackboardComp, &BlackboardAsset);
+		return true;
+	}
+	return false;
 }

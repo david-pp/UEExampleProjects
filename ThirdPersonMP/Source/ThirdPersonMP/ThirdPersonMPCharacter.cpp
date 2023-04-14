@@ -297,6 +297,67 @@ void AThirdPersonMPCharacter::StopBehaviorTree()
 	}
 }
 
+bool AThirdPersonMPCharacter::RunActionBehaviorTree(FName Action, UBehaviorTree* BTAsset)
+{
+	if (BTAsset == NULL)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RunBehaviorTree: Unable to run NULL behavior tree"));
+		return false;
+	}
+
+	bool bSuccess = false;
+	// see if need a blackboard component at all
+	UBlackboardComponent* BlackboardComp = Blackboard;
+	if (BTAsset->BlackboardAsset && (Blackboard == nullptr || Blackboard->IsCompatibleWith(BTAsset->BlackboardAsset) == false))
+	{
+		bSuccess = UseBlackboard(BTAsset->BlackboardAsset, BlackboardComp);
+		UE_LOG(LogTemp, Warning, TEXT("RunBehaviorTree: BlackboardAsset is not Compatible with Character's blackboard"));
+		// return false;
+	}
+
+	UCharacterBTComponent* ActionBTC = nullptr;
+	UCharacterBTComponent** ActionBTCPtr = ActionBTComponents.Find(Action);
+	if (ActionBTCPtr)
+	{
+		ActionBTC = *ActionBTCPtr;
+	}
+
+	if (ActionBTC == NULL)
+	{
+		UE_LOG(LogTemp, Log, TEXT("RunBehaviorTree: spawning Action BehaviorTreeComponent.."));
+
+		FName BTCName(FString::Printf(TEXT("%sBTC"), *Action.ToString()));
+
+		ActionBTC = NewObject<UCharacterBTComponent>(this, BTCName);
+		ActionBTC->RegisterComponent();
+		ActionBTComponents.Add(Action, ActionBTC);
+	}
+
+	check(ActionBTC != NULL);
+	ActionBTC->StartTree(*BTAsset, EBTExecutionMode::Looped);
+
+	return true;
+}
+
+void AThirdPersonMPCharacter::StopActionBehaviorTree(FName Action)
+{
+	UCharacterBTComponent* ActionBTC = nullptr;
+	UCharacterBTComponent** ActionBTCPtr = ActionBTComponents.Find(Action);
+	if (ActionBTCPtr)
+	{
+		ActionBTC = *ActionBTCPtr;
+		if (ActionBTC)
+		{
+			ActionBTC->StopTree();
+		}
+	}
+}
+
+void AThirdPersonMPCharacter::RunActionBehaviorTreeOnServer_Implementation(FName Action, UBehaviorTree* BTAsset)
+{
+	RunActionBehaviorTree(Action, BTAsset);
+}
+
 void AThirdPersonMPCharacter::RunBehaviorTreeEx(UBehaviorTree* BTAsset, bool Autonoumous, bool Authority, bool Simulated)
 {
 	if (IsLocallyControlled())

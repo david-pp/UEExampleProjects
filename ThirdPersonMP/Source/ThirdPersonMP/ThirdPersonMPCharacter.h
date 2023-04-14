@@ -169,6 +169,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = AI)
 	UCharacterBTComponent* BTComponent;
 
+	/** Component responsible for different action behaviors: <ActionName, BTC> */
+	UPROPERTY(BlueprintReadWrite, Category = AI)
+	TMap<FName, UCharacterBTComponent*> ActionBTComponents;
+
 	UPROPERTY(BlueprintReadWrite, Category = AI)
 	UCharacterBBComponent* Blackboard;
 
@@ -180,6 +184,13 @@ public:
 	bool RunBehaviorTreeSingleRun(UBehaviorTree* BTAsset);
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	void StopBehaviorTree();
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	bool RunActionBehaviorTree(FName Action, UBehaviorTree* BTAsset);
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void StopActionBehaviorTree(FName Action);
+	UFUNCTION(Server, Reliable)
+	void RunActionBehaviorTreeOnServer(FName Action, UBehaviorTree* BTAsset);
 
 	// Call by Local
 	UFUNCTION(BlueprintCallable, Category = "AI")

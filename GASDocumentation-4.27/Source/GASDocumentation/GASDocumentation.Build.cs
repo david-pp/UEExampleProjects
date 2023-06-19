@@ -17,5 +17,17 @@ public class GASDocumentation : ModuleRules
             "GameplayTags",
             "GameplayTasks"
         });
+        
+        
+        if (Target.Type == TargetType.Editor)
+        {
+	        PublicDependencyModuleNames.AddRange(
+		        new string[] {
+			        "UnrealEd",
+			        "KismetCompiler",
+			        "AssetTools"
+		        }
+	        );
+        }
     }
 }

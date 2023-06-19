@@ -28,8 +28,8 @@ void UGDAbilitySystemComponent::DebugServerAsc()
 	AActor* Owner = GetOwnerActor();
 	if (Owner)
 	{
-		FNetworkGUID GUID = Owner->GetWorld()->GetNetDriver()->GuidCache->GetNetGUID(Owner);
-		ABILITY_LOG(Display, TEXT("GUID=%d, %d"), GUID.Value, Owner->GetUniqueID());
+		// FNetworkGUID GUID = Owner->GetWorld()->GetNetDriver()->GuidCache->GetNetGUID(Owner);
+		// ABILITY_LOG(Display, TEXT("GUID=%d, %d"), GUID.Value, Owner->GetUniqueID());
 	}
 }
 
@@ -174,8 +174,8 @@ void UGDAbilitySystemComponent::DebugRequest_Implementation(const FString& Comma
 			AActor* Owner = ASC->GetOwnerActor();
 			if (Owner)
 			{
-				FNetworkGUID GUID = Owner->GetWorld()->GetNetDriver()->GuidCache->GetNetGUID(Owner);
-				ABILITY_LOG(Display, TEXT("GUID=%d, %d"), GUID.Value, Owner->GetUniqueID());
+				// FNetworkGUID GUID = Owner->GetWorld()->GetNetDriver()->GuidCache->GetNetGUID(Owner);
+				// ABILITY_LOG(Display, TEXT("GUID=%d, %d"), GUID.Value, Owner->GetUniqueID());
 			}
 		}
 	}

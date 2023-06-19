@@ -27,4 +27,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ability|TargetData")
 	static float GetCustomTargetValueFromTargetData(const FGameplayAbilityTargetDataHandle& TargetData);
+	
+	UFUNCTION(BlueprintCallable, Category="Editor")
+	static UGameplayEffect* GenerateGameEffects(TSubclassOf<UGameplayEffect> Class, FName EffectName, FGameplayTag AssetTag);
 };

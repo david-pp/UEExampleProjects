@@ -29,5 +29,11 @@ public:
 	static float GetCustomTargetValueFromTargetData(const FGameplayAbilityTargetDataHandle& TargetData);
 	
 	UFUNCTION(BlueprintCallable, Category="Editor")
-	static UGameplayEffect* GenerateGameEffects(TSubclassOf<UGameplayEffect> Class, FName EffectName, FGameplayTag AssetTag);
+	static UGameplayEffect* GenerateGameEffects(TSubclassOf<UGameplayEffect> Class, FName EffectName, FGameplayTag AssetTag, bool NeedSave = true);
+	
+	UFUNCTION(BlueprintCallable, Category="Editor")
+	static bool DeleteGameEffectAsset(FName EffectName);
+
+	UFUNCTION(BlueprintCallable, Category="Editor")
+	static bool SaveGameEffectAsset(FName EffectName);
 };

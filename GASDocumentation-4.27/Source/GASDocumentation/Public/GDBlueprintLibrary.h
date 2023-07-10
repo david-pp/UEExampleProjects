@@ -36,4 +36,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Editor")
 	static bool SaveGameEffectAsset(FName EffectName);
+
+
+
+	
+	UFUNCTION(BlueprintCallable, Category=David)
+	static void AddGameTagRuntime(FString TagName, FString Comment, FName TagSourceName);
 };

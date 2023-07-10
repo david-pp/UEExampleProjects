@@ -6,6 +6,7 @@
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "FileHelpers.h"
+#include "GameplayTagsEditorModule.h"
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Characters/Abilities/GDAbilitySystemComponent.h"
@@ -194,4 +195,9 @@ bool UGDBlueprintLibrary::SaveGameEffectAsset(FName EffectName)
 	}
 
 	return false;
+}
+
+void UGDBlueprintLibrary::AddGameTagRuntime(FString TagName, FString Comment, FName TagSourceName)
+{
+	IGameplayTagsEditorModule::Get().AddNewGameplayTagToINI(TagName, Comment, TagSourceName);
 }

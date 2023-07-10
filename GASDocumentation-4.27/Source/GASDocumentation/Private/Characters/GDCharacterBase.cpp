@@ -360,9 +360,3 @@ void AGDCharacterBase::SetStamina(float Stamina)
 	}
 }
 
-
-void AGDCharacterBase::AddGameTagRuntime(FString TagName, FString Comment,  FName TagSourceName)
-{
-	IGameplayTagsEditorModule::Get().AddNewGameplayTagToINI(TagName, Comment, TagSourceName);
-}
-

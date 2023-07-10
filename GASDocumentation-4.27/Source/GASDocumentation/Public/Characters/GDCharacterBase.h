@@ -155,6 +155,4 @@ protected:
 
 
 
-	UFUNCTION(BlueprintCallable, Category=David)
-	void AddGameTagRuntime(FString TagName, FString Comment, FName TagSourceName);
 };

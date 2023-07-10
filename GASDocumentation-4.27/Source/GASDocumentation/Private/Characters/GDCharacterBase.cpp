@@ -2,6 +2,8 @@
 
 
 #include "Characters/GDCharacterBase.h"
+
+#include "GameplayTagsEditorModule.h"
 #include "Characters/Abilities/AttributeSets/GDAttributeSetBase.h"
 #include "Characters/Abilities/GDAbilitySystemComponent.h"
 #include "Characters/Abilities/GDGameplayAbility.h"
@@ -356,5 +358,11 @@ void AGDCharacterBase::SetStamina(float Stamina)
 	{
 		AttributeSetBase->SetStamina(Stamina);
 	}
+}
+
+
+void AGDCharacterBase::AddGameTagRuntime(FString TagName, FString Comment,  FName TagSourceName)
+{
+	IGameplayTagsEditorModule::Get().AddNewGameplayTagToINI(TagName, Comment, TagSourceName);
 }
 

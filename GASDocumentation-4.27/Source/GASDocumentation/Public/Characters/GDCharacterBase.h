@@ -152,4 +152,9 @@ protected:
 	virtual void SetHealth(float Health);
 	virtual void SetMana(float Mana);
 	virtual void SetStamina(float Stamina);
+
+
+
+	UFUNCTION(BlueprintCallable, Category=David)
+	void AddGameTagRuntime(FString TagName, FString Comment, FName TagSourceName);
 };

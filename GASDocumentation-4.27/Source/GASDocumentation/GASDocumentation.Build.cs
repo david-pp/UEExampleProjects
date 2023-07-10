@@ -15,7 +15,7 @@ public class GASDocumentation : ModuleRules
             "SlateCore",
             "GameplayAbilities",
             "GameplayTags",
-            "GameplayTasks"
+            "GameplayTasks", 
         });
         
         
@@ -25,7 +25,8 @@ public class GASDocumentation : ModuleRules
 		        new string[] {
 			        "UnrealEd",
 			        "KismetCompiler",
-			        "AssetTools"
+			        "AssetTools",
+			        "GameplayTagsEditor"
 		        }
 	        );
         }

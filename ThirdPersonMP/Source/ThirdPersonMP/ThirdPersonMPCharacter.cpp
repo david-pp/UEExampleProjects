@@ -13,6 +13,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "ThirdPersonMPProjectile.h"
+#include "UObject/ReflectedTypeAccessors.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -69,6 +70,8 @@ AThirdPersonMPCharacter::AThirdPersonMPCharacter()
 
 	// Blackboard = CreateDefaultSubobject<UCharacterBBComponent>(TEXT("Blackboard"));
 	// Blackboard->RegisterComponent();
+
+	ExampleArray.OwnerCharacter = this;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -204,12 +207,23 @@ void AThirdPersonMPCharacter::OnRep_CurrentHealth()
 //////////////////////////////////////////////////////////////////////////
 // Replicated Properties
 
+void AThirdPersonMPCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AddDefaultExampleItems();
+}
+
 void AThirdPersonMPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	//Replicate current health.
 	DOREPLIFETIME(AThirdPersonMPCharacter, CurrentHealth);
+
+	//FAR
+	DOREPLIFETIME_CONDITION(AThirdPersonMPCharacter, ExampleArray, COND_ReplayOrOwner);
+	// DOREPLIFETIME(AThirdPersonMPCharacter, ExampleArray);
 }
 
 
@@ -481,4 +495,78 @@ bool AThirdPersonMPCharacter::InitializeBlackboard(UBlackboardComponent& Blackbo
 		return true;
 	}
 	return false;
+}
+
+void AThirdPersonMPCharacter::OnReq_ExampleArray()
+{
+	DumpExampleArray(TEXT("OnReq_ExampleArray"));
+}
+
+void AThirdPersonMPCharacter::AddDefaultExampleItems()
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		for (int i = 1; i < 10; ++i)
+		{
+			FExampleItemEntry& AddItem = ExampleArray.Items.AddDefaulted_GetRef();
+			AddItem.ExampleIntProperty = i * 100;
+			AddItem.ExampleFloatProperty = 3.14;
+			AddItem.ExampleString = TEXT("David") + FString::FromInt(i);
+			ExampleArray.MarkItemDirty(AddItem);
+		}
+	}
+}
+
+FString AThirdPersonMPCharacter::GetLocalRoleString() const
+{
+	return StaticEnum<ENetRole>()->GetNameByValue((int64)GetLocalRole()).ToString();
+}
+
+void AThirdPersonMPCharacter::DumpExampleArray(const FString& Title)
+{
+	UE_LOG(LogTemp, Warning, TEXT("---%s-- Items(%d)@%s - %s--------"), *Title, ExampleArray.Items.Num(), *GetLocalRoleString(), *GetName());
+	for (auto& Item : ExampleArray.Items)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Item: %s, %d, %.2f"), *Item.ExampleString, Item.ExampleIntProperty, Item.ExampleFloatProperty);
+	}
+}
+
+void AThirdPersonMPCharacter::DoDumpExampleArray_Implementation()
+{
+	DumpExampleArray();
+}
+
+void AThirdPersonMPCharacter::RequestDumpExampleArray_Implementation()
+{
+	DoDumpExampleArray();
+}
+
+void AThirdPersonMPCharacter::SetItemString_Implementation(int ItemInt, const FString& ItemString)
+{
+	FExampleItemEntry* Item = ExampleArray.Items.FindByPredicate([ItemInt](FExampleItemEntry& ItemEntry)-> bool
+	{
+		return ItemEntry.ExampleIntProperty == ItemInt;
+	});
+
+	if (Item)
+	{
+		Item->ExampleString = ItemString;
+		ExampleArray.MarkItemDirty(*Item);
+	}
+}
+
+void AThirdPersonMPCharacter::RemoveItem_Implementation(int ItemInt)
+{
+	ExampleArray.Items.RemoveAll([ItemInt](FExampleItemEntry& ItemEntry)
+	{
+		return ItemEntry.ExampleIntProperty == ItemInt;
+	});
+
+	ExampleArray.MarkArrayDirty();
+}
+
+void AThirdPersonMPCharacter::AddItem_Implementation(const FExampleItemEntry& Item)
+{
+	FExampleItemEntry& AddItem = ExampleArray.Items.Add_GetRef(Item);
+	ExampleArray.MarkItemDirty(AddItem);
 }

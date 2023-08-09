@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "CharacterBTComponent.h"
 #include "CharacterBBComponent.h"
+#include "ExampleArray.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "GameFramework/Character.h"
@@ -99,6 +100,7 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+	virtual void BeginPlay() override;
 
 	/** Property replication */
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -216,4 +218,37 @@ public:
 	void OnUsingBlackBoard(UBlackboardComponent* BlackboardComp, UBlackboardData* BlackboardAsset);
 
 	virtual bool InitializeBlackboard(UBlackboardComponent& BlackboardComp, UBlackboardData& BlackboardAsset);
+
+public:
+	FString GetLocalRoleString() const;
+	
+	//
+	// Example for Fast Array Replication
+	//
+	UPROPERTY(ReplicatedUsing=OnReq_ExampleArray)
+	FExampleArray ExampleArray;
+
+	UFUNCTION()
+	void OnReq_ExampleArray();
+
+	void AddDefaultExampleItems();
+	
+
+	UFUNCTION(BlueprintCallable, Category="David")
+	void DumpExampleArray(const FString& Title = TEXT(""));
+
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void AddItem(const FExampleItemEntry& Item);
+
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void SetItemString(int ItemInt, const FString& ItemString);
+
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void RemoveItem(int ItemInt);
+
+
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void RequestDumpExampleArray();
+	UFUNCTION(NetMulticast, Reliable)
+	void DoDumpExampleArray();
 };

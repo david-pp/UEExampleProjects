@@ -19,7 +19,7 @@
 //////////////////////////////////////////////////////////////////////////
 // AThirdPersonMPCharacter
 
-AThirdPersonMPCharacter::AThirdPersonMPCharacter()
+AThirdPersonMPCharacter::AThirdPersonMPCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -72,6 +72,20 @@ AThirdPersonMPCharacter::AThirdPersonMPCharacter()
 	// Blackboard->RegisterComponent();
 
 	ExampleArray.OwnerCharacter = this;
+	
+	// Static Components
+	MyStaticComponents.Reset();
+	for (int i = 0; i < MyStaticComponentsNum; ++ i)
+	{
+		FString ComponentName = FString::Printf(TEXT("MyStaticComponent_%d"), i);
+		UMyComponent* MyComponent = CreateDefaultSubobject<UMyComponent>(FName(ComponentName));
+		if (MyComponent)
+		{
+			MyComponent->SetIsReplicated(true);
+
+			MyStaticComponents.Add(MyComponent);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -212,6 +226,23 @@ void AThirdPersonMPCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	AddDefaultExampleItems();
+
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		MyDynamicComponents.Reset();
+		for (int i = 0; i < MyDynamicComponentsNum; ++ i)
+		{
+			FName ComponentName = FName(FString::Printf(TEXT("MyDynamicComponent_%d"), i));
+			UMyComponent* MyComponent = NewObject<UMyComponent>(this, FName(ComponentName));
+			if (MyComponent)
+			{
+				MyComponent->ComponentTags.Add(ComponentName);
+				MyComponent->RegisterComponent();
+				MyComponent->SetIsReplicated(true);
+				MyDynamicComponents.Add(MyComponent);
+			}
+		}
+	}
 }
 
 void AThirdPersonMPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -224,6 +255,8 @@ void AThirdPersonMPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	//FAR
 	DOREPLIFETIME_CONDITION(AThirdPersonMPCharacter, ExampleArray, COND_ReplayOrOwner);
 	// DOREPLIFETIME(AThirdPersonMPCharacter, ExampleArray);
+
+	DOREPLIFETIME(AThirdPersonMPCharacter, MyDynamicComponents);
 }
 
 
@@ -529,6 +562,62 @@ void AThirdPersonMPCharacter::DumpExampleArray(const FString& Title)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Item: %s, %d, %.2f"), *Item.ExampleString, Item.ExampleIntProperty, Item.ExampleFloatProperty);
 	}
+}
+
+void AThirdPersonMPCharacter::OnRep_MyDynamicComponents()
+{
+}
+
+void AThirdPersonMPCharacter::ModifyMyDynamicComponents_Implementation()
+{
+	for (auto MyComponent : MyDynamicComponents)
+	{
+		MyComponent->MyName = TEXT("Dynamic-David");
+	}
+}
+
+void AThirdPersonMPCharacter::RequestDumpMyComponents_Implementation()
+{
+	DoDumpMyComponents();
+}
+
+void AThirdPersonMPCharacter::DoDumpMyComponents_Implementation()
+{
+#if 0
+	TArray<UMyComponent*> MyComponents;
+	GetComponents<UMyComponent>(MyComponents);
+	for (auto MyComponent : MyComponents)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MyComponent@%s : %s"), *GetLocalRoleString(), *MyComponent->MyName);
+	}
+#else
+	for (auto MyComponent : MyStaticComponents)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MyComponent@%s : %s"), *GetLocalRoleString(), *MyComponent->MyName);
+	}
+
+	for (auto MyComponent : MyDynamicComponents)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MyComponent@%s : %s"), *GetLocalRoleString(), *MyComponent->MyName);
+	}
+#endif
+}
+
+void AThirdPersonMPCharacter::ModifyMyStaticComponents_Implementation()
+{
+	// Method1
+	for (auto MyComponent : MyStaticComponents)
+	{
+		MyComponent->MyName = TEXT("Static-David");
+	}
+
+	// Method2
+	// TArray<UMyComponent*> MyComponents;
+	// GetComponents<UMyComponent>(MyComponents);
+	// for (auto MyComponent : MyComponents)
+	// {
+	// 	MyComponent->MyName = TEXT("David");
+	// }
 }
 
 void AThirdPersonMPCharacter::DoDumpExampleArray_Implementation()

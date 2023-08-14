@@ -9,6 +9,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "GameFramework/Character.h"
+#include "MyComponent.h"
 #include "ThirdPersonMPCharacter.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterBTDelegate, class UBehaviorTreeComponent& BTC)
@@ -35,7 +36,7 @@ class AThirdPersonMPCharacter : public ACharacter
 	class UCameraComponent* FollowCamera;
 
 public:
-	AThirdPersonMPCharacter();
+	AThirdPersonMPCharacter(const FObjectInitializer& ObjectInitializer);
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
@@ -251,4 +252,32 @@ public:
 	void RequestDumpExampleArray();
 	UFUNCTION(NetMulticast, Reliable)
 	void DoDumpExampleArray();
+
+
+	//
+	// Examples for Component Replication
+	//
+	UPROPERTY(EditDefaultsOnly, Category="David")
+	int MyStaticComponentsNum = 3;
+	UPROPERTY()
+	TArray<UMyComponent*> MyStaticComponents;
+
+	UPROPERTY(EditDefaultsOnly, Category="David")
+	int MyDynamicComponentsNum = 3;
+	UPROPERTY(ReplicatedUsing=OnRep_MyDynamicComponents)
+	TArray<UMyComponent*> MyDynamicComponents;
+	TArray<UMyComponent*> MyCachedDynamicComponents;
+
+	UFUNCTION()
+	void OnRep_MyDynamicComponents();
+	
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void ModifyMyStaticComponents();
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void ModifyMyDynamicComponents();
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="David")
+	void RequestDumpMyComponents();
+	UFUNCTION(NetMulticast, Reliable)
+	void DoDumpMyComponents();
+
 };

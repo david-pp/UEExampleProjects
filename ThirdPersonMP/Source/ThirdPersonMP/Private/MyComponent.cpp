@@ -21,6 +21,9 @@ void UMyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(UMyComponent, MyName, COND_None);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMyComponent, StringValue, COND_None, REPNOTIFY_OnChanged);
+	DOREPLIFETIME(UMyComponent, StringArray);
+	
 }
 
 
@@ -30,7 +33,6 @@ void UMyComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// ...
-	
 }
 
 
@@ -42,3 +44,12 @@ void UMyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 	// ...
 }
 
+void UMyComponent::OnRep_StringValue(FString& OldValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("OnRep_StringValue@%d: %s -> %s"), GetOwnerRole(), *OldValue, *StringValue);
+}
+
+void UMyComponent::OnRep_StringArray(TArray<FString>& OldValues)
+{
+	UE_LOG(LogTemp, Warning, TEXT("OnRep_StringValue@%d: %s -> %s"), GetOwnerRole(), *FString::Join(OldValues, TEXT(",")), *FString::Join(StringArray, TEXT(",")));
+}

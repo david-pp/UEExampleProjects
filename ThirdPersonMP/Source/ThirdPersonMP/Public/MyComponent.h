@@ -27,5 +27,19 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UPROPERTY(Replicated)
-	FString MyName; 
+	FString MyName;
+
+	UPROPERTY(ReplicatedUsing=OnRep_StringValue, BlueprintReadWrite, Category=David)
+	FString StringValue;
+
+	UFUNCTION()
+	void OnRep_StringValue(FString& OldValue);
+
+
+	UPROPERTY(ReplicatedUsing=OnRep_StringArray, BlueprintReadWrite, Category=David)
+	TArray<FString> StringArray;
+
+	UFUNCTION()
+	void OnRep_StringArray(TArray<FString>& OldValues);
+	
 };

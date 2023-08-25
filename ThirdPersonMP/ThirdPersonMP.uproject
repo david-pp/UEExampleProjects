@@ -26,6 +26,10 @@
 		{
 			"Name": "TraceSourceFilters",
 			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
 		}
 	]
 }

@@ -21,7 +21,8 @@ void UMyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(UMyComponent, MyName, COND_None);
-	DOREPLIFETIME_CONDITION_NOTIFY(UMyComponent, StringValue, COND_None, REPNOTIFY_OnChanged);
+	// DOREPLIFETIME_CONDITION_NOTIFY(UMyComponent, StringValue, COND_None, REPNOTIFY_OnChanged);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMyComponent, StringValue, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME(UMyComponent, StringArray);
 	
 }

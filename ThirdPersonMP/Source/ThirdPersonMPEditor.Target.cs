@@ -10,5 +10,6 @@ public class ThirdPersonMPEditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 		ExtraModuleNames.Add("ThirdPersonMP");
+		ExtraModuleNames.Add("ThirdPersonMPEditor");
 	}
 }

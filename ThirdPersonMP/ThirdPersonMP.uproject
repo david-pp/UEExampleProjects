@@ -8,6 +8,10 @@
 			"Name": "ThirdPersonMP",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ThirdPersonMPEditor",
+			"Type": "Editor"
 		}
 	],
 	"Plugins": [
@@ -29,6 +33,10 @@
 		},
 		{
 			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "RefreshAllNodes",
 			"Enabled": true
 		}
 	]

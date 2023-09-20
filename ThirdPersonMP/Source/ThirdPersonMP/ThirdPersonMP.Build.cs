@@ -9,7 +9,12 @@ public class ThirdPersonMP : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new string[]
-			{ "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", 
+			{ "Core", "CoreUObject", 
+				"Engine", 
+				"InputCore",
+				"Slate",
+				"SlateCore",
+				"HeadMountedDisplay", 
 				"GameplayDebugger", 
 				"AIModule",
 				"GameplayTasks",

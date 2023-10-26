@@ -11,7 +11,8 @@
 		},
 		{
 			"Name": "ThirdPersonMPEditor",
-			"Type": "Editor"
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
@@ -37,6 +38,14 @@
 		},
 		{
 			"Name": "RefreshAllNodes",
+			"Enabled": true
+		},
+		{
+			"Name": "DataRegistry",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
 			"Enabled": true
 		}
 	]

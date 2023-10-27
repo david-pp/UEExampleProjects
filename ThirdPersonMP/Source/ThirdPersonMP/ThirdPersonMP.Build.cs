@@ -14,6 +14,8 @@ public class ThirdPersonMP : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
+				"UMG",
+				"CommonUI",
 				"HeadMountedDisplay", 
 				"GameplayDebugger", 
 				"AIModule",

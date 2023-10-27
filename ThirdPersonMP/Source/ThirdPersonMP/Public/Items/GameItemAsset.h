@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Engine/DataTable.h"
 #include "GameItemAsset.generated.h"
 
 UCLASS(EditInlineNew, DefaultToInstanced, CollapseCategories, Abstract)
 class UGameItemFragment : public UObject
 {
 	GENERATED_BODY()
+
 public:
 };
 
@@ -31,6 +33,7 @@ UCLASS(Blueprintable, EditInlineNew, DefaultToInstanced, CollapseCategories)
 class UGameItemSkill : public UObject
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Skill)
 	FGameplayTag SkillTag;
@@ -51,9 +54,64 @@ public:
 
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category=ActiveSkill)
 	UGameItemSkill* ActiveSkill;
-	
+
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category=PassiveSkills)
 	TArray<UGameItemSkill*> PassiveSkills;
+};
+
+
+USTRUCT(BlueprintType)
+struct FGameItemStatsDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Stats)
+	float Health = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Stats)
+	float Mana = 0.f;
+};
+
+USTRUCT(BlueprintType)
+struct FGameItemSkillDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Skill)
+	FGameplayTag SkillTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Skill)
+	FText SkillDescription;
+};
+
+USTRUCT(BlueprintType)
+struct FGameItemDefinition : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	/** User-visible short name */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Item)
+	FText ItemName;
+
+	/** User-visible long description */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Item)
+	FText ItemDescription;
+
+	/** Icon to display */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Item)
+	FSlateBrush ItemIcon;
+
+	/** Stats Fragments */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Stats)
+	FGameItemStatsDefinition Stats;
+
+	// Skill Fragments */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Skill)
+	float SkillPonts = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Skill)
+	FGameItemSkillDefinition ActiveSkill;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Skill)
+	TArray<FGameItemSkillDefinition> PassiveSkill;
 };
 
 /**
@@ -116,7 +174,6 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 
-	
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadOnly, Category = Fragments)
 	TArray<UGameItemFragment*> Fragments;
 

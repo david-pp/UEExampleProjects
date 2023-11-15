@@ -1,0 +1,5 @@
+,0,1,2,3
+Melee_Damage,15,20,25,30
+Melee_KnockBack,1,2,4,8
+Melee_KnockBackAngle,10,45,60,65
+Melee_StunTime,0,1,5,7

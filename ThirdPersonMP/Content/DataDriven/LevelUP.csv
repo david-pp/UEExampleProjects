@@ -1,0 +1,7 @@
+Name,XPtoLvl,AdditionalHP,AchievementIcon
+1,0,0,"Texture2d'/Game/Textures/AchievementIcon1'"
+2,1000,9,"Texture2d'/Game/Textures/AchievementIcon2'"
+3,1000,10,"Texture2D'/Game/Textures/AchievementIcon3'"
+4,1500,12,"Texture2D'/Game/Textures/AchievementIcon4'"
+5,2000,14,"Texture2D'/Game/Textures/AchievementIcon5'"
+6,2000,14,"Texture2D'/Game/Textures/AchievementIcon6'"

@@ -4,6 +4,7 @@
 #include "Network/MyTestBeaconClient.h"
 
 #include "Net/UnrealNetwork.h"
+#include "Network/MyBeaconGameMode.h"
 
 
 // Sets default values
@@ -47,6 +48,36 @@ void AMyTestBeaconClient::ConnectToHost(FString HostAddress)
 	}
 }
 
+void AMyTestBeaconClient::ConnectToServerY_Implementation(const FString& ServerAddress)
+{
+	UE_LOG(LogTemp, Log, TEXT("AMyTestBeaconClient:%s - Request ConnectToServerY :%s"), *GetName(), *ServerAddress);
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AMyBeaconGameMode* GameMode = World->GetAuthGameMode<AMyBeaconGameMode>();
+		if (GameMode)
+		{
+			GameMode->ConnectToServer(ServerAddress);
+		}
+	}
+}
+
+void AMyTestBeaconClient::SayHelloToServerY_Implementation()
+{
+	UE_LOG(LogTemp, Log, TEXT("AMyTestBeaconClient:%s - Request SayHelloToServerY"), *GetName());
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AMyBeaconGameMode* GameMode = World->GetAuthGameMode<AMyBeaconGameMode>();
+		if (GameMode)
+		{
+			GameMode->SayHelloToServerY();
+		}
+	}
+}
+
 void AMyTestBeaconClient::ServerAddCounter_Implementation(int32 Value)
 {
 	BeaconCounter += Value;
@@ -64,4 +95,16 @@ void AMyTestBeaconClient::ClientAddCounterDone_Implementation(int32 CounterValue
 void AMyTestBeaconClient::MulticastAddCounterDone_Implementation(int32 CounterValue)
 {
 	UE_LOG(LogTemp, Log, TEXT("AMyTestBeaconClient:%s - MulticastAddCounterDone :%d"), *GetName(), CounterValue);
+}
+
+
+void AMyTestBeaconClient::HelloServerY_Implementation()
+{
+	UE_LOG(LogTemp, Log, TEXT("AMyTestBeaconClient:%s - HelloServerY"), *GetName());
+	HelloServerX();
+}
+
+void AMyTestBeaconClient::HelloServerX_Implementation()
+{
+	UE_LOG(LogTemp, Log, TEXT("AMyTestBeaconClient:%s - HelloServerX"), *GetName());
 }

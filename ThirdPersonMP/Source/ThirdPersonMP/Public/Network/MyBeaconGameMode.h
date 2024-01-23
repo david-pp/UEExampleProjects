@@ -34,4 +34,21 @@ public:
 	TSubclassOf<AMyTestBeaconHostObject> TestBeaconHostObjectClass;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Beacon)
 	int32 BeaconHostPort = 9999;
+
+
+public:
+	/**
+	 * DS -> DS (X->Y)
+	 */
+	UFUNCTION(BlueprintCallable)
+	void ConnectToServer(FString ServerAddress);
+
+	UFUNCTION(BlueprintCallable)
+	void SayHelloToServerY();
+	
+	UPROPERTY(Transient)
+	class AMyTestBeaconClient* ServerBeaconClient;
+	/** Class reference for spawning client beacon actor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<AOnlineBeaconClient> ServerBeaconClientClass;
 };

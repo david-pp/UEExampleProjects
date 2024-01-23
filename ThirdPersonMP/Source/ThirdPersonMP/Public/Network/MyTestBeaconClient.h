@@ -34,4 +34,24 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated)
 	int32 BeaconCounter = 0;
+
+
+	// C->HostX
+	//     - HostX -- Connect  --> HostY
+	//     - HostX -- SayHello --> HostY
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void ConnectToServerY(const FString& ServerAddress);
+
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void SayHelloToServerY();
+	
+public:
+	/**
+	 * DS -> DS
+	 * X -> Y
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void HelloServerY();
+	UFUNCTION(Client, Reliable, BlueprintCallable)
+	void HelloServerX();
 };

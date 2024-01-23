@@ -4,6 +4,7 @@
 #include "Network/MyBeaconGameMode.h"
 
 #include "Network/MyBeaconHost.h"
+#include "Network/MyTestBeaconClient.h"
 #include "Network/MyTestBeaconHostObject.h"
 
 
@@ -48,4 +49,30 @@ bool AMyBeaconGameMode::CreateBeaconHost()
 	}
 
 	return false;
+}
+
+void AMyBeaconGameMode::ConnectToServer(FString ServerAddress)
+{
+	UClass* BeaconClientClass = ServerBeaconClientClass ? ServerBeaconClientClass : AMyTestBeaconClient::StaticClass();
+	ServerBeaconClient = GetWorld()->SpawnActor<AMyTestBeaconClient>(BeaconClientClass);
+	if (ServerBeaconClient)
+	{
+		FURL ConnectURL(NULL, *ServerAddress, TRAVEL_Absolute);
+		if (ServerBeaconClient->InitClient(ConnectURL))
+		{
+			UE_LOG(LogTemp, Log, TEXT("AMyBeaconGameMode - ConnectToServer: %s."), *ConnectURL.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("AMyBeaconGameMode - ConnectToServer: Failure to init client beacon with %s."), *ConnectURL.ToString());
+		}
+	}
+}
+
+void AMyBeaconGameMode::SayHelloToServerY()
+{
+	if (ServerBeaconClient)
+	{
+		ServerBeaconClient->HelloServerY();
+	}
 }

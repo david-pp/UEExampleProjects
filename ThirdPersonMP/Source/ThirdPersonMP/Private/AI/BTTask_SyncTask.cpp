@@ -4,26 +4,9 @@
 #include "AI/BTTask_SyncTask.h"
 
 #include "AIController.h"
+#include "AI/AIFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
-
-static ACharacter* GetBTCompOwnerCharacter(UBehaviorTreeComponent* BTComp)
-{
-	if (BTComp)
-	{
-		// first, for AI
-		AAIController* AIController = BTComp->GetAIOwner();
-		if (AIController && AIController->GetPawn())
-		{
-			return Cast<ACharacter>(AIController->GetPawn());
-		}
-
-		// second, check BTComp's Owner
-		return Cast<ACharacter>(BTComp->GetOwner());
-	}
-
-	return nullptr;
-}
 
 UBTTask_SyncTask::UBTTask_SyncTask(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -43,7 +26,7 @@ EBTNodeResult::Type UBTTask_SyncTask::ExecuteTask(UBehaviorTreeComponent& OwnerC
 	if (EnableLog)
 	{
 		FString RoleString;
-		ACharacter* Character = GetBTCompOwnerCharacter(&OwnerComp);
+		ACharacter* Character = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 		if (Character)
 		{
 			RoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Character->GetLocalRole());

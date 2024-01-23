@@ -3,6 +3,7 @@
 
 #include "AI/BTTask_PlayMontage.h"
 #include "AIController.h"
+#include "AI/AIFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
@@ -154,7 +155,7 @@ UBTTask_StopMontage::UBTTask_StopMontage(const FObjectInitializer& ObjectInitial
 
 EBTNodeResult::Type UBTTask_StopMontage::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	ACharacter* const MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
+	ACharacter* const MyCharacter = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 	if (MyCharacter)
 	{
 		MyCharacter->StopAnimMontage();
@@ -174,7 +175,7 @@ UBTDecorator_MontageRatioRange::UBTDecorator_MontageRatioRange(const FObjectInit
 
 bool UBTDecorator_MontageRatioRange::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	ACharacter* MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
+	ACharacter* MyCharacter = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 	if (MyCharacter && MyCharacter->GetMesh())
 	{
 		UAnimInstance* AnimInstance = MyCharacter->GetMesh()->GetAnimInstance();
@@ -217,7 +218,7 @@ bool UBTDecorator_MontageRatioCheck::CalculateRawConditionValue(UBehaviorTreeCom
 {
 	UBTDecorator_MontageRatioCheck* MutableThis = const_cast<UBTDecorator_MontageRatioCheck*>(this);
 
-	ACharacter* MyCharacter = GetBTCompOwnerCharacter(&OwnerComp);
+	ACharacter* MyCharacter = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 	AAIController* const MyController = OwnerComp.GetAIOwner();
 	if (MyCharacter && MyCharacter->GetMesh())
 	{
@@ -293,7 +294,7 @@ UBTDecorator_MontageRatio::UBTDecorator_MontageRatio(const FObjectInitializer& O
 
 bool UBTDecorator_MontageRatio::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp));
 	if (MyCharacter)
 	{
 		FCharacterAnimNotifyDelegateInfo* Info = MyCharacter->OnAnimNotifyHandles.Find(DelegateHandle);
@@ -308,7 +309,7 @@ bool UBTDecorator_MontageRatio::CalculateRawConditionValue(UBehaviorTreeComponen
 
 void UBTDecorator_MontageRatio::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp));
 	if (MyCharacter)
 	{
 		FCharacterBTDelegate BTDelegate;
@@ -325,7 +326,7 @@ void UBTDecorator_MontageRatio::OnBecomeRelevant(UBehaviorTreeComponent& OwnerCo
 
 void UBTDecorator_MontageRatio::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	AThirdPersonMPCharacter* MyCharacter = Cast<AThirdPersonMPCharacter>(UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp));
 	if (MyCharacter)
 	{
 		MyCharacter->OnAnimNotifyHandles.Remove(DelegateHandle);
@@ -345,7 +346,7 @@ UBTDecorator_CheckNetRole::UBTDecorator_CheckNetRole(const FObjectInitializer& O
 
 bool UBTDecorator_CheckNetRole::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	ACharacter* Character = GetBTCompOwnerCharacter(&OwnerComp);
+	ACharacter* Character = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 	if (Character)
 	{
 		return Character->GetLocalRole() == NetRole;

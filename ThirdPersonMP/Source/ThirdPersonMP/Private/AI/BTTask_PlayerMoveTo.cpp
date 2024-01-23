@@ -4,25 +4,9 @@
 #include "AI/BTTask_PlayerMoveTo.h"
 
 #include "AIController.h"
+#include "AI/AIFunctionLibrary.h"
 #include "GameFramework/Character.h"
 
-static ACharacter* GetBTCompOwnerCharacter(UBehaviorTreeComponent* BTComp)
-{
-	if (BTComp)
-	{
-		// first, for AI
-		AAIController* AIController = BTComp->GetAIOwner();
-		if (AIController && AIController->GetPawn())
-		{
-			return Cast<ACharacter>(AIController->GetPawn());
-		}
-
-		// second, check BTComp's Owner
-		return Cast<ACharacter>(BTComp->GetOwner());
-	}
-
-	return nullptr;
-}
 
 UBTTask_PlayerRotation::UBTTask_PlayerRotation(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -45,7 +29,7 @@ void UBTTask_PlayerRotation::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* 
 	FBTWaitTaskMemory* MyMemory = (FBTWaitTaskMemory*)NodeMemory;
 	MyMemory->RemainingWaitTime -= DeltaSeconds;
 
-	ACharacter* Character = GetBTCompOwnerCharacter(&OwnerComp);
+	ACharacter* Character = UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp);
 	if (Character)
 	{
 		FRotator Rotator(0.f, RotateSpeed, 0);

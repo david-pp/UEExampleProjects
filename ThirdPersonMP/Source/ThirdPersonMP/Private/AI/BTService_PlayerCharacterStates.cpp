@@ -4,26 +4,9 @@
 #include "AI/BTService_PlayerCharacterStates.h"
 
 #include "AIController.h"
+#include "AI/AIFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
-
-static ACharacter* GetBTCompOwnerCharacter(UBehaviorTreeComponent* BTComp)
-{
-	if (BTComp)
-	{
-		// first, for AI
-		AAIController* AIController = BTComp->GetAIOwner();
-		if (AIController && AIController->GetPawn())
-		{
-			return Cast<ACharacter>(AIController->GetPawn());
-		}
-
-		// second, check BTComp's Owner
-		return Cast<ACharacter>(BTComp->GetOwner());
-	}
-
-	return nullptr;
-}
 
 UBTService_PlayerCharacterStates::UBTService_PlayerCharacterStates(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -68,7 +51,7 @@ void UBTService_PlayerCharacterStates::TickNode(UBehaviorTreeComponent& OwnerCom
 	}
 
 	// Get Owner's Anim Trigger ...
-	AThirdPersonMPCharacter* OwnerCharacter = Cast<AThirdPersonMPCharacter>(GetBTCompOwnerCharacter(&OwnerComp));
+	AThirdPersonMPCharacter* OwnerCharacter = Cast<AThirdPersonMPCharacter>(UAIFunctionLibrary::GetBTCompOwnerCharacter(&OwnerComp));
 	if (OwnerCharacter)
 	{
 		// Trigger Notify

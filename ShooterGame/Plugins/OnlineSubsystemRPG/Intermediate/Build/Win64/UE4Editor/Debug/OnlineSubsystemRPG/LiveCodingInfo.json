@@ -1,0 +1,12 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.OnlineSubsystemRPG.cpp.obj": [
+			"OnlineAsyncTaskManagerRPG.cpp.obj",
+			"OnlineIdentityRPG.cpp.obj",
+			"OnlineSessionRPG.cpp.obj",
+			"OnlineSubsystemModuleRPG.cpp.obj",
+			"OnlineSubsystemRPG.cpp.obj"
+		]
+	}
+}

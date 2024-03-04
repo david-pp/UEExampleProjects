@@ -1,0 +1,37 @@
+{
+	"FileVersion": 3,
+
+	"FriendlyName": "Online Subsystem RPG",
+	"Version": 1,
+	"VersionName": "1.0",
+	"Description": "Online Subsystem for RPG Game Services",
+	"Category": "Online Platform",
+	"CreatedBy": "",
+	"CreatedByURL": "http://dev.epicgames.com/services",
+	"EnabledByDefault": false,
+	"IsBetaVersion" : true,
+
+	"Modules": [
+		{
+			"Name": "OnlineSubsystemRPG",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Mac",
+				"Android"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "OnlineSubsystem",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystemUtils",
+			"Enabled": true
+		}
+	]
+}

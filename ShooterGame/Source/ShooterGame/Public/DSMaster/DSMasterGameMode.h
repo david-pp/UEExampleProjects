@@ -140,6 +140,11 @@ protected:
 	//~ Route handlers
 	bool HandleSessionInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleCreateSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRestApi(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRestApi_GetSessionList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRestApi_GetSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRestApi_GetSessionAttributeList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRestApi_GetSessionAttribute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
 	/** Http router handle */
 	TSharedPtr<IHttpRouter> HttpRouter;

@@ -218,6 +218,41 @@ void ADSMasterGameMode::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_POST,
 		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleCreateSession)
 	});
+	
+	RegisterRoute({
+		TEXT("REST API Test"),
+		FHttpPath(TEXT("/rest/devices/:id")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleRestApi)
+	});
+
+	RegisterRoute({
+		TEXT("REST API Test"),
+		FHttpPath(TEXT("/sessions")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleRestApi_GetSessionList)
+	});
+
+	RegisterRoute({
+		TEXT("REST API Test"),
+		FHttpPath(TEXT("/sessions/:session")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleRestApi_GetSession)
+	});
+
+	RegisterRoute({
+		TEXT("REST API Test"),
+		FHttpPath(TEXT("/sessions/:session/attributes")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleRestApi_GetSessionAttributeList)
+	});
+
+	RegisterRoute({
+		TEXT("REST API Test"),
+		FHttpPath(TEXT("/sessions/:session/attributes/:attribute")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateUObject(this, &ADSMasterGameMode::HandleRestApi_GetSessionAttribute)
+	});
 }
 
 bool ADSMasterGameMode::HandleSessionInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
@@ -282,6 +317,135 @@ bool ADSMasterGameMode::HandleCreateSession(const FHttpServerRequest& Request, c
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	FTCHARToUTF8 ConvertToUtf8(*ReplyText);
+	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
+	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
+	
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+void DumpServerRequest(const FHttpServerRequest& Request)
+{
+	UE_LOG(LogDSMaster, Warning, TEXT("--- ServerRequest : %s"), *Request.RelativePath.GetPath());
+
+	for (auto Header : Request.Headers)
+	{
+		UE_LOG(LogDSMaster, Warning, TEXT("- Header : %s"), *Header.Key);
+
+		for (auto Value : Header.Value)
+		{
+			UE_LOG(LogDSMaster, Warning, TEXT("-- Value : %s"), *Value);
+		} 
+	}
+
+	for (auto QueryParam : Request.QueryParams)
+	{
+		UE_LOG(LogDSMaster, Warning, TEXT("- QueryParam : %s -> %s"), *QueryParam.Key, *QueryParam.Value);
+	}
+
+	for (auto PathParam : Request.PathParams)
+	{
+		UE_LOG(LogDSMaster, Warning, TEXT("- PathParam : %s -> %s"), *PathParam.Key, *PathParam.Value);
+	}
+}
+
+bool ADSMasterGameMode::HandleRestApi(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	FString Id = Request.PathParams.FindChecked(TEXT("id"));
+
+	DumpServerRequest(Request);
+
+	UE_LOG(LogDSMaster, Warning, TEXT("HandleRestApi - %s"), *Id);
+	
+	FString Text = TEXT("done");
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Headers.Add(TEXT("content-type"), { "application/json" });
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	FTCHARToUTF8 ConvertToUtf8(*Text);
+	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
+	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
+	
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool ADSMasterGameMode::HandleRestApi_GetSessionList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	UE_LOG(LogDSMaster, Warning, TEXT("HandleRestApi_GetSessionList"));
+	
+	DumpServerRequest(Request);
+	
+	FString Text = TEXT("done");
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Headers.Add(TEXT("content-type"), { "application/json" });
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	FTCHARToUTF8 ConvertToUtf8(*Text);
+	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
+	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
+	
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool ADSMasterGameMode::HandleRestApi_GetSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	FString SessionName = Request.PathParams.FindChecked(TEXT("session"));
+	
+	UE_LOG(LogDSMaster, Warning, TEXT("HandleRestApi_GetSession - %s"), *SessionName);
+	
+	DumpServerRequest(Request);
+	
+	FString Text = TEXT("done");
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Headers.Add(TEXT("content-type"), { "application/json" });
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	FTCHARToUTF8 ConvertToUtf8(*Text);
+	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
+	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
+	
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool ADSMasterGameMode::HandleRestApi_GetSessionAttributeList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	FString SessionName = Request.PathParams.FindChecked(TEXT("session"));
+	
+	UE_LOG(LogDSMaster, Warning, TEXT("HandleRestApi_GetSessionAttributeList - %s"), *SessionName);
+	
+	DumpServerRequest(Request);
+	
+	FString Text = TEXT("done");
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Headers.Add(TEXT("content-type"), { "application/json" });
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	FTCHARToUTF8 ConvertToUtf8(*Text);
+	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
+	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
+	
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool ADSMasterGameMode::HandleRestApi_GetSessionAttribute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	FString SessionName = Request.PathParams.FindChecked(TEXT("session"));
+	FString AttributeName = Request.PathParams.FindChecked(TEXT("attribute"));
+	
+	UE_LOG(LogDSMaster, Warning, TEXT("HandleRestApi_GetSessionAttribute - %s, %s"), *SessionName, *AttributeName);
+	
+	DumpServerRequest(Request);
+	
+	FString Text = TEXT("done");
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Headers.Add(TEXT("content-type"), { "application/json" });
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	FTCHARToUTF8 ConvertToUtf8(*Text);
 	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
 	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
 	

@@ -1,0 +1,23 @@
+### Get session lists
+GET http://localhost:30000/sessions?game=ShooterGameMode
+Accept: application/json
+
+### Get session detail
+GET http://localhost:30000/sessions/100
+Accept: application/json
+
+### Get session attribute list
+GET http://localhost:30000/sessions/100/attributes
+Accept: application/json
+
+### Get session attribute
+GET http://localhost:30000/sessions/100/attributes/game
+Accept: application/json
+
+### Create session
+POST http://localhost:30000/session/create
+Content-Type: application/json
+
+{
+  "SessionName" : "ShooterGame"
+}

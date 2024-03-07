@@ -127,6 +127,9 @@ public:
 	// Settings/Attributes -> FOnlineSessionSettings
 	void SetupOnlineSessionSettings(FOnlineSessionSettings& OnlineSettings) const;
 
+	// this -> FOnlineSession
+	void SetupToOnlineSession(FOnlineSession& OnlineSession) const;
+
 public:
 	/** Session ID assigned by the backend service */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -221,4 +224,14 @@ struct FHttpHelper
 		}
 		return true;
 	}
+};
+
+
+USTRUCT()
+struct FHttpSessionSearchResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FRPGGameSessionDetails> Sessions;
 };

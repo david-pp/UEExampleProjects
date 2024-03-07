@@ -180,12 +180,3 @@ struct FHttpServerHelper
 	}
 };
 
-
-USTRUCT()
-struct FHttpSessionSearchResult
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<FRPGGameSessionDetails> Sessions;
-};

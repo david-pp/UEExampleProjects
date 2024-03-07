@@ -2,6 +2,9 @@
 
 #include "Session/GameSessionTypes.h"
 
+#include "OnlineSubsystemRPGTypes.h"
+#include "SocketSubsystem.h"
+
 void FRPGGameSessionDetails::SetupSettingsByOnlineSettings(const FOnlineSessionSettings& OnlineSettings)
 {
 	Settings.NumPublicConnections = OnlineSettings.NumPublicConnections;
@@ -102,12 +105,35 @@ void FRPGGameSessionDetails::SetupOnlineSessionSettings(FOnlineSessionSettings& 
 	}
 }
 
+void FRPGGameSessionDetails::SetupToOnlineSession(FOnlineSession& OnlineSession) const
+{
+	// Create a New Session Info & Update It
+	OnlineSession.SessionInfo = MakeShareable(new FOnlineSessionInfoRPG());
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(OnlineSession.SessionInfo);
+	if (SessionInfo)
+	{
+		SessionInfo->SessionId = FUniqueNetIdRPG(SessionId);
+		SessionInfo->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+
+		bool IsValid = false;
+		SessionInfo->HostAddr->SetIp(*HostAddress, IsValid);
+	}
+	
+	SetupOnlineSessionSettings(OnlineSession.SessionSettings);
+}
+
 void FActiveRPGGameSession::SetupFromNamedOnlineSession(FNamedOnlineSession* OnlineSession)
 {
 	if (!OnlineSession) return;
 
 	SessionDetails.SetupSettingsByOnlineSettings(OnlineSession->SessionSettings);
 	SessionDetails.SetupAttributesByOnlineSettings(OnlineSession->SessionSettings);
+
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(OnlineSession->SessionInfo);
+	if (SessionInfo)
+	{
+		SessionDetails.HostAddress = SessionInfo->HostAddr->ToString(true);
+	}
 }
 
 void FActiveRPGGameSession::SetupToNamedOnlineSession(FNamedOnlineSession* OnlineSession)
@@ -115,12 +141,20 @@ void FActiveRPGGameSession::SetupToNamedOnlineSession(FNamedOnlineSession* Onlin
 	if (!OnlineSession) return;
 
 	SessionDetails.SetupOnlineSessionSettings(OnlineSession->SessionSettings);
+
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(OnlineSession->SessionInfo);
+	if (SessionInfo)
+	{
+		// TODO: ...
+	}
 }
 
 void FActiveRPGGameSession::SetupByOnlineSettings(const FOnlineSessionSettings& Settings)
 {
 	SessionDetails.SetupSettingsByOnlineSettings(Settings);
 	SessionDetails.SetupAttributesByOnlineSettings(Settings);
+	
+
 }
 
 TSharedPtr<FOnlineSessionSettings> FActiveRPGGameSession::CreateOnlineSessionSettings() const

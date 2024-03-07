@@ -23,11 +23,6 @@ class FOnlineSessionInfoRPG : public FOnlineSessionInfo
 {
 protected:
 	/** Hidden on purpose */
-	FOnlineSessionInfoRPG(const FOnlineSessionInfoRPG& Src)
-	{
-	}
-
-	/** Hidden on purpose */
 	FOnlineSessionInfoRPG& operator=(const FOnlineSessionInfoRPG& Src)
 	{
 		return *this;
@@ -37,11 +32,17 @@ public:
 	/** Constructor */
 	FOnlineSessionInfoRPG();
 
+	FOnlineSessionInfoRPG(const FOnlineSessionInfoRPG& Src)
+		: FOnlineSessionInfo(Src), HostAddr(Src.HostAddr), SessionId(Src.SessionId)
+	{
+	}
+
 	/** 
 	 * Initialize a RPG session info with the address of this machine
 	 * and an id for the session
 	 */
 	void InitLAN(const FOnlineSubsystemRPG& Subsystem);
+	void InitDS(const FOnlineSubsystemRPG& Subsystem);
 
 	/** The ip & port that the host is listening on (valid for LAN/GameServer) */
 	TSharedPtr<class FInternetAddr> HostAddr;

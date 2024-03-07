@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IHttpRequest.h"
 #include "UObject/CoreOnline.h"
 #include "Misc/ScopeLock.h"
 #include "OnlineSessionSettings.h"
@@ -12,6 +13,34 @@
 #include "LANBeacon.h"
 
 class FOnlineSubsystemRPG;
+
+enum class EHttpRequestVerbs : uint16
+{
+	VERB_NONE   = 0,
+	VERB_GET    = 1 << 0,
+	VERB_POST   = 1 << 1,
+	VERB_PUT    = 1 << 2,
+	VERB_PATCH  = 1 << 3,
+	VERB_DELETE = 1 << 4,
+	VERB_OPTIONS = 1 << 5
+};
+
+class FHttpSessionClient
+{
+public:
+	bool Init(const FString URL)
+	{
+		SessionServiceURL = URL;
+		return true;
+	}
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest(FString RelativeURL, EHttpRequestVerbs Verb = EHttpRequestVerbs::VERB_GET) const;
+	
+protected:
+	/** Session Services Base URL */
+	FString SessionServiceURL;
+};
+
 
 /**
  * Interface definition for the online services session services 
@@ -328,14 +357,16 @@ public:
 
 protected:
 	// RPG Sessions
-	uint32 CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineSession* Session);
-	uint32 JoinRPGSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession);
+	uint32 CreateHttpSession(int32 HostingPlayerNum, FNamedOnlineSession* Session);
+	uint32 JoinHttpSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession);
 	uint32 StartRPGSession(FNamedOnlineSession* Session);
 	uint32 UpdateRPGSession(FNamedOnlineSession* Session);
 	uint32 EndRPGSession(FNamedOnlineSession* Session);
 	uint32 DestroyRPGSession(FNamedOnlineSession* Session, const FOnDestroySessionCompleteDelegate& CompletionDelegate);
-	uint32 FindRPGSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
+	uint32 FindHttpSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
 
+public:
+	FHttpSessionClient HttpSession;
 
 private:
 	bool bIsDedicatedServer = false;

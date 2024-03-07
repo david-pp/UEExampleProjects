@@ -14,6 +14,7 @@
 #include "HttpRouteHandle.h"
 #include "HttpServerRequest.h"
 #include "SessionService.h"
+#include "ShooterGameSession.h"
 #include "DSMasterGameMode.generated.h"
 
 USTRUCT(BlueprintType)
@@ -97,15 +98,29 @@ public:
 	void DebugCreateSession();
 
 	UFUNCTION(BlueprintCallable)
+	void DebugFindSession();
+
+	UFUNCTION(BlueprintCallable)
 	void DebugSessionProtocol();
 
+	/** Transient properties of a session during game creation/matchmaking */
+	FShooterGameSessionParams CurrentSessionParams;
 	/** Current host settings */
 	TSharedPtr<class FOnlineSessionSettings> HostSettings;
+	/** Current search settings */
+	TSharedPtr<class FOnlineSessionSearch> SearchSettings;
+
 	/** Delegate for creating a new session */
 	FOnCreateSessionCompleteDelegate OnCreateSessionCompleteDelegate;
+	/** Delegate for searching for sessions */
+	FOnFindSessionsCompleteDelegate OnFindSessionsCompleteDelegate;
+	
 	virtual void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+	void OnFindSessionsComplete(bool bWasSuccessful);
+	
 	/** Handles to various registered delegates */
 	FDelegateHandle OnCreateSessionCompleteDelegateHandle;
+	FDelegateHandle OnFindSessionCompleteDelegateHandle;
 
 	////////////////////////// Beacon Based //////////////////////////
 

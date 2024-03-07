@@ -54,6 +54,38 @@ void FOnlineSessionInfoRPG::InitLAN(const FOnlineSubsystemRPG& Subsystem)
 	SessionId = FUniqueNetIdRPG(OwnerGuid.ToString());
 }
 
+void FOnlineSessionInfoRPG::InitDS(const FOnlineSubsystemRPG& Subsystem)
+{
+	// Read the IP from the system
+	bool bCanBindAll;
+	HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bCanBindAll);
+
+	// The below is a workaround for systems that set hostname to a distinct address from 127.0.0.1 on a loopback interface.
+	// See e.g. https://www.debian.org/doc/manuals/debian-reference/ch05.en.html#_the_hostname_resolution
+	// and http://serverfault.com/questions/363095/why-does-my-hostname-appear-with-the-address-127-0-1-1-rather-than-127-0-0-1-in
+	// Since we bind to 0.0.0.0, we won't answer on 127.0.1.1, so we need to advertise ourselves as 127.0.0.1 for any other loopback address we may have.
+	uint32 HostIp = 0;
+	HostAddr->GetIp(HostIp); // will return in host order
+	// if this address is on loopback interface, advertise it as 127.0.0.1
+	if ((HostIp & 0xff000000) == 0x7f000000)
+	{
+		HostAddr->SetIp(0x7f000001);	// 127.0.0.1
+	}
+
+	// Now set the port that was configured
+	HostAddr->SetPort(GetPortFromNetDriver(Subsystem.GetInstanceName()));
+	
+	// // Set Ip
+	// HostAddr->SetIp(0x7f000001);	// 127.0.0.1
+	//
+	// // Now set the port that was configured
+	// HostAddr->SetPort(7777);
+
+	FGuid OwnerGuid;
+	FPlatformMisc::CreateGuid(OwnerGuid);
+	SessionId = FUniqueNetIdRPG(OwnerGuid.ToString());
+}
+
 /**
  *	Async task for ending a RPG online session
  */
@@ -235,7 +267,7 @@ bool FOnlineSessionRPG::CreateSession(int32 HostingPlayerNum, FName SessionName,
 		// Create RPG match
 		else
 		{
-			Result = CreateRPGSession(HostingPlayerNum, Session);
+			Result = CreateHttpSession(HostingPlayerNum, Session);
 		}
 
 		if (Result != ONLINE_IO_PENDING)
@@ -552,7 +584,14 @@ bool FOnlineSessionRPG::FindSessions(int32 SearchingPlayerNum, const TSharedRef<
 		SessionSearchStartInSeconds = FPlatformTime::Seconds();
 
 		// Check if its a LAN query
-		Return = FindLANSession();
+		if (!SearchSettings->bIsLanQuery)
+		{
+			Return = FindHttpSession(SearchingPlayerNum, SearchSettings);
+		}
+		else
+		{
+			Return = FindLANSession();
+		}
 
 		if (Return == ONLINE_IO_PENDING)
 		{
@@ -645,10 +684,29 @@ bool FOnlineSessionRPG::JoinSession(int32 PlayerNum, FName SessionName, const FO
 		Session->HostingPlayerNum = PlayerNum;
 
 		// Create Internet or LAN match
-		FOnlineSessionInfoRPG* NewSessionInfo = new FOnlineSessionInfoRPG();
-		Session->SessionInfo = MakeShareable(NewSessionInfo);
+		if (!Session->SessionSettings.bIsLANMatch)
+		{
+			if (DesiredSession.Session.SessionInfo.IsValid())
+			{
+				auto SearchSessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(DesiredSession.Session.SessionInfo);
 
-		Return = JoinLANSession(PlayerNum, Session, &DesiredSession.Session);
+				FOnlineSessionInfoRPG* NewSessionInfo = new FOnlineSessionInfoRPG(*SearchSessionInfo);
+				Session->SessionInfo = MakeShareable(NewSessionInfo);
+				Return = JoinHttpSession(PlayerNum, Session, &DesiredSession.Session);
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Warning, TEXT("Invalid session info on search result"), *SessionName.ToString());
+			}
+		}
+		else
+		{
+			// Create Internet or LAN match
+			FOnlineSessionInfoRPG* NewSessionInfo = new FOnlineSessionInfoRPG();
+			Session->SessionInfo = MakeShareable(NewSessionInfo);
+
+			Return = JoinLANSession(PlayerNum, Session, &DesiredSession.Session);
+		}
 
 		// turn off advertising on Join, to avoid clients advertising it over LAN
 		Session->SessionSettings.bShouldAdvertise = false;
@@ -1010,6 +1068,7 @@ void FOnlineSessionRPG::Tick(float DeltaTime)
 	TickLanTasks(DeltaTime);
 }
 
+
 void FOnlineSessionRPG::TickLanTasks(float DeltaTime)
 {
 	LANSessionManager.Tick(DeltaTime);
@@ -1277,82 +1336,51 @@ void FOnlineSessionRPG::DumpSessionState()
 		DumpNamedSession(&Sessions[SessionIdx]);
 	}
 }
-//
-// typedef TJsonWriterFactory< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriterFactory;
-// typedef TJsonWriter< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriter;
-//
-// typedef TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriterFactory;
-// typedef TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriter;
 
-
-uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineSession* Session)
+uint32 FOnlineSessionRPG::CreateHttpSession(int32 HostingPlayerNum, FNamedOnlineSession* Session)
 {
-	static const FString DiscoveryURL = TEXT("http://127.0.0.1:30000/session/create");
-
-	// Setup Options
-	FActiveRPGGameSession RPGGameSession;
-	RPGGameSession.SetupFromNamedOnlineSession(Session);
-
-	FString JsonObjectString;
-	if (!FJsonObjectConverter::UStructToJsonObjectString(RPGGameSession, JsonObjectString))
-	{
-		UE_LOG(LogOnlineSession, Warning, TEXT("\n%s"), *JsonObjectString);
-	}
-
-	//
-	// TSharedPtr<FJsonObject> Options = MakeShareable(new FJsonObject());;
-	// Options->SetStringField(TEXT("SessionName"), Session->SessionName.ToString());
-	// Options->SetNumberField(TEXT("MaxPlayers"), Session->SessionSettings.NumPrivateConnections + Session->SessionSettings.NumPublicConnections);
-	//
-	// // TODO: more options about a session
-	//
-	// FString CreateOptionsString;
-	// TSharedRef<FCondensedJsonStringWriter> Writer = FCondensedJsonStringWriterFactory::Create(&CreateOptionsString);
-	// if (FJsonSerializer::Serialize(Options.ToSharedRef(), Writer))
-	// {
-	// }
-
 	// Update Local Session Info
 	Session->SessionState = EOnlineSessionState::Creating;
 	Session->bHosting = true;
 
 	// Setup the host session info
 	FOnlineSessionInfoRPG* NewSessionInfo = new FOnlineSessionInfoRPG();
-	NewSessionInfo->InitLAN(*RPGSubsystem); // TODO:
+	NewSessionInfo->InitDS(*RPGSubsystem);
 	Session->SessionInfo = MakeShareable(NewSessionInfo);
 
+	// Setup Options
+	FActiveRPGGameSession RPGGameSession;
+	RPGGameSession.SetupFromNamedOnlineSession(Session);
+
+	FString RequestJsonString;
+	if (!FJsonObjectConverter::UStructToJsonObjectString(RPGGameSession, RequestJsonString))
+	{
+		UE_LOG(LogOnlineSession, Warning, TEXT("\n%s"), *RequestJsonString);
+	}
 
 	FName SessionName = Session->SessionName;
-	
-	auto HttpRequest = FHttpModule::Get().CreateRequest();
-	HttpRequest->SetURL(DiscoveryURL);
-	HttpRequest->SetVerb(TEXT("POST"));
-	HttpRequest->SetHeader("Content-Type", TEXT("application/json"));
-	HttpRequest->SetContentAsString(JsonObjectString);
+	auto HttpRequest = HttpSession.CreateRequest(TEXT("/session"), EHttpRequestVerbs::VERB_POST);
+	HttpRequest->SetContentAsString(RequestJsonString);
 	HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
 	{
+		UE_LOG(LogOnlineSession, Log, TEXT("CreateRPGSession - Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(),*SessionName.ToString());
+		
 		FNamedOnlineSession* Session = GetNamedSession(SessionName);
 		if (Session)
 		{
-			if (bSucceeded && HttpResponse->GetContentType() == "application/json")
+			FRPGGameSessionDetails SessionReplied;
+			if (bSucceeded
+				&& FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &SessionReplied))
 			{
-				TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-				TSharedRef<TJsonReader<TCHAR>> JsonReader =  TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-				FJsonSerializer::Deserialize(JsonReader, JsonObject);
-
-				FString SessionId = JsonObject->GetStringField("SessionId");
-				FString SessionNameReplied = JsonObject->GetStringField("SessionName");
-
-				UE_LOG(LogOnlineSession, Warning, TEXT("Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(), *SessionNameReplied);
-
 				TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
 				if (SessionInfo.IsValid())
 				{
-					SessionInfo->SessionId = FUniqueNetIdRPG(SessionId);
+					SessionInfo->SessionId = FUniqueNetIdRPG(SessionReplied.SessionId);
+
+					UE_LOG_ONLINE_SESSION(Log, TEXT("Create Session Succced - SessionId:%s"), *SessionInfo->SessionId.ToString());
 				}
 
 				Session->SessionState = EOnlineSessionState::Pending;
-
 				RegisterLocalPlayers(Session);
 			}
 			else
@@ -1369,6 +1397,111 @@ uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineS
 	});
 
 	HttpRequest->ProcessRequest();
+	return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionRPG::JoinHttpSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession)
+{
+	if (!Session->SessionInfo.IsValid())
+	{
+		UE_LOG_ONLINE_SESSION(Error, TEXT("Session (%s) has invalid session info"), *Session->SessionName.ToString());
+		return ONLINE_FAIL;
+	}
+
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
+	if (!SessionInfo->SessionId.IsValid())
+	{
+		UE_LOG_ONLINE_SESSION(Error, TEXT("Session (%s) has invalid session id"), *Session->SessionName.ToString());
+		return ONLINE_FAIL;
+	}
+
+	// Copy the session info over
+	TSharedPtr<const FOnlineSessionInfoRPG> SearchSessionInfo = StaticCastSharedPtr<const FOnlineSessionInfoRPG>(SearchSession->SessionInfo);
+	SessionInfo->HostAddr = SearchSessionInfo->HostAddr->Clone();
+
+	Session->SessionState = EOnlineSessionState::Pending;
+
+	// Join Now !!
+	return ONLINE_SUCCESS;
+
+	FName SessionName = Session->SessionName;
+	auto HttpRequest = HttpSession.CreateRequest(TEXT("/sessionjoin"), EHttpRequestVerbs::VERB_POST);
+	// HttpRequest->SetContentAsString(RequestJsonString);
+	HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	{
+		UE_LOG(LogOnlineSession, Log, TEXT("JoinRPGSession - Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(),*SessionName.ToString());
+		FNamedOnlineSession* Session = GetNamedSession(SessionName);
+		if (Session)
+		{
+			if (bSucceeded)
+			{
+				// TODO: 
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Error, TEXT("JoinRPGSession() failed for session (%s)"), *SessionName.ToString());
+				Session->SessionState = EOnlineSessionState::NoSession;
+				RemoveNamedSession(SessionName);
+			}
+		}
+
+		TriggerOnJoinSessionCompleteDelegates(SessionName, bSucceeded ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+	});
+
+	HttpRequest->ProcessRequest();
+	return ONLINE_IO_PENDING;	
+}
+
+uint32 FOnlineSessionRPG::FindHttpSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
+{
+	auto HttpRequest = HttpSession.CreateRequest(TEXT("/sessions"), EHttpRequestVerbs::VERB_GET);
+
+	// Add the search settings
+	FString URL = HttpRequest->GetURL();
+	if (SearchSettings->QuerySettings.SearchParams.Num() > 0)
+	{
+		URL = URL / FString::Printf(TEXT("?"));
+		
+		for (FSearchParams::TConstIterator It(SearchSettings->QuerySettings.SearchParams); It; ++It)
+		{
+			const FName Key = It.Key();
+			const FOnlineSessionSearchParam& SearchParam = It.Value();
+			URL += FString::Printf(TEXT("%s=%s&"), *Key.ToString(), *SearchParam.Data.ToString());
+		
+			UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
+		}
+	}
+	
+	HttpRequest->SetURL(URL);
+	HttpRequest->OnProcessRequestComplete().BindLambda([this, SearchSettings](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	{
+		UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
+
+		FHttpSessionSearchResult HttpSessionSearchResult;
+		if (bSucceeded && FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &HttpSessionSearchResult))
+		{
+			// Update SearchSettings
+			for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
+			{
+				FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
+				SessionDetail.SetupToOnlineSession(SearchResult.Session);
+			}
+			
+			SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
+		}
+		else
+		{
+			SearchSettings->SearchState = EOnlineAsyncTaskState::Failed;
+			UE_LOG_ONLINE_SESSION(Error, TEXT("GetSessionList - failed"));
+		}
+		
+		TriggerOnFindSessionsCompleteDelegates(bSucceeded);
+		CurrentSessionSearch = nullptr;
+	});
+
+	// Execute Search
+	HttpRequest->ProcessRequest();
+	SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
 	return ONLINE_IO_PENDING;
 }
 
@@ -1417,4 +1550,46 @@ FUniqueNetIdPtr FOnlineSessionRPG::CreateSessionIdFromString(const FString& Sess
 		SessionId = FUniqueNetIdRPG::Create(SessionIdStr);
 	}
 	return SessionId;
+}
+
+// --------------------
+
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FHttpSessionClient::CreateRequest(FString RelativeURL, EHttpRequestVerbs Verb) const
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+
+	FString URL = SessionServiceURL / RelativeURL; 
+	HttpRequest->SetURL(URL);
+	HttpRequest->SetHeader("Content-Type", TEXT("application/json"));
+
+	switch (Verb)
+	{
+	case EHttpRequestVerbs::VERB_GET:
+		{
+			HttpRequest->SetVerb(TEXT("GET"));
+		}
+		break;
+	case EHttpRequestVerbs::VERB_POST:
+		{
+			HttpRequest->SetVerb(TEXT("POST"));
+		}
+		break;
+	case EHttpRequestVerbs::VERB_PUT:
+		{
+			HttpRequest->SetVerb(TEXT("PUT"));
+		}
+		break;
+	case EHttpRequestVerbs::VERB_DELETE:
+		{
+			HttpRequest->SetVerb(TEXT("DELETE"));
+		}
+		break;
+	default:
+		{
+			HttpRequest->SetVerb(TEXT("GET"));
+		}
+		break;
+	}
+	
+	return HttpRequest;
 }

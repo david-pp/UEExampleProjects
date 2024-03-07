@@ -10,6 +10,7 @@
 #include "IHttpResponse.h"
 #include "JsonObjectConverter.h"
 #include "JsonObjectConverter.h"
+#include "OnlineSubsystemRPGTypes.h"
 #include "OnlineSubsystemSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
 #include "Session/GameSessionTypes.h"
@@ -28,6 +29,7 @@ ADSMasterGameMode::ADSMasterGameMode(const FObjectInitializer& ObjectInitializer
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		OnCreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &ADSMasterGameMode::OnCreateSessionComplete);
+		OnFindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(this, &ADSMasterGameMode::OnFindSessionsComplete);
 	}
 }
 
@@ -183,6 +185,34 @@ void ADSMasterGameMode::DebugCreateSession()
 	}
 }
 
+void ADSMasterGameMode::DebugFindSession()
+{
+	
+	// PlayerOwner->GetPreferredUniqueNetId().GetUniqueNetId()
+	IOnlineSubsystem* OnlineSub = Online::GetSubsystem(GetWorld());
+	if (OnlineSub)
+	{
+		CurrentSessionParams.SessionName = NAME_GameSession;
+		CurrentSessionParams.bIsLAN = true;
+		// CurrentSessionParams.bIsPresence = false;
+		CurrentSessionParams.UserId = MakeShared<FUniqueNetIdString>();
+
+		IOnlineSessionPtr Sessions = OnlineSub->GetSessionInterface();
+		if (Sessions.IsValid())
+		{
+			SearchSettings = MakeShareable(new FOnlineSessionSearch());
+			SearchSettings->bIsLanQuery = false;
+			SearchSettings->QuerySettings.Set(SEARCH_KEYWORDS, FString(TEXT("SomeThing")), EOnlineComparisonOp::Equals);
+			SearchSettings->QuerySettings.Set(FName(TEXT("TESTSETTING1")), (int32)5, EOnlineComparisonOp::Equals);
+
+			TSharedRef<FOnlineSessionSearch> SearchSettingsRef = SearchSettings.ToSharedRef();
+
+			OnFindSessionCompleteDelegateHandle = Sessions->AddOnFindSessionsCompleteDelegate_Handle(OnFindSessionsCompleteDelegate);
+			Sessions->FindSessions(*CurrentSessionParams.UserId, SearchSettingsRef);
+		}
+	}
+}
+
 void ADSMasterGameMode::DebugSessionProtocol()
 {
 	// FActiveRPGGameSession RPGGameSession;
@@ -209,6 +239,37 @@ void ADSMasterGameMode::DebugSessionProtocol()
 void ADSMasterGameMode::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
 	UE_LOG(LogDSMaster, Warning,TEXT("OnCreateSessionComplete --  %s"), *SessionName.ToString());
+}
+
+void ADSMasterGameMode::OnFindSessionsComplete(bool bWasSuccessful)
+{
+	UE_LOG(LogDSMaster, Warning,TEXT("OnFindSessionsComplete"))
+
+	IOnlineSubsystem* const OnlineSub = Online::GetSubsystem(GetWorld());
+	if (OnlineSub)
+	{
+		IOnlineSessionPtr Sessions = OnlineSub->GetSessionInterface();
+		if (Sessions.IsValid())
+		{
+			Sessions->ClearOnFindSessionsCompleteDelegate_Handle(OnFindSessionCompleteDelegateHandle);
+
+			UE_LOG(LogDSMaster, Warning, TEXT("Num Search Results: %d"), SearchSettings->SearchResults.Num());
+			for (int32 SearchIdx=0; SearchIdx < SearchSettings->SearchResults.Num(); SearchIdx++)
+			{
+				const FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults[SearchIdx];
+				DumpSession(&SearchResult.Session);
+
+				if (SearchResult.IsSessionInfoValid())
+				{
+					auto SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(SearchResult.Session.SessionInfo);
+					if (SessionInfo)
+					{
+						UE_LOG(LogDSMaster, Warning, TEXT("HostAddres: %s"), *SessionInfo->HostAddr->ToString(true));
+					}
+				}
+			}
+		}
+	}
 }
 
 bool ADSMasterGameMode::CreateBeaconHost()

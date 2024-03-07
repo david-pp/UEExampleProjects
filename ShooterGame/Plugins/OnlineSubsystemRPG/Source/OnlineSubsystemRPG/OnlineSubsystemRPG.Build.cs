@@ -13,7 +13,8 @@ public class OnlineSubsystemRPG : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"OnlineSubsystemUtils"
+				"OnlineSubsystemUtils", 
+				"JsonUtilities"
 			}
 		);
 
@@ -26,7 +27,9 @@ public class OnlineSubsystemRPG : ModuleRules
 				"Sockets",
 				"OnlineSubsystem",
 				"Json",
-				"HTTP"
+				"JsonUtilities",
+				"HTTP",
+				"HttpServer"
 			}
 		);
 	}

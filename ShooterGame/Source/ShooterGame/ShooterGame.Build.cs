@@ -36,7 +36,9 @@ public class ShooterGame : ModuleRules
 				"GameplayTasks",
 				"Gauntlet",
 				"HTTP",
-				"HttpServer"
+				"HttpServer", 
+				"OnlineSubsystemRPG", 
+				"JsonUtilities"
 			}
 		);
 
@@ -52,7 +54,9 @@ public class ShooterGame : ModuleRules
 				"PakFile",
 				"RHI",
 				"PhysicsCore",
-				"GameplayCameras"
+				"GameplayCameras", 
+				"OnlineSubsystemRPG", 
+				"JsonUtilities"
 			}
 		);
 

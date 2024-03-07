@@ -2,8 +2,11 @@
 
 #include "OnlineSessionRPG.h"
 
+#include "GameSessionTypes.h"
 #include "HttpModule.h"
 #include "IHttpResponse.h"
+#include "JsonObjectConverter.h"
+#include "JsonObjectConverter.h"
 #include "Misc/Guid.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemRPG.h"
@@ -1274,12 +1277,12 @@ void FOnlineSessionRPG::DumpSessionState()
 		DumpNamedSession(&Sessions[SessionIdx]);
 	}
 }
-
-typedef TJsonWriterFactory< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriterFactory;
-typedef TJsonWriter< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriter;
-
-typedef TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriterFactory;
-typedef TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriter;
+//
+// typedef TJsonWriterFactory< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriterFactory;
+// typedef TJsonWriter< TCHAR, TCondensedJsonPrintPolicy<TCHAR> > FCondensedJsonStringWriter;
+//
+// typedef TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriterFactory;
+// typedef TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > FPrettyJsonStringWriter;
 
 
 uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineSession* Session)
@@ -1287,18 +1290,27 @@ uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineS
 	static const FString DiscoveryURL = TEXT("http://127.0.0.1:30000/session/create");
 
 	// Setup Options
+	FActiveRPGGameSession RPGGameSession;
+	RPGGameSession.SetupFromNamedOnlineSession(Session);
 
-	TSharedPtr<FJsonObject> Options = MakeShareable(new FJsonObject());;
-	Options->SetStringField(TEXT("SessionName"), Session->SessionName.ToString());
-	Options->SetNumberField(TEXT("MaxPlayers"), Session->SessionSettings.NumPrivateConnections + Session->SessionSettings.NumPublicConnections);
-
-	// TODO: more options about a session
-	
-	FString CreateOptionsString;
-	TSharedRef<FCondensedJsonStringWriter> Writer = FCondensedJsonStringWriterFactory::Create(&CreateOptionsString);
-	if (FJsonSerializer::Serialize(Options.ToSharedRef(), Writer))
+	FString JsonObjectString;
+	if (!FJsonObjectConverter::UStructToJsonObjectString(RPGGameSession, JsonObjectString))
 	{
+		UE_LOG(LogOnlineSession, Warning, TEXT("\n%s"), *JsonObjectString);
 	}
+
+	//
+	// TSharedPtr<FJsonObject> Options = MakeShareable(new FJsonObject());;
+	// Options->SetStringField(TEXT("SessionName"), Session->SessionName.ToString());
+	// Options->SetNumberField(TEXT("MaxPlayers"), Session->SessionSettings.NumPrivateConnections + Session->SessionSettings.NumPublicConnections);
+	//
+	// // TODO: more options about a session
+	//
+	// FString CreateOptionsString;
+	// TSharedRef<FCondensedJsonStringWriter> Writer = FCondensedJsonStringWriterFactory::Create(&CreateOptionsString);
+	// if (FJsonSerializer::Serialize(Options.ToSharedRef(), Writer))
+	// {
+	// }
 
 	// Update Local Session Info
 	Session->SessionState = EOnlineSessionState::Creating;
@@ -1316,7 +1328,7 @@ uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineS
 	HttpRequest->SetURL(DiscoveryURL);
 	HttpRequest->SetVerb(TEXT("POST"));
 	HttpRequest->SetHeader("Content-Type", TEXT("application/json"));
-	HttpRequest->SetContentAsString(CreateOptionsString);
+	HttpRequest->SetContentAsString(JsonObjectString);
 	HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
 	{
 		FNamedOnlineSession* Session = GetNamedSession(SessionName);

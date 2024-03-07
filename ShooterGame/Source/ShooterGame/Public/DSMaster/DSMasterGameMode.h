@@ -13,6 +13,7 @@
 #include "IHttpRouter.h"
 #include "HttpRouteHandle.h"
 #include "HttpServerRequest.h"
+#include "SessionService.h"
 #include "DSMasterGameMode.generated.h"
 
 USTRUCT(BlueprintType)
@@ -59,32 +60,6 @@ struct FDSMasterGameSessionSettings
 	FString DSAgentServer;
 };
 
-/////////////// HTTP Based ////////////
-
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDSMasterServerStarted, uint32 /*Port*/);
-
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FDSMasterRequestHandlerDelegate, const FHttpServerRequest&, const FHttpResultCallback&);
-
-struct FDSMasterRequestRoute
-{
-	FDSMasterRequestRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb, FDSMasterRequestHandlerDelegate InHandler) : RouteDescription(MoveTemp(InRouteDescription)), Path(MoveTemp(InPath)), Verb(InVerb), Handler(MoveTemp(InHandler))
-	{
-	}
-
-	/** A description of how the route should be used. */
-	FString RouteDescription;
-	/** Relative path (ie. /remote/object) */
-	FHttpPath Path;
-	/** The desired HTTP verb (ie. GET, PUT..) */
-	EHttpServerRequestVerbs Verb = EHttpServerRequestVerbs::VERB_GET;
-	/** The handler called when the route is accessed. */
-	FDSMasterRequestHandlerDelegate Handler;
-
-	friend uint32 GetTypeHash(const FDSMasterRequestRoute& Route) { return HashCombine(GetTypeHash(Route.Path), GetTypeHash(Route.Verb)); }
-	friend bool operator==(const FDSMasterRequestRoute& LHS, const FDSMasterRequestRoute& RHS) { return LHS.Path == RHS.Path && LHS.Verb == RHS.Verb; }
-};
-
-//// 
 
 
 UCLASS()
@@ -109,58 +84,8 @@ public:
 	bool IsAgent() const;
 
 	////////////////////////// HTTP Based //////////////////////////
-public:
-	/**
-	 * Start the web control server
-	 */
-	void StartHttpServer();
+	FHttpSessionService HttpSessionService;
 
-	/**
-	 * Stop the web control server.
-	 */
-	void StopHttpServer();
-
-	/**
-	 * Register a route to the API.
-	 * @param Route The route to register.
-	 */
-	void RegisterRoute(const FDSMasterRequestRoute& Route);
-
-	//~ Server started stopped delegates.
-	FOnDSMasterServerStarted OnHttpServerStartedDelegate;
-	FSimpleMulticastDelegate OnHttpServerStoppedDelegate;
-
-protected:
-	/** Bind the route in the http router and add it to the list of active routes. */
-	void StartRoute(const FDSMasterRequestRoute& Route);
-
-	/** Register HTTP and Websocket routes. */
-	void RegisterRoutes();
-
-	//~ Route handlers
-	bool HandleSessionInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleCreateSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleRestApi(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleRestApi_GetSessionList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleRestApi_GetSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleRestApi_GetSessionAttributeList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleRestApi_GetSessionAttribute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-
-	/** Http router handle */
-	TSharedPtr<IHttpRouter> HttpRouter;
-
-	/** Mapping of routes to delegate handles */
-	TMap<uint32, FHttpRouteHandle> ActiveRouteHandles;
-
-	/** Set of routes that will be activated on http server start. */
-	TSet<FDSMasterRequestRoute> RegisteredHttpRoutes;
-
-	/** List of preprocessor delegates that need to be registered when the server is started. */
-	TMap<FDelegateHandle, FHttpRequestHandler> PreprocessorsToRegister;
-	/** Mappings of preprocessors delegate handles generated from the WebRC module to the ones generated from the Http Module.*/
-	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
-
-public:
 	/** HTTP server's port. */
 	UPROPERTY(config, EditAnywhere, Category = "HTTPServerPort")
 	uint32 HttpServerPort = 30000;
@@ -170,6 +95,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DebugCreateSession();
+
+	UFUNCTION(BlueprintCallable)
+	void DebugSessionProtocol();
 
 	/** Current host settings */
 	TSharedPtr<class FOnlineSessionSettings> HostSettings;
@@ -196,7 +124,6 @@ public:
 	TSubclassOf<ADSMasterBeaconHost> DSMasterBeaconHostObjectClass;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconHost)
 	TSubclassOf<ADSBeaconHost> DSBeaconHostObjectClass;
-
 
 	//
 	// Agent -> Manager

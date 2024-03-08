@@ -273,7 +273,10 @@ void AShooterGameMode::PreLogin(const FString& Options, const FString& Address, 
 	else
 	{
 		// GameSession can be NULL if the match is over
-		Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+		// Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+
+		ErrorMessage = GameSession->ApproveLogin(Options);
+		FGameModeEvents::GameModePreLoginEvent.Broadcast(this, UniqueId, ErrorMessage);
 	}
 }
 

@@ -387,6 +387,120 @@ bool ADSMasterGameMode::CreateGameServerInstance(FDSMasterGameSessionSettings Se
 	return false;
 }
 
+bool ADSMasterGameMode::DebugCreateGameServerInstance(FDSMasterGameSessionSettings SessionSettings)
+{
+	FString BinaryDir = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+	FString GameServerExePath = BinaryDir / ServerName;
+	GameServerExePath = FPaths::ConvertRelativePathToFull(GameServerExePath);
+	FPaths::NormalizeFilename(GameServerExePath);
+
+	FString Cmd = SessionSettings.MapName;
+	if (SessionSettings.Options.Len() > 0)
+	{
+		Cmd += FString(TEXT("?")) + SessionSettings.Options;
+	}
+
+	const int32 ServerPort = AllocateServerPort();
+
+	Cmd += TEXT(" -Log");
+	Cmd += FString::Printf(TEXT(" -Port=%d"), ServerPort);
+
+	if (SessionSettings.DebugExe.Len() > 0)
+	{
+		// GameServerProcess = MakeShared<FInteractiveProcess>(*SessionSettings.DebugExe, TEXT(""), false, true);
+		GameServerProcess = MakeShared<FGameServerProcess>(*SessionSettings.DebugExe, TEXT(""), false, true);
+	}
+	else
+	{
+		// GameServerProcess = MakeShared<FInteractiveProcess>(*GameServerExePath, *Cmd, false, true);
+		GameServerProcess = MakeShared<FGameServerProcess>(*GameServerExePath, *Cmd, false, false, false);
+	}
+
+	GameServerProcess->OnOutput().BindLambda([](const FString& Output)
+	{
+		UE_LOG(LogDSMaster, Log, TEXT("> %s"), *Output);
+	});
+
+	GameServerProcess->OnCanceled().BindLambda([]()
+	{
+		UE_LOG(LogDSMaster, Warning, TEXT("OnCanceled"));
+	});
+
+	GameServerProcess->OnCompleted().BindLambda([](int32 ReturnCode)
+	{
+		UE_LOG(LogDSMaster, Warning, TEXT("OnCompleted : %d"), ReturnCode);
+	});
+
+	FTimerHandle DummyHandle;
+	GetWorldTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateLambda([this]()
+	{
+		if (GameServerProcess)
+		{
+			if (GameServerProcess->Update())
+			{
+				UE_LOG(LogDSMaster, Log, TEXT("Server is Running : %s - %s"), *GameServerProcess->GetProcessInfo().Name, *GameServerProcess->GetProcessInfo().UUID.ToString());
+			}
+			else
+			{
+				UE_LOG(LogDSMaster, Warning, TEXT("Server is Over : %s - %s"), *GameServerProcess->GetProcessInfo().Name, *GameServerProcess->GetProcessInfo().UUID.ToString());
+			}
+		}
+	}), 1, true);
+
+	GameServerProcess->Launch();
+	return true;
+}
+
+bool ADSMasterGameMode::DebugCancelGameServerProcess()
+{
+	if (GameServerProcess)
+	{
+		GameServerProcess->Cancel(true);
+		GameServerProcess = nullptr;
+	}
+	return true;
+}
+
+bool ADSMasterGameMode::DebugCreateGameServerInstanceWithNamedPipe(FDSMasterGameSessionSettings SessionSettings)
+{
+	FString BinaryDir = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+	FString GameServerExePath = BinaryDir / ServerName;
+	GameServerExePath = FPaths::ConvertRelativePathToFull(GameServerExePath);
+	FPaths::NormalizeFilename(GameServerExePath);
+
+	FString Cmd = SessionSettings.MapName;
+	if (SessionSettings.Options.Len() > 0)
+	{
+		Cmd += FString(TEXT("?")) + SessionSettings.Options;
+	}
+
+	const int32 ServerPort = AllocateServerPort();
+
+	Cmd += TEXT(" -Log");
+	Cmd += FString::Printf(TEXT(" -Port=%d"), ServerPort);
+
+	// -------------------------
+	
+	FString PipeName = TEXT("DSMaster");
+
+	// Create the output pipe as a server...
+	if (!OutputNamedPipe.Create(FString::Printf(TEXT("\\\\.\\pipe\\%s-A"), *PipeName), true, false))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create the output named pipe."));
+		return false;
+	}
+
+	// Wait for to connect to the output pipe
+	if (!OutputNamedPipe.OpenConnection())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to open a connection on the output named pipe."));
+		return false;
+	}
+
+	
+	return true;
+}
+
 int32 ADSMasterGameMode::AllocateServerPort()
 {
 	static int32 LastServerPort = ServerPort;

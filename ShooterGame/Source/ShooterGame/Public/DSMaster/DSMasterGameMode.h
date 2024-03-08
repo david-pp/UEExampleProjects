@@ -8,11 +8,13 @@
 #include "DSMasterBeaconHost.h"
 #include "DSMasterBeaconClient.h"
 #include "DSMasterTypes.h"
+#include "GameServerManager.h"
 #include "OnlineBeaconHost.h"
 #include "HttpPath.h"
 #include "IHttpRouter.h"
 #include "HttpRouteHandle.h"
 #include "HttpServerRequest.h"
+#include "InteractiveProcess.h"
 #include "SessionService.h"
 #include "ShooterGameSession.h"
 #include "DSMasterGameMode.generated.h"
@@ -59,6 +61,9 @@ struct FDSMasterGameSessionSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString DSAgentServer;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString DebugExe;
 };
 
 
@@ -169,6 +174,21 @@ public:
 	// Create Game Server Instances
 	UFUNCTION(BlueprintCallable, Category=DSMaster)
 	bool CreateGameServerInstance(FDSMasterGameSessionSettings SessionSettings);
+
+	// ~ Debug for FInteractiveProcess
+	UFUNCTION(BlueprintCallable, Category=DSMaster)
+	bool DebugCreateGameServerInstance(FDSMasterGameSessionSettings SessionSettings);
+	UFUNCTION(BlueprintCallable, Category=DSMaster)
+	bool DebugCancelGameServerProcess();
+	// TSharedPtr<FInteractiveProcess> GameServerProcess;
+	TSharedPtr<FGameServerProcess> GameServerProcess;
+	
+	// ~ Debug for NamedPipe
+	UFUNCTION(BlueprintCallable, Category=DSMaster)
+	bool DebugCreateGameServerInstanceWithNamedPipe(FDSMasterGameSessionSettings SessionSettings);
+
+	// We need two pipes, as the named pipe API does not support simultaneous read/write on two threads.
+	FPlatformNamedPipe InputNamedPipe, OutputNamedPipe;
 
 	UPROPERTY(Config)
 	FString ServerName;

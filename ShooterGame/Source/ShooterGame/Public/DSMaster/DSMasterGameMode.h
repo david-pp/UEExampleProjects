@@ -182,6 +182,7 @@ public:
 	bool DebugCancelGameServerProcess();
 	// TSharedPtr<FInteractiveProcess> GameServerProcess;
 	TSharedPtr<FGameServerProcess> GameServerProcess;
+	FGameServerManager GameServerManager;
 	
 	// ~ Debug for NamedPipe
 	UFUNCTION(BlueprintCallable, Category=DSMaster)

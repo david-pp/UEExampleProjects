@@ -405,15 +405,28 @@ bool ADSMasterGameMode::DebugCreateGameServerInstance(FDSMasterGameSessionSettin
 	Cmd += TEXT(" -Log");
 	Cmd += FString::Printf(TEXT(" -Port=%d"), ServerPort);
 
+	FGameServerLaunchSettings LaunchSettings;
+	LaunchSettings.URL = GameServerExePath;
+	LaunchSettings.Params = Cmd;
+	GameServerManager.LaunchGameServer(LaunchSettings);
+
+	FTimerHandle DummyHandle2;
+	GetWorldTimerManager().SetTimer(DummyHandle2, FTimerDelegate::CreateLambda([this]()
+	{
+		GameServerManager.CheckAndUpdateGameServers();
+	}), 1, true);
+
+	return true;
+
 	if (SessionSettings.DebugExe.Len() > 0)
 	{
 		// GameServerProcess = MakeShared<FInteractiveProcess>(*SessionSettings.DebugExe, TEXT(""), false, true);
-		GameServerProcess = MakeShared<FGameServerProcess>(*SessionSettings.DebugExe, TEXT(""), false, true);
+		GameServerProcess = FGameServerProcess::CreateGameServer(*SessionSettings.DebugExe, TEXT(""), false, true);
 	}
 	else
 	{
 		// GameServerProcess = MakeShared<FInteractiveProcess>(*GameServerExePath, *Cmd, false, true);
-		GameServerProcess = MakeShared<FGameServerProcess>(*GameServerExePath, *Cmd, false, false, false);
+		GameServerProcess = FGameServerProcess::CreateGameServer(*GameServerExePath, *Cmd, false, false, false);
 	}
 
 	GameServerProcess->OnOutput().BindLambda([](const FString& Output)
@@ -453,11 +466,13 @@ bool ADSMasterGameMode::DebugCreateGameServerInstance(FDSMasterGameSessionSettin
 
 bool ADSMasterGameMode::DebugCancelGameServerProcess()
 {
-	if (GameServerProcess)
-	{
-		GameServerProcess->Cancel(true);
-		GameServerProcess = nullptr;
-	}
+	GameServerManager.StopAllGameServers();
+	
+	// if (GameServerProcess)
+	// {
+	// 	GameServerProcess->Cancel(true);
+	// 	GameServerProcess = nullptr;
+	// }
 	return true;
 }
 

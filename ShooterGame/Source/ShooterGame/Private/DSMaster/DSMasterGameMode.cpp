@@ -13,17 +13,18 @@
 #include "OnlineSubsystemRPGTypes.h"
 #include "OnlineSubsystemSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
-#include "Session/GameSessionTypes.h"
+#include "GameSessionTypes.h"
+#include "OnlineBeaconHost.h"
 
 ADSMasterGameMode::ADSMasterGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// PlayerControllerClass = AShooterPlayerController_Menu::StaticClass();
-	DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
-	DSBeaconHostObjectClass = ADSBeaconHost::StaticClass();
-
-	DSMasterBeaconClientClass = ADSMasterBeaconClient::StaticClass();
-
-	DSMaterServerAddress = TEXT("127.0.0.1:15000");
+	// DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
+	// DSBeaconHostObjectClass = ADSBeaconHost::StaticClass();
+	//
+	// DSMasterBeaconClientClass = ADSMasterBeaconClient::StaticClass();
+	//
+	// DSMaterServerAddress = TEXT("127.0.0.1:15000");
 
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -43,61 +44,60 @@ void ADSMasterGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	HttpSessionService.StopHttpServer();
+	DSMasterService.StopHttpServer();
 }
 
 void ADSMasterGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
 
-	// Setup DSMasterMode
-	FString DSMasterModeStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("DSMaster="), DSMasterModeStr))
-	{
-		if (DSMasterModeStr.Compare(TEXT("Manager"), ESearchCase::IgnoreCase) == 0)
-		{
-			DSMasterMode = EDSMasterMode::Manager;
-		}
-		else if (DSMasterModeStr.Compare(TEXT("Agent"), ESearchCase::IgnoreCase) == 0)
-		{
-			DSMasterMode = EDSMasterMode::Agent;
-		}
-		else
-		{
-			DSMasterMode = EDSMasterMode::None;
-		}
-	}
-	else
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("DSMaster")))
-		{
-			DSMasterMode = EDSMasterMode::AllInOne;
-		}
-		else
-		{
-			DSMasterMode = EDSMasterMode::None;
-		}
-	}
-
-	UEnum* MasterModeEnum = StaticEnum<EDSMasterMode>();
-	if (MasterModeEnum)
-	{
-		UE_LOG(LogDSMaster, Log, TEXT("DSMasterMode = %s"), *MasterModeEnum->GetNameStringByValue(static_cast<int64>(DSMasterMode)));
-	}
-
-	// Setup DSMasterServer Address
-	FString DSMasterServerStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("DSMasterServer="), DSMasterServerStr))
-	{
-		DSMaterServerAddress = DSMasterServerStr;
-	}
-
-	UE_LOG(LogDSMaster, Log, TEXT("DSMaterServerAddress = %s"), *DSMaterServerAddress);
+	// // Setup DSMasterMode
+	// FString DSMasterModeStr;
+	// if (FParse::Value(FCommandLine::Get(), TEXT("DSMaster="), DSMasterModeStr))
+	// {
+	// 	if (DSMasterModeStr.Compare(TEXT("Manager"), ESearchCase::IgnoreCase) == 0)
+	// 	{
+	// 		DSMasterMode = EDSMasterMode::Manager;
+	// 	}
+	// 	else if (DSMasterModeStr.Compare(TEXT("Agent"), ESearchCase::IgnoreCase) == 0)
+	// 	{
+	// 		DSMasterMode = EDSMasterMode::Agent;
+	// 	}
+	// 	else
+	// 	{
+	// 		DSMasterMode = EDSMasterMode::None;
+	// 	}
+	// }
+	// else
+	// {
+	// 	if (FParse::Param(FCommandLine::Get(), TEXT("DSMaster")))
+	// 	{
+	// 		DSMasterMode = EDSMasterMode::AllInOne;
+	// 	}
+	// 	else
+	// 	{
+	// 		DSMasterMode = EDSMasterMode::None;
+	// 	}
+	// }
+	//
+	// UEnum* MasterModeEnum = StaticEnum<EDSMasterMode>();
+	// if (MasterModeEnum)
+	// {
+	// 	UE_LOG(LogDSMaster, Log, TEXT("DSMasterMode = %s"), *MasterModeEnum->GetNameStringByValue(static_cast<int64>(DSMasterMode)));
+	// }
+	//
+	// // Setup DSMasterServer Address
+	// FString DSMasterServerStr;
+	// if (FParse::Value(FCommandLine::Get(), TEXT("DSMasterServer="), DSMasterServerStr))
+	// {
+	// 	DSMaterServerAddress = DSMasterServerStr;
+	// }
+	//
+	// UE_LOG(LogDSMaster, Log, TEXT("DSMaterServerAddress = %s"), *DSMaterServerAddress);
 
 	// Run as HTTP Server
-	HttpSessionService.Init(HttpServerPort);
-	// RegisterRoutes();
-	// StartHttpServer();
+	// DSMasterService.InitHttpServer(HttpServerPort);
+	
 }
 
 // Called every frame
@@ -110,22 +110,15 @@ void ADSMasterGameMode::StartPlay()
 {
 	Super::StartPlay();
 
-	CreateBeaconHost();
-
-	if (IsAgent())
-	{
-		ConnectToMasterServer(DSMaterServerAddress);
-	}
-}
-
-bool ADSMasterGameMode::IsManager() const
-{
-	return DSMasterMode == EDSMasterMode::AllInOne || DSMasterMode == EDSMasterMode::Manager;
-}
-
-bool ADSMasterGameMode::IsAgent() const
-{
-	return DSMasterMode == EDSMasterMode::AllInOne || DSMasterMode == EDSMasterMode::Agent;
+	FString ErrorMessage;
+	DSMasterService.InitServer(GetWorld(), ErrorMessage);
+	//
+	// CreateBeaconHost();
+	//
+	// if (IsAgent())
+	// {
+	// 	ConnectToMasterServer(DSMaterServerAddress);
+	// }
 }
 
 void ADSMasterGameMode::DebugRequestSessionInfo()
@@ -187,7 +180,6 @@ void ADSMasterGameMode::DebugCreateSession()
 
 void ADSMasterGameMode::DebugFindSession()
 {
-	
 	// PlayerOwner->GetPreferredUniqueNetId().GetUniqueNetId()
 	IOnlineSubsystem* OnlineSub = Online::GetSubsystem(GetWorld());
 	if (OnlineSub)
@@ -211,29 +203,6 @@ void ADSMasterGameMode::DebugFindSession()
 			Sessions->FindSessions(*CurrentSessionParams.UserId, SearchSettingsRef);
 		}
 	}
-}
-
-void ADSMasterGameMode::DebugSessionProtocol()
-{
-	// FActiveRPGGameSession RPGGameSession;
-	// RPGGameSession.SetupByOnlineSettings(*ShooterHostSettings);
-	//
-	// FString JsonObjectString;
-	// if (FJsonObjectConverter::UStructToJsonObjectString(RPGGameSession, JsonObjectString))
-	// {
-	// 	UE_LOG(LogDSMaster, Warning, TEXT("\n%s"), *JsonObjectString);
-	// }
-	//
-	// FActiveRPGGameSession RPGGameSession2;
-	// if (FJsonObjectConverter::JsonObjectStringToUStruct(JsonObjectString, &RPGGameSession2))
-	// {
-	// 	TSharedPtr<FOnlineSessionSettings> Settings = RPGGameSession2.CreateOnlineSessionSettings();
-	// 	if (Settings)
-	// 	{
-	// 		DumpSessionSettings(Settings.Get());
-	// 	}
-	// }
-	//
 }
 
 void ADSMasterGameMode::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -272,84 +241,6 @@ void ADSMasterGameMode::OnFindSessionsComplete(bool bWasSuccessful)
 	}
 }
 
-bool ADSMasterGameMode::CreateBeaconHost()
-{
-	if (DSMasterMode == EDSMasterMode::None)
-	{
-		UE_LOG(LogDSMaster, Warning, TEXT("CreateBeaconHost - DSMasterMode=None"));
-		return false;
-	}
-
-	BeaconHost = GetWorld()->SpawnActor<AOnlineBeaconHost>(AOnlineBeaconHost::StaticClass());
-	if (!BeaconHost)
-	{
-		UE_LOG(LogDSMaster, Error, TEXT("CreateBeaconHost - Spawn AOnlineBeaconHost Failed"));
-		return false;
-	}
-
-	if (BeaconHostPort > 0)
-	{
-		BeaconHost->ListenPort = BeaconHostPort;
-	}
-
-	if (!BeaconHost->InitHost())
-	{
-		UE_LOG(LogDSMaster, Error, TEXT("CreateBeaconHost - InitHost Failed"));
-		return false;
-	}
-
-	// Set Beacon state : EBeaconState::AllowRequests
-	BeaconHost->PauseBeaconRequests(false);
-
-	UE_LOG(LogDSMaster, Log, TEXT("Init Master Beacon Host, ListenPort=%d"), BeaconHost->GetListenPort())
-
-	if (DSMasterMode == EDSMasterMode::AllInOne || DSMasterMode == EDSMasterMode::Manager)
-	{
-		if (DSMasterBeaconHostObjectClass)
-		{
-			DSMasterHost = GetWorld()->SpawnActor<ADSMasterBeaconHost>(DSMasterBeaconHostObjectClass);
-			if (DSMasterHost)
-			{
-				BeaconHost->RegisterHost(DSMasterHost);
-				UE_LOG(LogDSMaster, Log, TEXT("RegisterHost - Master Host : %s"), *DSMasterBeaconHostObjectClass->GetName());
-			}
-		}
-		else
-		{
-			UE_LOG(LogDSMaster, Warning, TEXT("RegisterHost - Master Host : Invalid"));
-		}
-	}
-
-	// if (DSMasterMode == EDSMasterMode::AllInOne || DSMasterMode == EDSMasterMode::Agent)
-	{
-		if (DSBeaconHostObjectClass)
-		{
-			DSHost = GetWorld()->SpawnActor<ADSBeaconHost>(DSBeaconHostObjectClass);
-			if (DSHost)
-			{
-				BeaconHost->RegisterHost(DSHost);
-				UE_LOG(LogDSMaster, Log, TEXT("RegisterHost - DS Host : %s"), *DSMasterBeaconHostObjectClass->GetName());
-			}
-		}
-		else
-		{
-			UE_LOG(LogDSMaster, Warning, TEXT("RegisterHost - DS Host : Invalid"));
-		}
-	}
-
-	return true;
-}
-
-bool ADSMasterGameMode::ConnectToMasterServer(FString ServerAddress)
-{
-	DSMasterClient = GetWorld()->SpawnActor<ADSMasterBeaconClient>(DSMasterBeaconClientClass);
-	if (DSMasterClient)
-	{
-		DSMasterClient->BeaconClientType = EDSMasterBeaconClientType::DSAgent;
-		return DSMasterClient->ConnectToMasterServer(ServerAddress);
-	}
-	return false;
-}
 
 bool ADSMasterGameMode::CreateGameServerInstance(FDSMasterGameSessionSettings SessionSettings)
 {

@@ -29,7 +29,8 @@ public class OnlineSubsystemRPG : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"HTTP",
-				"HTTPServer"
+				"HTTPServer", 
+				"DSMaster"
 			}
 		);
 	}

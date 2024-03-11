@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "DSMaster",
+	"Description": "Game Session Service",
+	"Category": "Other",
+	"CreatedBy": "Davidpp",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "DSMaster",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

@@ -37,7 +37,8 @@ public class ShooterGame : ModuleRules
 				"Gauntlet",
 				"HTTP",
 				"OnlineSubsystemRPG", 
-				"JsonUtilities"
+				"JsonUtilities", 
+				"DSMaster"
 			}
 		);
 

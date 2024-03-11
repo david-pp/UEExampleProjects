@@ -42,6 +42,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DSMaster",
+			"Enabled": true
+		},
+		{
 			"Name": "OnlineSubsystemRPG",
 			"Enabled": true
 		},

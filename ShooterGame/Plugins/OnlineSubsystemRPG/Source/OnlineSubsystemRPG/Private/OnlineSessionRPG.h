@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameSessionTypes.h"
 #include "IHttpRequest.h"
 #include "UObject/CoreOnline.h"
 #include "Misc/ScopeLock.h"
@@ -366,7 +367,17 @@ protected:
 	uint32 FindHttpSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
 
 public:
+	// Http Session Client
 	FHttpSessionClient HttpSession;
+
+	//
+	// Helper Functions
+	//
+
+	// OnlineSession -> SessionDetails
+	static void SetupHttpSessionDetails(FRPGGameSessionDetails& SessionDetails, FNamedOnlineSession* OnlineSession);
+	// SessionDetails -> OnlineSession
+	static void SetupOnlineSession(FOnlineSession* OnlineSession, const FRPGGameSessionDetails& SessionDetails);
 
 private:
 	bool bIsDedicatedServer = false;

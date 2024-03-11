@@ -9,13 +9,8 @@
 #include "DSMasterBeaconClient.h"
 #include "DSMasterTypes.h"
 #include "GameServerManager.h"
-#include "OnlineBeaconHost.h"
-#include "HttpPath.h"
-#include "IHttpRouter.h"
-#include "HttpRouteHandle.h"
-#include "HttpServerRequest.h"
 #include "InteractiveProcess.h"
-#include "SessionService.h"
+#include "DSMasterService.h"
 #include "ShooterGameSession.h"
 #include "DSMasterGameMode.generated.h"
 
@@ -84,13 +79,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void StartPlay() override;
 
-	UFUNCTION(BlueprintPure, Category=DSMaster)
-	bool IsManager() const;
-	UFUNCTION(BlueprintPure, Category=DSMaster)
-	bool IsAgent() const;
-
 	////////////////////////// HTTP Based //////////////////////////
-	FHttpSessionService HttpSessionService;
+	FDSMasterService DSMasterService;
 
 	/** HTTP server's port. */
 	UPROPERTY(config, EditAnywhere, Category = "HTTPServerPort")
@@ -104,9 +94,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DebugFindSession();
-
-	UFUNCTION(BlueprintCallable)
-	void DebugSessionProtocol();
 
 	/** Transient properties of a session during game creation/matchmaking */
 	FShooterGameSessionParams CurrentSessionParams;
@@ -126,49 +113,6 @@ public:
 	/** Handles to various registered delegates */
 	FDelegateHandle OnCreateSessionCompleteDelegateHandle;
 	FDelegateHandle OnFindSessionCompleteDelegateHandle;
-
-	////////////////////////// Beacon Based //////////////////////////
-
-	//
-	// DS Master Server
-	// 
-	UFUNCTION(BlueprintCallable, Category=DSMaster)
-	bool CreateBeaconHost();
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DSMaster)
-	EDSMasterMode DSMasterMode = EDSMasterMode::AllInOne;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconHost)
-	int32 BeaconHostPort = 15000;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconHost)
-	TSubclassOf<ADSMasterBeaconHost> DSMasterBeaconHostObjectClass;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconHost)
-	TSubclassOf<ADSBeaconHost> DSBeaconHostObjectClass;
-
-	//
-	// Agent -> Manager
-	// 
-	UFUNCTION(BlueprintCallable, Category=DSMaster)
-	bool ConnectToMasterServer(FString ServerAddress);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconClient)
-	TSubclassOf<ADSMasterBeaconClient> DSMasterBeaconClientClass;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BeaconClient)
-	FString DSMaterServerAddress;
-
-protected:
-	UPROPERTY(Transient)
-	AOnlineBeaconHost* BeaconHost;
-
-	UPROPERTY(Transient)
-	ADSMasterBeaconHost* DSMasterHost;
-
-	UPROPERTY(Transient)
-	ADSBeaconHost* DSHost;
-
-	UPROPERTY(Transient)
-	class ADSMasterBeaconClient* DSMasterClient;
-
 public:
 	//
 	// Create Game Server Instances

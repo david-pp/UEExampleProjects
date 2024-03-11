@@ -264,8 +264,8 @@ public:
 
 public:
 	UPROPERTY(Transient)
-	class ADSBeaconClient* DSAgentClient;
+	class ADSMasterBeaconClient* DSMasterClient;
 
-	bool ConnectToAgentServer(FString ServerAddress);
+	bool ConnectToDSMasterServer(FString ServerAddress);
 };
 

@@ -24,7 +24,7 @@ bool AShooterPlayerController_Menu::ConnectToMasterServer(FString ServerAddress)
 	DSMasterClient = GetWorld()->SpawnActor<ADSMasterBeaconClient>(ADSMasterBeaconClient::StaticClass());
 	if (DSMasterClient)
 	{
-		DSMasterClient->BeaconClientType = EDSMasterBeaconClientType::GameClient;
+		DSMasterClient->Settings.ClientType = EDSMasterClientType::GameClient;
 		return DSMasterClient->ConnectToMasterServer(ServerAddress);
 	}
 	return false;

@@ -1349,11 +1349,11 @@ uint32 FOnlineSessionRPG::CreateHttpSession(int32 HostingPlayerNum, FNamedOnline
 	Session->SessionInfo = MakeShareable(NewSessionInfo);
 
 	// Setup Options
-	FActiveRPGGameSession RPGGameSession;
-	RPGGameSession.SetupFromNamedOnlineSession(Session);
+	FRPGGameSessionDetails SessionDetails;
+	SetupHttpSessionDetails(SessionDetails, Session);
 
 	FString RequestJsonString;
-	if (!FJsonObjectConverter::UStructToJsonObjectString(RPGGameSession, RequestJsonString))
+	if (!FJsonObjectConverter::UStructToJsonObjectString(SessionDetails, RequestJsonString))
 	{
 		UE_LOG(LogOnlineSession, Warning, TEXT("\n%s"), *RequestJsonString);
 	}
@@ -1484,7 +1484,7 @@ uint32 FOnlineSessionRPG::FindHttpSession(int32 SearchingPlayerNum, const TShare
 			for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
 			{
 				FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
-				SessionDetail.SetupToOnlineSession(SearchResult.Session);
+				SetupOnlineSession(&SearchResult.Session, SessionDetail);
 			}
 			
 			SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
@@ -1503,6 +1503,129 @@ uint32 FOnlineSessionRPG::FindHttpSession(int32 SearchingPlayerNum, const TShare
 	HttpRequest->ProcessRequest();
 	SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
 	return ONLINE_IO_PENDING;
+}
+
+void FOnlineSessionRPG::SetupHttpSessionDetails(FRPGGameSessionDetails& SessionDetails, FNamedOnlineSession* OnlineSession)
+{
+	// FOnlineSessionSettings -> Settings
+	SessionDetails.Settings.NumPublicConnections = OnlineSession->SessionSettings.NumPublicConnections;
+	SessionDetails.Settings.PermissionLevel = 0;
+	SessionDetails.Settings.bInvitesAllowed = OnlineSession->SessionSettings.bAllowInvites;
+
+	// TODO: set more attributes
+	// SessionDetails.SessionState = ;
+
+	// FSessionSettings -> Attribute
+	SessionDetails.Attributes.Empty();
+	for (FSessionSettings::TConstIterator It(OnlineSession->SessionSettings.Settings); It; ++It)
+	{
+		FName Key = It.Key();
+		const FOnlineSessionSetting& Setting = It.Value();
+
+		FRPGGameSessionAttribute Attribute;
+		Attribute.Key = Key.ToString();
+		Attribute.ValueType = Setting.Data.GetTypeString();
+		Attribute.Value = Setting.Data.ToString();
+
+		SessionDetails.Attributes.Add(Attribute);
+	}
+
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(OnlineSession->SessionInfo);
+	if (SessionInfo)
+	{
+		SessionDetails.HostAddress = SessionInfo->HostAddr->ToString(true);
+	}
+}
+
+void FOnlineSessionRPG::SetupOnlineSession(FOnlineSession* OnlineSession, const FRPGGameSessionDetails& SessionDetails)
+{
+	FOnlineSessionSettings& OnlineSettings = OnlineSession->SessionSettings;
+	
+	// Settings -> FOnlineSessionSettings
+	OnlineSettings.NumPublicConnections = SessionDetails.Settings.NumPublicConnections;
+	OnlineSettings.bAllowInvites = SessionDetails.Settings.bInvitesAllowed;
+
+	// Attributes -> FOnlineSessionSettings.Settings
+	for (auto& Attribute : SessionDetails.Attributes)
+	{
+		FOnlineSessionSetting AttributeSetting;
+
+		const FString& NewValue = Attribute.Value;
+		EOnlineKeyValuePairDataType::Type ValueType = EOnlineKeyValuePairDataType::FromString(Attribute.ValueType);
+
+		switch (ValueType)
+		{
+		case EOnlineKeyValuePairDataType::Float:
+			{
+				// Convert the string to a float
+				float FloatVal = FCString::Atof(*NewValue);
+				AttributeSetting.Data.SetValue(FloatVal);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::Int32:
+			{
+				// Convert the string to a int
+				int32 IntVal = FCString::Atoi(*NewValue);
+				AttributeSetting.Data.SetValue(IntVal);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::UInt32:
+			{
+				// Convert the string to a int
+				uint64 IntVal = FCString::Strtoui64(*NewValue, nullptr, 10);
+				AttributeSetting.Data.SetValue(static_cast<uint32>(IntVal));
+				break;
+			}
+		case EOnlineKeyValuePairDataType::Double:
+			{
+				// Convert the string to a double
+				double Val = FCString::Atod(*NewValue);
+				AttributeSetting.Data.SetValue(Val);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::Int64:
+			{
+				int64 Val = FCString::Atoi64(*NewValue);
+				AttributeSetting.Data.SetValue(Val);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::UInt64:
+			{
+				uint64 Val = FCString::Strtoui64(*NewValue, nullptr, 10);
+				AttributeSetting.Data.SetValue(Val);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::String:
+			{
+				// Copy the string
+				AttributeSetting.Data.SetValue(NewValue);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::Bool:
+			{
+				bool Val = NewValue.Equals(TEXT("true"), ESearchCase::IgnoreCase) ? true : false;
+				AttributeSetting.Data.SetValue(Val);
+				break;
+			}
+		case EOnlineKeyValuePairDataType::Blob:
+		case EOnlineKeyValuePairDataType::Empty: break;
+		}
+
+		OnlineSettings.Set(FName(Attribute.Key), AttributeSetting);
+	}
+
+	// Create a New Session Info & Update It
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfoRPG = MakeShared<FOnlineSessionInfoRPG>();
+	if (SessionInfoRPG)
+	{
+		SessionInfoRPG->SessionId = FUniqueNetIdRPG(SessionDetails.SessionId);
+
+		SessionInfoRPG->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+		bool IsValid = false;
+		SessionInfoRPG->HostAddr->SetIp(*SessionDetails.HostAddress, IsValid);
+
+		OnlineSession->SessionInfo = SessionInfoRPG;
+	}
 }
 
 void FOnlineSessionRPG::RegisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnRegisterLocalPlayerCompleteDelegate& Delegate)

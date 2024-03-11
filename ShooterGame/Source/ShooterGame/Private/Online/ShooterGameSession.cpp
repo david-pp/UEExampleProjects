@@ -4,6 +4,7 @@
 #include "ShooterGameSession.h"
 
 #include "DSBeaconClient.h"
+#include "DSMasterBeaconClient.h"
 #include "ShooterOnlineGameSettings.h"
 #include "OnlineSubsystemSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
@@ -509,18 +510,19 @@ void AShooterGameSession::RegisterServer()
 
 	// Connect to DS AgentServer
 	FString DSAgentServerAddress;
-	if(FParse::Value(FCommandLine::Get(), TEXT("DSAgentServer="), DSAgentServerAddress))
+	if(FParse::Value(FCommandLine::Get(), TEXT("MasterServer="), DSAgentServerAddress))
 	{
-		ConnectToAgentServer(DSAgentServerAddress);
+		ConnectToDSMasterServer(DSAgentServerAddress);
 	}
 }
 
-bool AShooterGameSession::ConnectToAgentServer(FString ServerAddress)
+bool AShooterGameSession::ConnectToDSMasterServer(FString ServerAddress)
 {
-	DSAgentClient = GetWorld()->SpawnActor<ADSBeaconClient>(ADSBeaconClient::StaticClass());
-	if (DSAgentClient)
+	DSMasterClient = GetWorld()->SpawnActor<ADSMasterBeaconClient>(ADSMasterBeaconClient::StaticClass());
+	if (DSMasterClient)
 	{
-		return DSAgentClient->ConnectToAgentServer(ServerAddress);
+		DSMasterClient->Settings.ClientType = EDSMasterClientType::DedicatedServer;
+		return DSMasterClient->ConnectToMasterServer(ServerAddress);
 	}
 	
 	return false;

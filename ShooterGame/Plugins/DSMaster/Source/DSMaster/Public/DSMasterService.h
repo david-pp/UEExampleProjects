@@ -53,6 +53,7 @@ class DSMASTER_API FDSMasterService : public FGCObject
 {
 public:
 	bool InitServer(UWorld* World, FString& ErrorMessage);
+	void StopServer();
 	
 	/**
 	 * Init
@@ -78,6 +79,8 @@ public:
 	//~ Server started stopped delegates.
 	FOnDSMasterServiceStarted OnHttpServerStartedDelegate;
 	FSimpleMulticastDelegate OnHttpServerStoppedDelegate;
+
+	bool ServerTick(float DeltaTime);
 
 public:
 	// FGCObject Interface
@@ -144,6 +147,11 @@ protected:
 	// bool HandleGetSessionAttribute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleRequestGameSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
+	//~ Game server callbacks
+	void OnGameServerLaunched(FGameServerProcessPtr GameServer);
+	void OnGameServerStopped(FGameServerProcessPtr GameServer, bool bIsCanceled);
+	FDelegateHandle GameServerStoppedHandle;
+
 	/** HTTP server's port. */
 	uint32 HttpServerPort = 30000;
 
@@ -161,9 +169,13 @@ protected:
 	/** Mappings of preprocessors delegate handles generated from the WebRC module to the ones generated from the Http Module.*/
 	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
 
+	FDelegateHandle TickerHandle;
+	
 	/** Game session manager */
 	FGameSessionManager SessionManager;
 
 	/** Game server manager */
 	FGameServerManager ServerManager;
+
+	
 };

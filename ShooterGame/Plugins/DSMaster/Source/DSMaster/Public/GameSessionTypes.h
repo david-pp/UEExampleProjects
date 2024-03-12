@@ -83,6 +83,10 @@ struct DSMASTER_API FRPGGameSessionDetails
 {
 	GENERATED_BODY()
 
+	/** Game server id */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString ServerGuid;
+
 	/** Session ID assigned by the backend service */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString SessionId;

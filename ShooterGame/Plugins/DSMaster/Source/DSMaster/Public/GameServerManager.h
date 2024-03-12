@@ -20,6 +20,9 @@ struct DSMASTER_API FGameServerProcessInfo
 	uint32 PID;
 	/** Process Handle */
 	FProcHandle Handle;
+
+	/** Running GameSession ID*/
+	FString SessionId;
 };
 
 USTRUCT(BlueprintType)
@@ -202,6 +205,11 @@ public:
 
 	void DumpProcessInfo() const;
 
+	void UpdateRunningSession(const FString& SessionId)
+	{
+		ProcessInfo.SessionId = SessionId;
+	}
+
 public:
 	// FRunnable interface
 
@@ -301,7 +309,6 @@ protected:
 
 protected:
 
-
 	// Holds a delegate that is executed when the process has been canceled. */
 	FSimpleDelegate CanceledDelegate;
 
@@ -311,6 +318,8 @@ protected:
 	// Holds a delegate that is executed when a monitored process produces output. */
 	FOnGameServerProcessOutput OutputDelegate;
 };
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGameServerStopped, FGameServerProcessPtr, bool);
 
 class DSMASTER_API FGameServerManager
 {
@@ -328,6 +337,8 @@ public:
 
 	int32 AllocateGameServerPort();
 
+	FOnGameServerStopped OnGameServerStopped;
+	
 protected:
 	virtual void OnGameServerLaunched(FGameServerProcessPtr ServerProcess);
 	virtual void OnGameServerOutput(FGameServerProcessPtr ServerProcess, const FString& Output);

@@ -10,6 +10,8 @@
 bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 {
 	if (!World) return false;
+
+	GameServerStoppedHandle = ServerManager.OnGameServerStopped.AddRaw(this, &FDSMasterService::OnGameServerStopped);
 	
 	ServerName = TEXT("Default");
 
@@ -30,12 +32,9 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 		// Run HTTP Server
 		FParse::Value(FCommandLine::Get(), TEXT("MasterHttpPort="), HttpServerPort);
 		InitHttpServer(HttpServerPort);
-		
-		return true;
 	}
-
 	// Run as Agent Server
-	if (FParse::Value(FCommandLine::Get(), TEXT("Agent="), ServerName) ||
+	else if (FParse::Value(FCommandLine::Get(), TEXT("Agent="), ServerName) ||
 		FParse::Param(FCommandLine::Get(), TEXT("Agent")))
 	{
 		// Run Agent Beacon Server
@@ -57,7 +56,20 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 		ConnectToMasterServer(World, ClientSettings);
 	}
 
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDSMasterService::ServerTick), 0.1);
 	return true;
+}
+
+void FDSMasterService::StopServer()
+{
+	StopHttpServer();
+
+	if (TickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	}
+
+	ServerManager.OnGameServerStopped.Remove(GameServerStoppedHandle);
 }
 
 void FDSMasterService::InitHttpServer(uint32 Port)
@@ -232,7 +244,7 @@ void FDSMasterService::RegisterRoutes()
 
 	RegisterRoute({
 		TEXT("Request a Game Session"),
-		FHttpPath(TEXT("/game/request-session")),
+		FHttpPath(TEXT("/gamesession/request")),
 		EHttpServerRequestVerbs::VERB_GET,
 		FDSMasterRequestHandlerDelegate::CreateRaw(this, &FDSMasterService::HandleRequestGameSession)
 	});
@@ -255,6 +267,17 @@ bool FDSMasterService::HandleCreateSession(const FHttpServerRequest& Request, co
 		FRPGGameSessionDetails* NewSession = SessionManager.CreateGameSession(SessionDetails);
 		if (NewSession)
 		{
+			if (!NewSession->ServerGuid.IsEmpty())
+			{
+				FGuid ServerGuid;
+				FGuid::Parse(NewSession->ServerGuid, ServerGuid);
+				FGameServerProcessPtr GameServer = ServerManager.FindGameServer(ServerGuid);
+				if (GameServer)
+				{
+					GameServer->UpdateRunningSession(NewSession->SessionId);
+				}
+			}
+			
 			FString ReplyText;
 			if (FJsonObjectConverter::UStructToJsonObjectString(*NewSession, ReplyText))
 			{
@@ -444,9 +467,20 @@ bool FDSMasterService::HandleRequestGameSession(const FHttpServerRequest& Reques
 		FGameServerLaunchSettings LaunchSettings;
 		LaunchSettings.URL = GameServerExePath;
 		LaunchSettings.Params = Params;
+		LaunchSettings.bCreatePipes = false;
+		LaunchSettings.bCreateThread = false;
 		ServerManager.LaunchGameServer(LaunchSettings);
 
 		FString ReplyText;
+		{
+			FHttpSessionSearchResult SearchResult;
+			// for (auto& KV : SessionManager.GameSessions)
+			// {
+			// 	SearchResult.Sessions.Add(KV.Value);
+			// }
+
+			FJsonObjectConverter::UStructToJsonObjectString(SearchResult, ReplyText);
+		}
 		auto Response = FHttpServerResponse::Create(ReplyText, TEXT("application/json"));
 		OnComplete(MoveTemp(Response));
 		return true;
@@ -456,6 +490,29 @@ bool FDSMasterService::HandleRequestGameSession(const FHttpServerRequest& Reques
 	// Error
 	auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::ServerError, TEXT("ServerError"), ErrorMsg);
 	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+void FDSMasterService::OnGameServerLaunched(FGameServerProcessPtr GameServer)
+{
+}
+
+void FDSMasterService::OnGameServerStopped(FGameServerProcessPtr GameServer, bool bIsCanceled)
+{
+	if (!GameServer) return;
+
+	const FString SessionId = GameServer->GetProcessInfo().SessionId;
+
+	FRPGGameSessionDetails* GameSessionDetails = SessionManager.GetGameSession(SessionId);
+	if (GameSessionDetails)
+	{
+		SessionManager.DestroyGameSession(SessionId);
+	}
+}
+
+bool FDSMasterService::ServerTick(float DeltaTime)
+{
+	ServerManager.CheckAndUpdateGameServers();
 	return true;
 }
 

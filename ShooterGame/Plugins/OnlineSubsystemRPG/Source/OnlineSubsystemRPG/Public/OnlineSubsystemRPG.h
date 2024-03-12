@@ -64,6 +64,19 @@ public:
 
 	// FOnlineSubsystemRPG
 
+
+	/**
+	 *	Add an async task onto the task queue for processing
+	 * @param AsyncTask - new heap allocated task to process on the async task thread
+	 */
+	void QueueAsyncTask(class FOnlineAsyncTask* AsyncTask);
+
+	/**
+	 *	Add an async task onto the outgoing task queue for processing
+	 * @param AsyncItem - new heap allocated task to process on the async task thread
+	 */
+	void QueueAsyncOutgoingItem(class FOnlineAsyncItem* AsyncItem);
+	
 PACKAGE_SCOPE:
 	/** Only the factory makes instances */
 	FOnlineSubsystemRPG() = delete;

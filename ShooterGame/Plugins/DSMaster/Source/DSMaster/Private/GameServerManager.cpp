@@ -79,7 +79,12 @@ bool FGameServerProcess::Launch()
 		return false;
 	}
 
-	ProcessInfo.Handle = FPlatformProcess::CreateProc(*LaunchSettings.URL, *LaunchSettings.Params, false, LaunchSettings.bHidden, LaunchSettings.bHidden, &ProcessInfo.PID, 0, *LaunchSettings.WorkingDir, WritePipe);
+	ProcessInfo.UUID = FGuid::NewGuid();
+
+	FString Params = LaunchSettings.Params;
+	Params += FString::Printf(TEXT(" -ServerGuid=%s"), *ProcessInfo.UUID.ToString());
+	
+	ProcessInfo.Handle = FPlatformProcess::CreateProc(*LaunchSettings.URL, *Params, false, LaunchSettings.bHidden, LaunchSettings.bHidden, &ProcessInfo.PID, 0, *LaunchSettings.WorkingDir, WritePipe);
 	if (!ProcessInfo.Handle.IsValid())
 	{
 		return false;
@@ -88,7 +93,6 @@ bool FGameServerProcess::Launch()
 	static int32 MonitoredProcessIndex = 0;
 	const FString MonitoredProcessName = FString::Printf(TEXT("GameServer-%d"), MonitoredProcessIndex);
 
-	ProcessInfo.UUID = FGuid::NewGuid();
 	ProcessInfo.Index = MonitoredProcessIndex++;
 	ProcessInfo.Name = MonitoredProcessName;
 	ProcessInfo.Name = FPlatformProcess::GetApplicationName(ProcessInfo.PID);
@@ -291,8 +295,6 @@ FGameServerProcessPtr FGameServerManager::FindGameServer(const FGuid& ServerGuid
 	return GameServers.FindRef(ServerGuid);
 }
 
-
-
 void FGameServerManager::CheckAndUpdateGameServers()
 {
 	TSet<FGuid> GameServerOvered;
@@ -303,12 +305,12 @@ void FGameServerManager::CheckAndUpdateGameServers()
 		{
 			if (ServerProcess->Update())
 			{
-				UE_LOG(LogTemp, Log, TEXT("Server is Running : %s - %s"), *ServerProcess->GetProcessInfo().Name, *ServerProcess->GetProcessInfo().UUID.ToString());
+				UE_LOG(LogTemp, Log, TEXT("%s - Is Running: %s"), *ServerProcess->ToDebugString(), *ServerProcess->GetProcessInfo().SessionId);
 			}
 			else
 			{
 				GameServerOvered.Add(ServerProcess->GetProcessGuid());
-				UE_LOG(LogTemp, Warning, TEXT("Server is Over : %s - %s"), *ServerProcess->GetProcessInfo().Name, *ServerProcess->GetProcessInfo().UUID.ToString());
+				UE_LOG(LogTemp, Warning, TEXT("%s - is Over: %s"),  *ServerProcess->ToDebugString(), *ServerProcess->GetProcessInfo().SessionId);
 			}
 		}
 	}
@@ -339,9 +341,11 @@ void FGameServerManager::OnGameServerOutput(FGameServerProcessPtr ServerProcess,
 void FGameServerManager::OnGameServerCanceled(FGameServerProcessPtr ServerProcess)
 {
 	UE_LOG(LogTemp, Warning, TEXT("GameServer:%s - Canceled"), *ServerProcess->GetProcessGuid().ToString());
+	OnGameServerStopped.Broadcast(ServerProcess, true);
 }
 
 void FGameServerManager::OnGameServerCompleted(FGameServerProcessPtr ServerProcess, int32 ReturnCode)
 {
 	UE_LOG(LogTemp, Warning, TEXT("GameServer:%s - Completed:%d"), *ServerProcess->GetProcessGuid().ToString(), ReturnCode);
+	OnGameServerStopped.Broadcast(ServerProcess, false);
 }

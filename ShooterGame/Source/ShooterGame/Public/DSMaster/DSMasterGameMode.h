@@ -95,6 +95,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void DebugFindSession();
 
+	UFUNCTION(BlueprintCallable)
+	void DebugRequestOneGameSession();
+
 	/** Transient properties of a session during game creation/matchmaking */
 	FShooterGameSessionParams CurrentSessionParams;
 	/** Current host settings */

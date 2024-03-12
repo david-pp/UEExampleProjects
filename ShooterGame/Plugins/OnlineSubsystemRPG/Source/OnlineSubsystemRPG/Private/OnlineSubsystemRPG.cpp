@@ -243,3 +243,19 @@ FText FOnlineSubsystemRPG::GetOnlineServiceName() const
 {
 	return NSLOCTEXT("OnlineSubsystemRPG", "OnlineServiceName", "RPG");
 }
+
+void FOnlineSubsystemRPG::QueueAsyncTask(FOnlineAsyncTask* AsyncTask)
+{
+	if (OnlineAsyncTaskThreadRunnable)
+	{
+		OnlineAsyncTaskThreadRunnable->AddToInQueue(AsyncTask);
+	}
+}
+
+void FOnlineSubsystemRPG::QueueAsyncOutgoingItem(FOnlineAsyncItem* AsyncItem)
+{
+	if (OnlineAsyncTaskThreadRunnable)
+	{
+		OnlineAsyncTaskThreadRunnable->AddToOutQueue(AsyncItem);
+	}
+}

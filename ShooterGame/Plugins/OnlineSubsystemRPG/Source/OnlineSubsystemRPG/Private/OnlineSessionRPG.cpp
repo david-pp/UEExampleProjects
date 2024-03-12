@@ -1512,6 +1512,8 @@ void FOnlineSessionRPG::SetupHttpSessionDetails(FRPGGameSessionDetails& SessionD
 	SessionDetails.Settings.PermissionLevel = 0;
 	SessionDetails.Settings.bInvitesAllowed = OnlineSession->SessionSettings.bAllowInvites;
 
+	FParse::Value(FCommandLine::Get(), TEXT("ServerGuid="), SessionDetails.ServerGuid);
+	
 	// TODO: set more attributes
 	// SessionDetails.SessionState = ;
 

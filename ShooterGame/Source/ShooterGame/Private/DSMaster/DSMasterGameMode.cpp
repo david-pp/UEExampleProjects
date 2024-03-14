@@ -54,54 +54,6 @@ void ADSMasterGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ADSMasterGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-
-	// // Setup DSMasterMode
-	// FString DSMasterModeStr;
-	// if (FParse::Value(FCommandLine::Get(), TEXT("DSMaster="), DSMasterModeStr))
-	// {
-	// 	if (DSMasterModeStr.Compare(TEXT("Manager"), ESearchCase::IgnoreCase) == 0)
-	// 	{
-	// 		DSMasterMode = EDSMasterMode::Manager;
-	// 	}
-	// 	else if (DSMasterModeStr.Compare(TEXT("Agent"), ESearchCase::IgnoreCase) == 0)
-	// 	{
-	// 		DSMasterMode = EDSMasterMode::Agent;
-	// 	}
-	// 	else
-	// 	{
-	// 		DSMasterMode = EDSMasterMode::None;
-	// 	}
-	// }
-	// else
-	// {
-	// 	if (FParse::Param(FCommandLine::Get(), TEXT("DSMaster")))
-	// 	{
-	// 		DSMasterMode = EDSMasterMode::AllInOne;
-	// 	}
-	// 	else
-	// 	{
-	// 		DSMasterMode = EDSMasterMode::None;
-	// 	}
-	// }
-	//
-	// UEnum* MasterModeEnum = StaticEnum<EDSMasterMode>();
-	// if (MasterModeEnum)
-	// {
-	// 	UE_LOG(LogDSMaster, Log, TEXT("DSMasterMode = %s"), *MasterModeEnum->GetNameStringByValue(static_cast<int64>(DSMasterMode)));
-	// }
-	//
-	// // Setup DSMasterServer Address
-	// FString DSMasterServerStr;
-	// if (FParse::Value(FCommandLine::Get(), TEXT("DSMasterServer="), DSMasterServerStr))
-	// {
-	// 	DSMaterServerAddress = DSMasterServerStr;
-	// }
-	//
-	// UE_LOG(LogDSMaster, Log, TEXT("DSMaterServerAddress = %s"), *DSMaterServerAddress);
-
-	// Run as HTTP Server
-	// DSMasterService.InitHttpServer(HttpServerPort);
-	
 }
 
 // Called every frame
@@ -115,14 +67,9 @@ void ADSMasterGameMode::StartPlay()
 	Super::StartPlay();
 
 	FString ErrorMessage;
-	DSMasterService.InitServer(GetWorld(), ErrorMessage);
-	//
-	// CreateBeaconHost();
-	//
-	// if (IsAgent())
-	// {
-	// 	ConnectToMasterServer(DSMaterServerAddress);
-	// }
+	DSMasterService.InitServer(true);
+	DSMasterService.StartDSMasterHttpService();
+	DSMasterService.StartDSMasterServer(GetWorld());
 }
 
 void ADSMasterGameMode::DebugRequestSessionInfo()
@@ -481,6 +428,6 @@ bool ADSMasterGameMode::DebugCreateGameServerInstanceWithNamedPipe(FDSMasterGame
 
 int32 ADSMasterGameMode::AllocateServerPort()
 {
-	static int32 LastServerPort = ServerPort;
+	static int32 LastServerPort = 7000;
 	return LastServerPort++;
 }

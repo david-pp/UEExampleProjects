@@ -66,6 +66,13 @@ public:
 		return Request<FGameSessionUpdateStateRequest, FGameSessionUpdateReply>(URL, EHttpRequestVerbs::VERB_PUT, InRequest, Callback);
 	}
 
+	bool RequestUpdateSessionDetails(const FGameSessionDetails& InRequest, const FUpdateSessionCallback& Callback)
+	{
+		if (InRequest.SessionId.IsEmpty()) return false;
+		FString URL = FString::Printf(TEXT("/session/%s"), *InRequest.SessionId);
+		return Request<FGameSessionDetails, FGameSessionUpdateReply>(URL, EHttpRequestVerbs::VERB_PUT, InRequest, Callback);
+	}
+
 	bool RequestOneGameSession(const FString& QueryParams, const FFindSessionCallback& Callback)
 	{
 		FString URL = "/gamesession/request";

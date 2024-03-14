@@ -9,11 +9,10 @@
 
 FString FDSMasterService::SettingFileName = TEXT("DSMasterService.json");
 
-bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
+bool FDSMasterService::InitServer(bool bRunAsMaster)
 {
-	if (!World) return false;
-
 	GameServerStoppedHandle = ServerManager.OnGameServerStopped.AddRaw(this, &FDSMasterService::OnGameServerStopped);
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDSMasterService::ServerTick), 0.1);
 
 	// load config
 	if (LoadServiceSettingFromJsonFile(SettingFileName))
@@ -24,35 +23,59 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 
 	// Run as Master Server
 	if (FParse::Value(FCommandLine::Get(), TEXT("Master="), DSMasterName) ||
-		FParse::Param(FCommandLine::Get(), TEXT("Master")))
+		FParse::Param(FCommandLine::Get(), TEXT("Master")) || bRunAsMaster)
 	{
-		// Run Master Beacon Server
-		FDSMasterBeaconHostSettings HostSettings;
-		HostSettings.ListenPort = 9000;
-		HostSettings.RunningMode = EDSMasterMode::Master;
-		HostSettings.DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
-
-		FParse::Value(FCommandLine::Get(), TEXT("MasterPort="), HostSettings.ListenPort);
-
-		CreateDSMasterBeaconHost(World, HostSettings);
-
 		// Run HTTP Server
 		FParse::Value(FCommandLine::Get(), TEXT("MasterHttpPort="), HttpServerPort);
 		InitHttpServer(HttpServerPort);
+
+		// Run Master Beacon Server
+		BeaconHostSettings.ListenPort = 9000;
+		BeaconHostSettings.RunningMode = EDSMasterMode::Master;
+		BeaconHostSettings.DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
+
+		// Override listen port
+		FParse::Value(FCommandLine::Get(), TEXT("MasterPort="), BeaconHostSettings.ListenPort);
 	}
 	// Run as Agent Server
 	else if (FParse::Value(FCommandLine::Get(), TEXT("Agent="), DSMasterName) ||
 		FParse::Param(FCommandLine::Get(), TEXT("Agent")))
 	{
 		// Run Agent Beacon Server
-		FDSMasterBeaconHostSettings HostSettings;
-		HostSettings.ListenPort = 9001;
-		HostSettings.RunningMode = EDSMasterMode::Agent;
-		HostSettings.DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
+		BeaconHostSettings.ListenPort = 9001;
+		BeaconHostSettings.RunningMode = EDSMasterMode::Agent;
+		BeaconHostSettings.DSMasterBeaconHostObjectClass = ADSMasterBeaconHost::StaticClass();
 
-		FParse::Value(FCommandLine::Get(), TEXT("AgentPort="), HostSettings.ListenPort);
+		FParse::Value(FCommandLine::Get(), TEXT("AgentPort="), BeaconHostSettings.ListenPort);
+	}
 
-		CreateDSMasterBeaconHost(World, HostSettings);
+	return true;
+}
+
+bool FDSMasterService::StartDSMasterHttpService()
+{
+	if (GetRunningMode() == EDSMasterMode::Master)
+	{
+		// Run HTTP Server
+		FParse::Value(FCommandLine::Get(), TEXT("MasterHttpPort="), HttpServerPort);
+		InitHttpServer(HttpServerPort);
+		return true;
+	}
+
+	return false;
+}
+
+bool FDSMasterService::StartDSMasterServer(UWorld* World)
+{
+	if (GetRunningMode() == EDSMasterMode::Master)
+	{
+		// Master Server
+		CreateDSMasterBeaconHost(World, BeaconHostSettings);
+	}
+	else if (GetRunningMode() == EDSMasterMode::Agent)
+	{
+		// Agent Server
+		CreateDSMasterBeaconHost(World, BeaconHostSettings);
 
 		// Connect to Master Server
 		FDSMasterClientSettings ClientSettings;
@@ -63,11 +86,9 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 		ConnectToMasterServer(World, ClientSettings);
 	}
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDSMasterService::ServerTick), 0.1);
-
-	// Init Game Server Pools
+	// Game Server Pools
 	LaunchGameServersByConfig();
-	
+
 	return true;
 }
 
@@ -174,7 +195,7 @@ void FDSMasterService::StopHttpServer()
 	{
 		for (const TPair<uint32, FHttpRouteHandle>& Tuple : ActiveRouteHandles)
 		{
-			if (Tuple.Key)
+			if (Tuple.Key && Tuple.Value.IsValid())
 			{
 				HttpRouter->UnbindRoute(Tuple.Value);
 			}
@@ -507,6 +528,10 @@ bool FDSMasterService::HandleUpdateSessionState(const FHttpServerRequest& Reques
 		{
 			// Pending it and can be used again
 			ExistSession->SetSessionState(EOnlineSessionState::Pending);
+		}
+		else if (EOnlineSessionState::Destroying == StateTo)
+		{
+			SessionManager.DestroyGameSession(SessionId);
 		}
 
 	} while (false);

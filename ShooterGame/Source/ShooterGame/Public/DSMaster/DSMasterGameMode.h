@@ -115,12 +115,6 @@ public:
 	UPROPERTY(Config)
 	FString ServerName;
 
-	UPROPERTY(Config)
-	int32 ServerPort = 7000;
-
-	UPROPERTY(Config)
-	TArray<FGameServerMapSettings> ServerMaps;
-
 	int32 AllocateServerPort();
 
 	TArray<FGameServerInstanceInfo> ServerInstances;

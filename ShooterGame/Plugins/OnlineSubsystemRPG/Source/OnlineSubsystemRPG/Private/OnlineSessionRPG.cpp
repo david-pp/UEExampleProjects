@@ -467,6 +467,7 @@ bool FOnlineSessionRPG::StartSession(FName SessionName)
 
 bool FOnlineSessionRPG::UpdateSession(FName SessionName, FOnlineSessionSettings& UpdatedSessionSettings, bool bShouldRefreshOnlineData)
 {
+	int32 Result = ONLINE_FAIL;
 	bool bWasSuccessful = true;
 
 	// Grab the session information by name
@@ -475,6 +476,20 @@ bool FOnlineSessionRPG::UpdateSession(FName SessionName, FOnlineSessionSettings&
 	{
 		// @TODO ONLINE update LAN settings
 		Session->SessionSettings = UpdatedSessionSettings;
+
+		if (!Session->SessionSettings.bIsLANMatch)
+		{
+			Result = UpdateRPGSession(Session);
+		}
+		else
+		{
+			Result = ONLINE_SUCCESS;
+			bWasSuccessful = true;
+		}
+	}
+
+	if (Result != ONLINE_IO_PENDING)
+	{
 		TriggerOnUpdateSessionCompleteDelegates(SessionName, bWasSuccessful);
 	}
 
@@ -537,10 +552,21 @@ bool FOnlineSessionRPG::DestroySession(FName SessionName, const FOnDestroySessio
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
 	if (Session)
 	{
-		// The session info is no longer needed
-		RemoveNamedSession(Session->SessionName);
-
-		Result = UpdateLANStatus();
+		if (!Session->SessionSettings.bIsLANMatch)
+		{
+			if (Session->SessionState == EOnlineSessionState::InProgress)
+			{
+				Result = EndRPGSession(Session);
+			}
+			
+			Result = DestroyRPGSession(Session, CompletionDelegate);
+		}
+		else
+		{
+			// The session info is no longer needed
+			RemoveNamedSession(Session->SessionName);
+			Result = UpdateLANStatus();
+		}
 	}
 	else
 	{
@@ -1487,6 +1513,33 @@ uint32 FOnlineSessionRPG::StartRPGSession(FNamedOnlineSession* Session)
     return ONLINE_IO_PENDING;
 }
 
+uint32 FOnlineSessionRPG::UpdateRPGSession(FNamedOnlineSession* Session)
+{
+	if (Session->SessionState == EOnlineSessionState::Creating)
+	{
+		return ONLINE_IO_PENDING;
+	}
+
+	FGameSessionDetails SessionDetails;
+	FOnlineSessionHelper::SetupHttpSessionDetails(SessionDetails, Session);
+
+	RPGSubsystem->DSMasterClient.RequestUpdateSessionDetails(SessionDetails, [this, Session](FGameSessionUpdateReply& Reply, bool bSucceeded)
+	{
+		if (bSucceeded && Reply.IsSuccess())
+		{
+			TriggerOnUpdateSessionCompleteDelegates(Session->SessionName, true);
+		}
+		else
+		{
+			Session->SessionState = EOnlineSessionState::NoSession;
+			UE_LOG_ONLINE_SESSION(Error, TEXT("EndRPGSession - Failed:%s"), *Reply.ErrorMessage);
+			TriggerOnUpdateSessionCompleteDelegates(Session->SessionName, false);
+		}
+	});
+	
+	return ONLINE_IO_PENDING;
+}
+
 uint32 FOnlineSessionRPG::EndRPGSession(FNamedOnlineSession* Session)
 {
 	Session->SessionState = EOnlineSessionState::Ending;
@@ -1517,6 +1570,40 @@ uint32 FOnlineSessionRPG::EndRPGSession(FNamedOnlineSession* Session)
 			TriggerOnEndSessionCompleteDelegates(Session->SessionName, false);
 		}
 	});
+	return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionRPG::DestroyRPGSession(FNamedOnlineSession* Session, const FOnDestroySessionCompleteDelegate& CompletionDelegate)
+{
+	Session->SessionState = EOnlineSessionState::Destroying;
+
+	FGameSessionUpdateStateRequest Request;
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
+	if (SessionInfo.IsValid())
+	{
+		Request.SessionId = SessionInfo->SessionId.ToString();
+	}
+	
+	if (Request.SessionId.IsEmpty())
+	{
+		return ONLINE_FAIL;
+	}
+
+	Request.SetSessionState(EOnlineSessionState::Destroying);
+	RPGSubsystem->DSMasterClient.RequestUpdateSessionState(Request, [this, Session](FGameSessionUpdateReply& Reply, bool bSucceeded)
+	{
+		if (bSucceeded && Reply.IsSuccess())
+		{
+			RemoveNamedSession(Session->SessionName);
+			TriggerOnDestroySessionCompleteDelegates(Session->SessionName, true);
+		}
+		else
+		{
+			UE_LOG_ONLINE_SESSION(Error, TEXT("DestroyRPGSession - Failed:%s"), *Reply.ErrorMessage);
+			TriggerOnDestroySessionCompleteDelegates(Session->SessionName, false);
+		}
+	});
+
 	return ONLINE_IO_PENDING;
 }
 

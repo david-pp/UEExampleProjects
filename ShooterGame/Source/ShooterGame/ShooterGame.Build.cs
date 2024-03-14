@@ -56,6 +56,7 @@ public class ShooterGame : ModuleRules
 				"PhysicsCore",
 				"GameplayCameras", 
 				"OnlineSubsystemRPG", 
+				"OnlineServicesRPG",
 				"JsonUtilities",
 				"HTTPServer"
 			}

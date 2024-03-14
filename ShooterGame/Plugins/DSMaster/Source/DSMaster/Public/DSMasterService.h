@@ -53,7 +53,10 @@ struct DSMASTER_API FDSMasterRequestRoute
 class DSMASTER_API FDSMasterService : public FGCObject
 {
 public:
-	bool InitServer(UWorld* World, FString& ErrorMessage);
+	bool InitServer(bool bRunAsMaster = false);
+
+	bool StartDSMasterHttpService();
+	bool StartDSMasterServer(UWorld* World);
 	void StopServer();
 
 	static FString SettingFileName;
@@ -104,6 +107,11 @@ public:
 
 	// Master Client
 	ADSMasterBeaconClient* DSMasterClient = nullptr;
+
+	EDSMasterMode GetRunningMode() const
+	{
+		return BeaconHostSettings.RunningMode;
+	}
 	
 public:
 	/** Helper functions */

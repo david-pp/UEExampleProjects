@@ -22,6 +22,17 @@
 				"Mac",
 				"Android"
 			]
+		},
+		{
+			"Name": "OnlineServicesRPG",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Mac",
+				"Android"
+			]
 		}
 	],
 	"Plugins": [
@@ -31,6 +42,10 @@
 		},
 		{
 			"Name": "OnlineSubsystemUtils",
+			"Enabled": true
+		},
+		{
+			"Name": "DSMaster",
 			"Enabled": true
 		}
 	]

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSMaster.h"
 #include "DSMasterBeaconClient.h"
+#include "DSMasterServiceSettings.h"
 #include "DSMasterTypes.h"
 #include "GameServerManager.h"
 #include "GameSessionManager.h"
@@ -54,6 +55,10 @@ class DSMASTER_API FDSMasterService : public FGCObject
 public:
 	bool InitServer(UWorld* World, FString& ErrorMessage);
 	void StopServer();
+
+	static FString SettingFileName;
+	bool LoadServiceSettingFromJsonFile(const FString& JsonFileName);
+	bool SaveServiceSettingToJsonFile(const FString& JsonFileName);
 	
 	/**
 	 * Init
@@ -92,7 +97,7 @@ public:
 	AOnlineBeaconHost* BeaconHost = nullptr;
 	// Master/Agent Host
 	ADSMasterBeaconHost* DSMasterHost = nullptr;
-	FString ServerName;
+	FString DSMasterName;
 
 	// Agent Server
 	bool ConnectToMasterServer(UWorld* World, const FDSMasterClientSettings& InClientSetting);
@@ -130,6 +135,25 @@ public:
 		return true;
 	}
 
+	template <typename InStructType>
+	static TUniquePtr<FHttpServerResponse> CreateHttpJsonResponse(const InStructType& InStruct)
+	{
+		FString JsonString;
+		if (FJsonObjectConverter::UStructToJsonObjectString(InStruct, JsonString))
+		{
+			return FHttpServerResponse::Create(JsonString, TEXT("application/json"));
+		}
+		return nullptr;
+	}
+
+public:
+	FString GetGameServerExePath() const;
+	FGameServerMapSettings* FindGameMapSettings(const FString& MapBucket);
+	bool LaunchGameServerByMapBucket(const FString& MapBucket);
+	bool LaunchOneGameServer(const FGameServerMapSettings& MapSettings);
+
+	void LaunchGameServersByConfig();
+	
 protected:
 	/** Bind the route in the http router and add it to the list of active routes. */
 	void StartRoute(const FDSMasterRequestRoute& Route);
@@ -142,10 +166,12 @@ protected:
 	bool HandleDestroySession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleGetSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleUpdateSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleUpdateSessionState(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleGetSessionList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	// bool HandleGetSessionAttributeList(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	// bool HandleGetSessionAttribute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleRequestGameSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleRequestFindGameSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
 	//~ Game server callbacks
 	void OnGameServerLaunched(FGameServerProcessPtr GameServer);
@@ -170,6 +196,9 @@ protected:
 	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
 
 	FDelegateHandle TickerHandle;
+
+	/** Master service settings */
+	FDSMasterServiceSettings Settings;
 	
 	/** Game session manager */
 	FGameSessionManager SessionManager;

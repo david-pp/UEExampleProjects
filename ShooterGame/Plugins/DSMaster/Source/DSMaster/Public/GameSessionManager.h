@@ -8,27 +8,27 @@
 class DSMASTER_API FGameSessionManager
 {
 public:
-	FRPGGameSessionDetails* CreateGameSession(const FRPGGameSessionDetails& SessionDetails)
+	FGameSessionDetails* CreateGameSession(const FGameSessionDetails& SessionDetails)
 	{
 		FGuid Guid = FGuid::NewGuid();
 		FString SessionId = Guid.ToString();
 
-		FRPGGameSessionDetails& SessionAdded = GameSessions.Add(SessionId, SessionDetails);
+		FGameSessionDetails& SessionAdded = GameSessions.Add(SessionId, SessionDetails);
 		SessionAdded.SessionId = SessionId;
 		return &SessionAdded;
 	}
 
-	FRPGGameSessionDetails* GetGameSession(const FString& SessionId)
+	FGameSessionDetails* GetGameSession(const FString& SessionId)
 	{
 		if (SessionId.IsEmpty()) return nullptr;
 		return GameSessions.Find(SessionId);
 	}
 
-	FRPGGameSessionDetails* UpdateGameSession(const FString& SessionId, const FRPGGameSessionDetails& NewSession)
+	FGameSessionDetails* UpdateGameSession(const FString& SessionId, const FGameSessionDetails& NewSession)
 	{
 		GameSessions.Remove(SessionId);
 
-		FRPGGameSessionDetails& SessionAdded = GameSessions.Add(SessionId, NewSession);
+		FGameSessionDetails& SessionAdded = GameSessions.Add(SessionId, NewSession);
 		SessionAdded.SessionId = SessionId;
 		return &SessionAdded;
 	}
@@ -38,6 +38,8 @@ public:
 		return GameSessions.Remove(SessionId) > 0;
 	}
 
+	FGameSessionDetails* FindOnePendingSession(const FString& BucketId);
+
 public:
-	TMap<FString, FRPGGameSessionDetails> GameSessions;
+	TMap<FString, FGameSessionDetails> GameSessions;
 };

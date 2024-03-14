@@ -177,10 +177,7 @@ bool FOnlineSubsystemRPG::Init()
 		SessionInterface = MakeShareable(new FOnlineSessionRPG(this));
 		IdentityInterface = MakeShareable(new FOnlineIdentityRPG(this));
 
-		if (SessionInterface)
-		{
-			SessionInterface->HttpSession.Init(TEXT("http://127.0.0.1:30000"));
-		}
+		DSMasterClient.Init(TEXT("http://127.0.0.1:30000"));
 	}
 	else
 	{

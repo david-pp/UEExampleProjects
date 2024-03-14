@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DSMasterServiceClient.h"
 #include "OnlineSubsystemImpl.h"
 #include "OnlineSubsystemRPGPackage.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -93,6 +94,10 @@ PACKAGE_SCOPE:
 	{
 	}
 
+public:
+	// DSMaster Http Client
+	FDSMasterHttpClient DSMasterClient;
+	
 private:
 	/** Interface to the session services */
 	FOnlineSessionRPGPtr SessionInterface;
@@ -100,7 +105,6 @@ private:
 	/** Interface to the identity registration/auth services */
 	FOnlineIdentityRPGPtr IdentityInterface;
 
-private:
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerRPG* OnlineAsyncTaskThreadRunnable;
 

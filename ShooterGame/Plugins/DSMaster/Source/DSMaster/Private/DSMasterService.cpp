@@ -7,16 +7,23 @@
 #include "HttpServerResponse.h"
 #include "IHttpRouter.h"
 
+FString FDSMasterService::SettingFileName = TEXT("DSMasterService.json");
+
 bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 {
 	if (!World) return false;
 
 	GameServerStoppedHandle = ServerManager.OnGameServerStopped.AddRaw(this, &FDSMasterService::OnGameServerStopped);
+
+	// load config
+	if (LoadServiceSettingFromJsonFile(SettingFileName))
+	{
+	}
 	
-	ServerName = TEXT("Default");
+	DSMasterName = TEXT("Default");
 
 	// Run as Master Server
-	if (FParse::Value(FCommandLine::Get(), TEXT("Master="), ServerName) ||
+	if (FParse::Value(FCommandLine::Get(), TEXT("Master="), DSMasterName) ||
 		FParse::Param(FCommandLine::Get(), TEXT("Master")))
 	{
 		// Run Master Beacon Server
@@ -34,7 +41,7 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 		InitHttpServer(HttpServerPort);
 	}
 	// Run as Agent Server
-	else if (FParse::Value(FCommandLine::Get(), TEXT("Agent="), ServerName) ||
+	else if (FParse::Value(FCommandLine::Get(), TEXT("Agent="), DSMasterName) ||
 		FParse::Param(FCommandLine::Get(), TEXT("Agent")))
 	{
 		// Run Agent Beacon Server
@@ -57,6 +64,10 @@ bool FDSMasterService::InitServer(UWorld* World, FString& ErrorMessage)
 	}
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDSMasterService::ServerTick), 0.1);
+
+	// Init Game Server Pools
+	LaunchGameServersByConfig();
+	
 	return true;
 }
 
@@ -64,12 +75,49 @@ void FDSMasterService::StopServer()
 {
 	StopHttpServer();
 
+	ServerManager.StopAllGameServers();
+
 	if (TickerHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	ServerManager.OnGameServerStopped.Remove(GameServerStoppedHandle);
+}
+
+bool FDSMasterService::LoadServiceSettingFromJsonFile(const FString& JsonFileName)
+{
+	const FString FilePath = FPaths::ProjectConfigDir() / JsonFileName;
+	if (FPaths::FileExists(FilePath))
+	{
+		FString JsonString;
+		if (FFileHelper::LoadFileToString(JsonString, *FilePath))
+		{
+			if (FJsonObjectConverter::JsonObjectStringToUStruct(JsonString, &Settings))
+			{
+				UE_LOG(LogDSMaster, Log, TEXT("Load services settings sucess : \n%s"), *JsonString);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool FDSMasterService::SaveServiceSettingToJsonFile(const FString& JsonFileName)
+{
+	const FString FilePath = FPaths::ProjectConfigDir() / JsonFileName;
+
+	FString JsonString;
+	if (FJsonObjectConverter::UStructToJsonObjectString(Settings, JsonString))
+	{
+		if (FFileHelper::SaveStringToFile(JsonString, *FilePath))
+		{
+			UE_LOG(LogDSMaster, Log, TEXT("Save services settings to : %s"), *FilePath);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FDSMasterService::InitHttpServer(uint32 Port)
@@ -150,6 +198,7 @@ void FDSMasterService::RegisterRoute(const FDSMasterRequestRoute& Route)
 	}
 }
 
+
 void FDSMasterService::StartRoute(const FDSMasterRequestRoute& Route)
 {
 	// The handler is wrapped in a lambda since HttpRouter::BindRoute only accepts TFunctions
@@ -176,30 +225,28 @@ void FDSMasterService::ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArr
 	FUTF8ToTCHAR_Convert::Convert((TCHAR*)(OutTCHARPayload.GetData() + StartIndex), (OutTCHARPayload.Num() - StartIndex) / sizeof(TCHAR), (ANSICHAR*)InUTF8Payload.GetData(), InUTF8Payload.Num() / sizeof(ANSICHAR));
 }
 
-
-
 void FDSMasterService::DumpHttpServerRequest(const FHttpServerRequest& Request, const FString& Title)
 {
-	UE_LOG(LogDSMaster, Warning, TEXT("--- %s@ServerRequest : %s"), *Title, *Request.RelativePath.GetPath());
+	UE_LOG(LogDSMaster, Verbose, TEXT("--- %s@ServerRequest : %s"), *Title, *Request.RelativePath.GetPath());
 
 	for (auto Header : Request.Headers)
 	{
-		UE_LOG(LogDSMaster, Warning, TEXT("- Header : %s"), *Header.Key);
+		UE_LOG(LogDSMaster, Verbose, TEXT("- Header : %s"), *Header.Key);
 
 		for (auto Value : Header.Value)
 		{
-			UE_LOG(LogDSMaster, Warning, TEXT("-- Value : %s"), *Value);
+			UE_LOG(LogDSMaster, Verbose, TEXT("-- Value : %s"), *Value);
 		}
 	}
 
 	for (auto QueryParam : Request.QueryParams)
 	{
-		UE_LOG(LogDSMaster, Warning, TEXT("- QueryParam : %s -> %s"), *QueryParam.Key, *QueryParam.Value);
+		UE_LOG(LogDSMaster, Verbose, TEXT("- QueryParam : %s -> %s"), *QueryParam.Key, *QueryParam.Value);
 	}
 
 	for (auto PathParam : Request.PathParams)
 	{
-		UE_LOG(LogDSMaster, Warning, TEXT("- PathParam : %s -> %s"), *PathParam.Key, *PathParam.Value);
+		UE_LOG(LogDSMaster, Verbose, TEXT("- PathParam : %s -> %s"), *PathParam.Key, *PathParam.Value);
 	}
 }
 
@@ -226,6 +273,13 @@ void FDSMasterService::RegisterRoutes()
 		FDSMasterRequestHandlerDelegate::CreateRaw(this, &FDSMasterService::HandleUpdateSession)
 	});
 
+	RegisterRoute({
+		TEXT("Update Session State"),
+		FHttpPath(TEXT("/session/:session/state")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FDSMasterRequestHandlerDelegate::CreateRaw(this, &FDSMasterService::HandleUpdateSessionState)
+	});
+
 
 	RegisterRoute({
 		TEXT("Destroy Session"),
@@ -248,6 +302,13 @@ void FDSMasterService::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FDSMasterRequestHandlerDelegate::CreateRaw(this, &FDSMasterService::HandleRequestGameSession)
 	});
+	
+	RegisterRoute({
+		TEXT("Request a Game Session"),
+		FHttpPath(TEXT("/gamesession/find")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FDSMasterRequestHandlerDelegate::CreateRaw(this, &FDSMasterService::HandleRequestFindGameSession)
+	});
 }
 
 bool FDSMasterService::HandleCreateSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
@@ -255,18 +316,14 @@ bool FDSMasterService::HandleCreateSession(const FHttpServerRequest& Request, co
 	DumpHttpServerRequest(Request, TEXT("HandleCreateSession"));
 
 	FString ErrorMsg;
-	FRPGGameSessionDetails SessionDetails;
+	FGameSessionDetails SessionDetails;
 	if (JsonHTTPBodyToUStruct(Request.Body, &SessionDetails))
 	{
-		// debug
-		// FOnlineSessionSettings OnlineSessionSettings;
-		// FNamedOnlineSession NamedOnlineSession(FName(RPGGameSession.SessionName), OnlineSessionSettings);
-		// RPGGameSession.SetupToNamedOnlineSession(&NamedOnlineSession);
-		// DumpNamedSession(&NamedOnlineSession);
-		
-		FRPGGameSessionDetails* NewSession = SessionManager.CreateGameSession(SessionDetails);
+		FGameSessionDetails* NewSession = SessionManager.CreateGameSession(SessionDetails);
 		if (NewSession)
 		{
+			NewSession->SetSessionState(EOnlineSessionState::Pending);
+			// Game server is launched by DSMaster
 			if (!NewSession->ServerGuid.IsEmpty())
 			{
 				FGuid ServerGuid;
@@ -274,6 +331,16 @@ bool FDSMasterService::HandleCreateSession(const FHttpServerRequest& Request, co
 				FGameServerProcessPtr GameServer = ServerManager.FindGameServer(ServerGuid);
 				if (GameServer)
 				{
+					GameServer->UpdateRunningSession(NewSession->SessionId);
+				}
+			}
+			// Game server is launched manually (same vm with DSMaster)
+			else
+			{
+				FGameServerProcessPtr GameServer = ServerManager.MonitorGameServer(SessionDetails.ServerPID);
+				if (GameServer)
+				{
+					NewSession->ServerGuid = GameServer->GetProcessGuid().ToString();
 					GameServer->UpdateRunningSession(NewSession->SessionId);
 				}
 			}
@@ -304,7 +371,7 @@ bool FDSMasterService::HandleDestroySession(const FHttpServerRequest& Request, c
 	FString ErrorMsg;
 	do
 	{
-		FRPGGameSessionDetails* Session = SessionManager.GetGameSession(SessionId);
+		FGameSessionDetails* Session = SessionManager.GetGameSession(SessionId);
 		if (!Session)
 		{
 			ErrorMsg = FString::Printf(TEXT("Invalid SessionId : %s"), *SessionId);
@@ -338,7 +405,7 @@ bool FDSMasterService::HandleGetSession(const FHttpServerRequest& Request, const
 	FString ErrorMsg;
 	do
 	{
-		FRPGGameSessionDetails* Session = SessionManager.GetGameSession(SessionId);
+		FGameSessionDetails* Session = SessionManager.GetGameSession(SessionId);
 		if (!Session)
 		{
 			ErrorMsg = FString::Printf(TEXT("Invalid SessionId : %s"), *SessionId);
@@ -371,14 +438,14 @@ bool FDSMasterService::HandleUpdateSession(const FHttpServerRequest& Request, co
 	FString ErrorMsg;
 	do
 	{
-		FRPGGameSessionDetails* ExistSession = SessionManager.GetGameSession(SessionId);
+		FGameSessionDetails* ExistSession = SessionManager.GetGameSession(SessionId);
 		if (!ExistSession)
 		{
 			ErrorMsg = FString::Printf(TEXT("Invalid SessionId : %s"), *SessionId);
 			break;
 		}
 
-		FRPGGameSessionDetails InputSession;
+		FGameSessionDetails InputSession;
 		if (!JsonHTTPBodyToUStruct(Request.Body, &InputSession))
 		{
 			ErrorMsg = FString::Printf(TEXT("Invalid session protocal"));
@@ -386,7 +453,7 @@ bool FDSMasterService::HandleUpdateSession(const FHttpServerRequest& Request, co
 		}
 
 		// update
-		FRPGGameSessionDetails* UpdatedSession = SessionManager.UpdateGameSession(SessionId, InputSession);
+		FGameSessionDetails* UpdatedSession = SessionManager.UpdateGameSession(SessionId, InputSession);
 
 		TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
 		Response->Code = EHttpServerResponseCodes::Ok;
@@ -397,6 +464,54 @@ bool FDSMasterService::HandleUpdateSession(const FHttpServerRequest& Request, co
 
 	// Error
 	auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::ServerError, TEXT("ServerError"), ErrorMsg);
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FDSMasterService::HandleUpdateSessionState(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	DumpHttpServerRequest(Request, TEXT("HandleUpdateSessionState"));
+
+	FString SessionId = Request.PathParams.FindRef(TEXT("session"));
+
+	FGameSessionUpdateReply Reply;
+	do
+	{
+		FGameSessionDetails* ExistSession = SessionManager.GetGameSession(SessionId);
+		if (!ExistSession)
+		{
+			Reply.ErrorMessage = FString::Printf(TEXT("Invalid SessionId : %s"), *SessionId);
+			break;
+		}
+
+		FGameSessionUpdateStateRequest UpdateRequest;
+		if (!JsonHTTPBodyToUStruct(Request.Body, &UpdateRequest))
+		{
+			Reply.ErrorMessage = FString::Printf(TEXT("Invalid session protocal"));
+			break;
+		}
+
+		// Before
+		const EOnlineSessionState::Type StateFrom = ExistSession->GetSessionState();
+
+		// Update
+		ExistSession->SetSessionState(UpdateRequest.GetSessionState());
+
+		// After
+		const EOnlineSessionState::Type StateTo = ExistSession->GetSessionState();
+
+		UE_LOG(LogDSMaster, Log, TEXT("Update Session : %s, %s->%s"),
+			*ExistSession->SessionId, EOnlineSessionState::ToString(StateFrom), EOnlineSessionState::ToString(StateTo))
+
+		if (EOnlineSessionState::Ended == StateTo)
+		{
+			// Pending it and can be used again
+			ExistSession->SetSessionState(EOnlineSessionState::Pending);
+		}
+
+	} while (false);
+
+	auto Response = CreateHttpJsonResponse(Reply);
 	OnComplete(MoveTemp(Response));
 	return true;
 }
@@ -413,7 +528,7 @@ bool FDSMasterService::HandleGetSessionList(const FHttpServerRequest& Request, c
 
 	FString ReplyText;
 	{
-		FHttpSessionSearchResult SearchResult;
+		FGameSessionSearchResult SearchResult;
 		for (auto& KV : SessionManager.GameSessions)
 		{
 			SearchResult.Sessions.Add(KV.Value);
@@ -430,57 +545,73 @@ bool FDSMasterService::HandleGetSessionList(const FHttpServerRequest& Request, c
 // Maybe take a long time
 bool FDSMasterService::HandleRequestGameSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	DumpHttpServerRequest(Request, TEXT("HandleUpdateSession"));
+	DumpHttpServerRequest(Request, TEXT("HandleRequestGameSession"));
 
 	FString GameMode = Request.QueryParams.FindRef(TEXT("game"));
+	FString GameMap = Request.QueryParams.FindRef(TEXT("map"));
 	FString ErrorMsg;
 	do
 	{
-		if (GameMode.IsEmpty())
+		if (GameMap.IsEmpty())
 		{
-			ErrorMsg = FString::Printf(TEXT("Invalid GameMode : %s"), *GameMode);
+			ErrorMsg = FString::Printf(TEXT("Invalid Game Map : %s"), *GameMode);
 			break;
 		}
 
-		// TODO: refactor
-		
-
-		FString ServerName = TEXT("ShooterServer-Win64-Debug.exe");
-		FString BinaryDir = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
-		FString GameServerExePath = BinaryDir / ServerName;
-		GameServerExePath = FPaths::ConvertRelativePathToFull(GameServerExePath);
-		FPaths::NormalizeFilename(GameServerExePath);
-
-		FString MapName = TEXT("Sanctuary");
-		FString Options = TEXT("game=/Script/ShooterGame.AShooterGame_FreeForAll");
-		FString Params = MapName;
-		if (Options.Len() > 0)
+		FGameSessionSearchResult SearchResult;
+		FGameSessionDetails* PendingSession = SessionManager.FindOnePendingSession(GameMap);
+		if (PendingSession)
 		{
-			Params += FString(TEXT("?")) + Options;
+			// Pending -> Starting
+			SearchResult.Sessions.Add(*PendingSession);
+			PendingSession->SetSessionState(EOnlineSessionState::Starting);
 		}
-
-		const int32 ServerPort = ServerManager.AllocateGameServerPort();
-
-		Params += TEXT(" -Log");
-		Params += FString::Printf(TEXT(" -Port=%d"), ServerPort);
-		
-		FGameServerLaunchSettings LaunchSettings;
-		LaunchSettings.URL = GameServerExePath;
-		LaunchSettings.Params = Params;
-		LaunchSettings.bCreatePipes = false;
-		LaunchSettings.bCreateThread = false;
-		ServerManager.LaunchGameServer(LaunchSettings);
+		else
+		{
+			SearchResult.Sessions.Empty();
+			LaunchGameServerByMapBucket(GameMap);
+		}
 
 		FString ReplyText;
-		{
-			FHttpSessionSearchResult SearchResult;
-			// for (auto& KV : SessionManager.GameSessions)
-			// {
-			// 	SearchResult.Sessions.Add(KV.Value);
-			// }
+		FJsonObjectConverter::UStructToJsonObjectString(SearchResult, ReplyText);
+		auto Response = FHttpServerResponse::Create(ReplyText, TEXT("application/json"));
+		OnComplete(MoveTemp(Response));
+		return true;
+		
+	} while (true);
 
-			FJsonObjectConverter::UStructToJsonObjectString(SearchResult, ReplyText);
+	// Error
+	auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::ServerError, TEXT("ServerError"), ErrorMsg);
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FDSMasterService::HandleRequestFindGameSession(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	DumpHttpServerRequest(Request, TEXT("HandleRequestGameSession"));
+
+	FString GameMode = Request.QueryParams.FindRef(TEXT("game"));
+	FString GameMap = Request.QueryParams.FindRef(TEXT("map"));
+	FString ErrorMsg;
+	do
+	{
+		if (GameMap.IsEmpty())
+		{
+			ErrorMsg = FString::Printf(TEXT("Invalid Game Map : %s"), *GameMode);
+			break;
 		}
+
+		FGameSessionSearchResult SearchResult;
+		FGameSessionDetails* PendingSession = SessionManager.FindOnePendingSession(GameMap);
+		if (PendingSession)
+		{
+			// Pending -> Starting
+			SearchResult.Sessions.Add(*PendingSession);
+			PendingSession->SetSessionState(EOnlineSessionState::Starting);
+		}
+
+		FString ReplyText;
+		FJsonObjectConverter::UStructToJsonObjectString(SearchResult, ReplyText);
 		auto Response = FHttpServerResponse::Create(ReplyText, TEXT("application/json"));
 		OnComplete(MoveTemp(Response));
 		return true;
@@ -503,7 +634,7 @@ void FDSMasterService::OnGameServerStopped(FGameServerProcessPtr GameServer, boo
 
 	const FString SessionId = GameServer->GetProcessInfo().SessionId;
 
-	FRPGGameSessionDetails* GameSessionDetails = SessionManager.GetGameSession(SessionId);
+	FGameSessionDetails* GameSessionDetails = SessionManager.GetGameSession(SessionId);
 	if (GameSessionDetails)
 	{
 		SessionManager.DestroyGameSession(SessionId);
@@ -589,4 +720,97 @@ bool FDSMasterService::ConnectToMasterServer(UWorld* World, const FDSMasterClien
 		return DSMasterClient->ConnectToMasterServer(InClientSetting.MasterServerAddress);
 	}
 	return false;
+}
+
+
+FString FDSMasterService::GetGameServerExePath() const
+{
+	FString ServerDir = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+	if (Settings.GameServer.ServerDirectory.Len() > 0)
+	{
+		ServerDir = Settings.GameServer.ServerDirectory;
+	}
+	
+	FString ServerName = TEXT("ShooterServer-Win64-Debug.exe");
+	if (Settings.GameServer.ServerName.Len() > 0)
+	{
+		ServerName = Settings.GameServer.ServerName;
+	}
+
+	FString GameServerExePath = ServerDir / ServerName;
+	GameServerExePath = FPaths::ConvertRelativePathToFull(GameServerExePath);
+	FPaths::NormalizeFilename(GameServerExePath);
+
+	if (!FPaths::FileExists(GameServerExePath))
+	{
+		UE_LOG(LogDSMaster, Error, TEXT("GetGameServerExePath - Invalid Server Path : %s"), *GameServerExePath);
+	}
+
+	return GameServerExePath;
+}
+
+FGameServerMapSettings* FDSMasterService::FindGameMapSettings(const FString& MapBucket)
+{
+	for (auto& ServerMap : Settings.GameServer.ServerMaps)
+	{
+		if (ServerMap.MapBucket == MapBucket)
+			return &ServerMap;
+	}
+	return nullptr;
+}
+
+bool FDSMasterService::LaunchGameServerByMapBucket(const FString& MapBucket)
+{
+	FGameServerMapSettings* MapSettings = FindGameMapSettings(MapBucket);
+	if (!MapSettings)
+	{
+		UE_LOG(LogDSMaster, Error, TEXT("LaunchOneGameServer - Invalid MapID: %s"), *MapBucket);
+		return false;
+	}
+
+	return LaunchOneGameServer(*MapSettings);
+}
+
+bool FDSMasterService::LaunchOneGameServer(const FGameServerMapSettings& MapSettings)
+{
+	// FString MapName = TEXT("Sanctuary");
+	// FString Options = TEXT("game=/Script/ShooterGame.AShooterGame_FreeForAll");
+	
+	FString Options;
+	if (MapSettings.DefaultGameMode.Len() > 0)
+	{
+		// TODO: check game mode validation
+		Options = FString::Printf(TEXT("game=%s"), *MapSettings.DefaultGameMode);
+	}
+
+	FString Params = MapSettings.MapName;
+	if (Options.Len() > 0)
+	{
+		Params += FString(TEXT("?")) + Options;
+	}
+
+	const int32 ServerPort = ServerManager.AllocateGameServerPort();
+
+	Params += TEXT(" -Log");
+	Params += FString::Printf(TEXT(" -Port=%d"), ServerPort);
+	Params += FString::Printf(TEXT(" -BucketId=%s"), *MapSettings.MapBucket);
+		
+	FGameServerLaunchSettings LaunchSettings;
+	LaunchSettings.MapBucket = MapSettings.MapBucket;
+	LaunchSettings.URL = GetGameServerExePath();
+	LaunchSettings.Params = Params;
+	LaunchSettings.bCreatePipes = false;
+	LaunchSettings.bCreateThread = false;
+	return ServerManager.LaunchGameServer(LaunchSettings);
+}
+
+void FDSMasterService::LaunchGameServersByConfig()
+{
+	for (auto& ServerMap : Settings.GameServer.ServerMaps)
+	{
+		for (int32 Count = 0; Count < ServerMap.MinInstances; Count++)
+		{
+			LaunchOneGameServer(ServerMap);
+		}
+	} 
 }

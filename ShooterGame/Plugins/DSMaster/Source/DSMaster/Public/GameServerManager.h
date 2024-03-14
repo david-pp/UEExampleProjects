@@ -30,6 +30,10 @@ struct DSMASTER_API FGameServerLaunchSettings
 {
 	GENERATED_BODY()
 
+	/** MapID */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString MapBucket;
+
 	/** Holds the URL of the executable to launch. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString URL;
@@ -139,6 +143,9 @@ public:
 
 	/** Launches the process. */
 	bool Launch();
+
+	/** Monitor the process */
+	bool Monitor(uint32 PID);
 
 	/**
 	 * Sets the sleep interval to be used in the main thread loop.
@@ -328,8 +335,11 @@ public:
 	virtual ~FGameServerManager();
 	
 	bool LaunchGameServer(const FGameServerLaunchSettings& LaunchSettings);
+	FGameServerProcessPtr MonitorGameServer(uint32 ServerPID);
+
 	bool StopGameServer(FGameServerProcessPtr ServerProcess);
 	void StopAllGameServers();
+	
 
 	void CheckAndUpdateGameServers();
 	

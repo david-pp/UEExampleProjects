@@ -14,7 +14,8 @@ public class OnlineSubsystemRPG : ModuleRules
 			new string[]
 			{
 				"OnlineSubsystemUtils", 
-				"JsonUtilities"
+				"JsonUtilities", 
+				"DSMaster"
 			}
 		);
 

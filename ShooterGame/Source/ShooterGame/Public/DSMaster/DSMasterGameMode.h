@@ -15,35 +15,6 @@
 #include "DSMasterGameMode.generated.h"
 
 USTRUCT(BlueprintType)
-struct FGameServerMapSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString MapName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MinInstances = 0;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxInstances = 10;
-};
-
-USTRUCT(BlueprintType)
-struct FGameServerSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString ServerName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 ServerPort = 7777;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FGameServerMapSettings> ServerMaps;
-};
-
-USTRUCT(BlueprintType)
 struct FDSMasterGameSessionSettings
 {
 	GENERATED_BODY()
@@ -97,6 +68,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DebugRequestOneGameSession();
+
+	UFUNCTION(BlueprintCallable)
+	void DebugCreateServiceConfigFile();
 
 	/** Transient properties of a session during game creation/matchmaking */
 	FShooterGameSessionParams CurrentSessionParams;

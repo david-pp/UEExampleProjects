@@ -115,6 +115,50 @@ bool FGameServerProcess::Launch()
 	return true;
 }
 
+bool FGameServerProcess::Monitor(uint32 PID)
+{
+	if (bIsRunning)
+	{
+		return false;
+	}
+
+	if (LaunchSettings.bCreatePipes && !FPlatformProcess::CreatePipe(ReadPipe, WritePipe))
+	{
+		return false;
+	}
+
+	ProcessInfo.PID = PID;
+	ProcessInfo.UUID = FGuid::NewGuid();
+	ProcessInfo.Handle = FPlatformProcess::OpenProcess(PID);
+	if (!ProcessInfo.Handle.IsValid())
+	{
+		return false;
+	}
+
+	static int32 MonitoredProcessIndex = 0;
+	const FString MonitoredProcessName = FString::Printf(TEXT("GameServerMonitored-%d"), MonitoredProcessIndex);
+
+	ProcessInfo.Index = MonitoredProcessIndex++;
+	ProcessInfo.Name = FPlatformProcess::GetApplicationName(ProcessInfo.PID);
+
+	bIsRunning = true;
+
+	if (LaunchSettings.bCreateThread)
+	{
+		Thread = FRunnableThread::Create(this, *MonitoredProcessName, 128 * 1024, TPri_AboveNormal);
+		if (!FPlatformProcess::SupportsMultithreading())
+		{
+			StartTime = FDateTime::UtcNow();
+		}
+	}
+	else
+	{
+		StartTime = FDateTime::UtcNow();
+	}
+
+	return true;
+}
+
 /* FGameServerProcess implementation
  *****************************************************************************/
 
@@ -272,6 +316,39 @@ bool FGameServerManager::LaunchGameServer(const FGameServerLaunchSettings& Launc
 	return true;
 }
 
+FGameServerProcessPtr FGameServerManager::MonitorGameServer(uint32 ServerPID)
+{
+	FGameServerLaunchSettings LaunchSettings;
+	LaunchSettings.bCreatePipes = false;
+	LaunchSettings.bCreateThread = false;
+	TSharedPtr<FGameServerProcess> GameServer = MakeShared<FGameServerProcess>(LaunchSettings);
+
+	// Bind Callbacks
+	GameServer->OnOutput().BindLambda([this, GameServer](const FString& Output)
+	{
+		OnGameServerOutput(GameServer, Output);
+	});
+
+	GameServer->OnCanceled().BindLambda([this, GameServer]()
+	{
+		OnGameServerCanceled(GameServer);
+	});
+
+	GameServer->OnCompleted().BindLambda([this, GameServer](int32 ReturnCode)
+	{
+		OnGameServerCompleted(GameServer, ReturnCode);
+	});
+
+	// Launch Game Server
+	if (!GameServer->Monitor(ServerPID))
+	{
+		return false;
+	}
+
+	GameServers.Add(GameServer->GetProcessGuid(), GameServer);
+	return GameServer;
+}
+
 bool FGameServerManager::StopGameServer(FGameServerProcessPtr ServerProcess)
 {
 	if (ServerProcess)
@@ -287,6 +364,7 @@ void FGameServerManager::StopAllGameServers()
 	for (auto& GameServerPair : GameServers)
 	{
 		GameServerPair.Value->Cancel(true);
+		GameServerPair.Value->Update();
 	}
 }
 

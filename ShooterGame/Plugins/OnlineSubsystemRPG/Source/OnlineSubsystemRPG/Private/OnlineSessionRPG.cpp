@@ -15,6 +15,7 @@
 #include "OnlineAsyncTaskManager.h"
 #include "SocketSubsystem.h"
 #include "NboSerializerRPG.h"
+#include "OnlineSessionHelper.h"
 
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonTypes.h"
@@ -267,7 +268,7 @@ bool FOnlineSessionRPG::CreateSession(int32 HostingPlayerNum, FName SessionName,
 		// Create RPG match
 		else
 		{
-			Result = CreateHttpSession(HostingPlayerNum, Session);
+			Result = CreateRPGSession(HostingPlayerNum, Session);
 		}
 
 		if (Result != ONLINE_IO_PENDING)
@@ -432,9 +433,16 @@ bool FOnlineSessionRPG::StartSession(FName SessionName)
 		if (Session->SessionState == EOnlineSessionState::Pending ||
 			Session->SessionState == EOnlineSessionState::Ended)
 		{
-			// If this lan match has join in progress disabled, shut down the beacon
-			Result = UpdateLANStatus();
-			Session->SessionState = EOnlineSessionState::InProgress;
+			if (!Session->SessionSettings.bIsLANMatch)
+			{
+				Result = StartRPGSession(Session);
+			}
+			else
+			{
+				// If this lan match has join in progress disabled, shut down the beacon
+				Result = UpdateLANStatus();
+				Session->SessionState = EOnlineSessionState::InProgress;
+			}
 		}
 		else
 		{
@@ -486,8 +494,15 @@ bool FOnlineSessionRPG::EndSession(FName SessionName)
 		{
 			Session->SessionState = EOnlineSessionState::Ended;
 
-			// If the session should be advertised and the lan beacon was destroyed, recreate
-			Result = UpdateLANStatus();
+			if (!Session->SessionSettings.bIsLANMatch)
+			{
+				Result = EndRPGSession(Session);
+			}
+			else
+			{
+				// If the session should be advertised and the lan beacon was destroyed, recreate
+				Result = UpdateLANStatus();
+			}
 		}
 		else
 		{
@@ -586,7 +601,7 @@ bool FOnlineSessionRPG::FindSessions(int32 SearchingPlayerNum, const TSharedRef<
 		// Check if its a LAN query
 		if (!SearchSettings->bIsLanQuery)
 		{
-			Return = FindHttpSession(SearchingPlayerNum, SearchSettings);
+			Return = FindRPGSession(SearchingPlayerNum, SearchSettings);
 		}
 		else
 		{
@@ -692,7 +707,7 @@ bool FOnlineSessionRPG::JoinSession(int32 PlayerNum, FName SessionName, const FO
 
 				FOnlineSessionInfoRPG* NewSessionInfo = new FOnlineSessionInfoRPG(*SearchSessionInfo);
 				Session->SessionInfo = MakeShareable(NewSessionInfo);
-				Return = JoinHttpSession(PlayerNum, Session, &DesiredSession.Session);
+				Return = JoinRPGSession(PlayerNum, Session, &DesiredSession.Session);
 			}
 			else
 			{
@@ -1337,7 +1352,7 @@ void FOnlineSessionRPG::DumpSessionState()
 	}
 }
 
-uint32 FOnlineSessionRPG::CreateHttpSession(int32 HostingPlayerNum, FNamedOnlineSession* Session)
+uint32 FOnlineSessionRPG::CreateRPGSession(int32 HostingPlayerNum, FNamedOnlineSession* Session)
 {
 	// Update Local Session Info
 	Session->SessionState = EOnlineSessionState::Creating;
@@ -1349,28 +1364,17 @@ uint32 FOnlineSessionRPG::CreateHttpSession(int32 HostingPlayerNum, FNamedOnline
 	Session->SessionInfo = MakeShareable(NewSessionInfo);
 
 	// Setup Options
-	FRPGGameSessionDetails SessionDetails;
-	SetupHttpSessionDetails(SessionDetails, Session);
-
-	FString RequestJsonString;
-	if (!FJsonObjectConverter::UStructToJsonObjectString(SessionDetails, RequestJsonString))
-	{
-		UE_LOG(LogOnlineSession, Warning, TEXT("\n%s"), *RequestJsonString);
-	}
+	FGameSessionDetails SessionDetails;
+	FOnlineSessionHelper::SetupHttpSessionDetails(SessionDetails, Session);
 
 	FName SessionName = Session->SessionName;
-	auto HttpRequest = HttpSession.CreateRequest(TEXT("/session"), EHttpRequestVerbs::VERB_POST);
-	HttpRequest->SetContentAsString(RequestJsonString);
-	HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	RPGSubsystem->DSMasterClient.RequestCreateSession(SessionDetails, [this, SessionName](FGameSessionDetails& Reply, bool bSucceeded)
 	{
-		UE_LOG(LogOnlineSession, Log, TEXT("CreateRPGSession - Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(),*SessionName.ToString());
-		
 		FNamedOnlineSession* Session = GetNamedSession(SessionName);
 		if (Session)
 		{
-			FRPGGameSessionDetails SessionReplied;
-			if (bSucceeded
-				&& FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &SessionReplied))
+			FGameSessionDetails& SessionReplied = Reply;
+			if (bSucceeded)
 			{
 				TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
 				if (SessionInfo.IsValid())
@@ -1395,12 +1399,10 @@ uint32 FOnlineSessionRPG::CreateHttpSession(int32 HostingPlayerNum, FNamedOnline
 			TriggerOnCreateSessionCompleteDelegates(SessionName, bSucceeded);
 		}
 	});
-
-	HttpRequest->ProcessRequest();
 	return ONLINE_IO_PENDING;
 }
 
-uint32 FOnlineSessionRPG::JoinHttpSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession)
+uint32 FOnlineSessionRPG::JoinRPGSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession)
 {
 	if (!Session->SessionInfo.IsValid())
 	{
@@ -1424,67 +1426,115 @@ uint32 FOnlineSessionRPG::JoinHttpSession(int32 PlayerNum, FNamedOnlineSession* 
 	// Join Now !!
 	return ONLINE_SUCCESS;
 
-	FName SessionName = Session->SessionName;
-	auto HttpRequest = HttpSession.CreateRequest(TEXT("/sessionjoin"), EHttpRequestVerbs::VERB_POST);
-	// HttpRequest->SetContentAsString(RequestJsonString);
-	HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-	{
-		UE_LOG(LogOnlineSession, Log, TEXT("JoinRPGSession - Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(),*SessionName.ToString());
-		FNamedOnlineSession* Session = GetNamedSession(SessionName);
-		if (Session)
-		{
-			if (bSucceeded)
-			{
-				// TODO: 
-			}
-			else
-			{
-				UE_LOG_ONLINE_SESSION(Error, TEXT("JoinRPGSession() failed for session (%s)"), *SessionName.ToString());
-				Session->SessionState = EOnlineSessionState::NoSession;
-				RemoveNamedSession(SessionName);
-			}
-		}
-
-		TriggerOnJoinSessionCompleteDelegates(SessionName, bSucceeded ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
-	});
-
-	HttpRequest->ProcessRequest();
-	return ONLINE_IO_PENDING;	
+	// FName SessionName = Session->SessionName;
+	// auto HttpRequest = HttpSession.CreateHttpRequest(TEXT("/sessionjoin"), EHttpRequestVerbs::VERB_POST);
+	// // HttpRequest->SetContentAsString(RequestJsonString);
+	// HttpRequest->OnProcessRequestComplete().BindLambda([this, SessionName](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	// {
+	// 	UE_LOG(LogOnlineSession, Log, TEXT("JoinRPGSession - Reply from Server:%s,%s"), *HttpResponse->GetContentAsString(),*SessionName.ToString());
+	// 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
+	// 	if (Session)
+	// 	{
+	// 		if (bSucceeded)
+	// 		{
+	// 			// TODO: 
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG_ONLINE_SESSION(Error, TEXT("JoinRPGSession() failed for session (%s)"), *SessionName.ToString());
+	// 			Session->SessionState = EOnlineSessionState::NoSession;
+	// 			RemoveNamedSession(SessionName);
+	// 		}
+	// 	}
+	//
+	// 	TriggerOnJoinSessionCompleteDelegates(SessionName, bSucceeded ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+	// });
+	//
+	// HttpRequest->ProcessRequest();
+	// return ONLINE_IO_PENDING;	
 }
 
-uint32 FOnlineSessionRPG::FindHttpSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
+uint32 FOnlineSessionRPG::StartRPGSession(FNamedOnlineSession* Session)
 {
-	auto HttpRequest = HttpSession.CreateRequest(TEXT("/sessions"), EHttpRequestVerbs::VERB_GET);
+	Session->SessionState = EOnlineSessionState::Starting;
 
-	// Add the search settings
-	FString URL = HttpRequest->GetURL();
-	if (SearchSettings->QuerySettings.SearchParams.Num() > 0)
+	FGameSessionUpdateStateRequest Request;
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
+    if (SessionInfo.IsValid())
+    {
+    	Request.SessionId = SessionInfo->SessionId.ToString();
+    }
+	
+	if (Request.SessionId.IsEmpty())
 	{
-		URL = URL / FString::Printf(TEXT("?"));
-		
-		for (FSearchParams::TConstIterator It(SearchSettings->QuerySettings.SearchParams); It; ++It)
+		return ONLINE_FAIL;
+	}
+
+	Request.SetSessionState(EOnlineSessionState::InProgress);
+	RPGSubsystem->DSMasterClient.RequestUpdateSessionState(Request, [this, Session](FGameSessionUpdateReply& Reply, bool bSucceeded)
+	{
+		if (bSucceeded && Reply.IsSuccess())
 		{
-			const FName Key = It.Key();
-			const FOnlineSessionSearchParam& SearchParam = It.Value();
-			URL += FString::Printf(TEXT("%s=%s&"), *Key.ToString(), *SearchParam.Data.ToString());
-		
-			UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
+			Session->SessionState = EOnlineSessionState::InProgress;
+			TriggerOnStartSessionCompleteDelegates(Session->SessionName, true);
 		}
+		else
+		{
+			UE_LOG_ONLINE_SESSION(Error, TEXT("StartRPGSession - Failed:%s"), *Reply.ErrorMessage);
+			TriggerOnStartSessionCompleteDelegates(Session->SessionName, false);
+		}
+	});
+    return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionRPG::EndRPGSession(FNamedOnlineSession* Session)
+{
+	Session->SessionState = EOnlineSessionState::Ending;
+
+	FGameSessionUpdateStateRequest Request;
+	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(Session->SessionInfo);
+	if (SessionInfo.IsValid())
+	{
+		Request.SessionId = SessionInfo->SessionId.ToString();
 	}
 	
-	HttpRequest->SetURL(URL);
-	HttpRequest->OnProcessRequestComplete().BindLambda([this, SearchSettings](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	if (Request.SessionId.IsEmpty())
 	{
-		UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
+		return ONLINE_FAIL;
+	}
 
-		FHttpSessionSearchResult HttpSessionSearchResult;
-		if (bSucceeded && FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &HttpSessionSearchResult))
+	Request.SetSessionState(EOnlineSessionState::Ended);
+	RPGSubsystem->DSMasterClient.RequestUpdateSessionState(Request, [this, Session](FGameSessionUpdateReply& Reply, bool bSucceeded)
+	{
+		if (bSucceeded && Reply.IsSuccess())
+		{
+			Session->SessionState = EOnlineSessionState::Ended;
+			TriggerOnEndSessionCompleteDelegates(Session->SessionName, true);
+		}
+		else
+		{
+			UE_LOG_ONLINE_SESSION(Error, TEXT("EndRPGSession - Failed:%s"), *Reply.ErrorMessage);
+			TriggerOnEndSessionCompleteDelegates(Session->SessionName, false);
+		}
+	});
+	return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionRPG::FindRPGSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
+{
+	// Add the search settings
+	FString QueryParams = FOnlineSessionHelper::SessionSearchToQueryParams(&SearchSettings.Get());
+
+	RPGSubsystem->DSMasterClient.RequestFindSessions(QueryParams, [this, SearchSettings](FGameSessionSearchResult& Reply, bool bSucceeded)
+	{
+		// UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
+		if (bSucceeded)
 		{
 			// Update SearchSettings
-			for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
+			for (auto& SessionDetail : Reply.Sessions)
 			{
 				FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
-				SetupOnlineSession(&SearchResult.Session, SessionDetail);
+				FOnlineSessionHelper::SetupOnlineSession(&SearchResult.Session, SessionDetail);
 			}
 			
 			SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
@@ -1499,135 +1549,41 @@ uint32 FOnlineSessionRPG::FindHttpSession(int32 SearchingPlayerNum, const TShare
 		CurrentSessionSearch = nullptr;
 	});
 
-	// Execute Search
-	HttpRequest->ProcessRequest();
 	SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
 	return ONLINE_IO_PENDING;
-}
 
-void FOnlineSessionRPG::SetupHttpSessionDetails(FRPGGameSessionDetails& SessionDetails, FNamedOnlineSession* OnlineSession)
-{
-	// FOnlineSessionSettings -> Settings
-	SessionDetails.Settings.NumPublicConnections = OnlineSession->SessionSettings.NumPublicConnections;
-	SessionDetails.Settings.PermissionLevel = 0;
-	SessionDetails.Settings.bInvitesAllowed = OnlineSession->SessionSettings.bAllowInvites;
-
-	FParse::Value(FCommandLine::Get(), TEXT("ServerGuid="), SessionDetails.ServerGuid);
-	
-	// TODO: set more attributes
-	// SessionDetails.SessionState = ;
-
-	// FSessionSettings -> Attribute
-	SessionDetails.Attributes.Empty();
-	for (FSessionSettings::TConstIterator It(OnlineSession->SessionSettings.Settings); It; ++It)
-	{
-		FName Key = It.Key();
-		const FOnlineSessionSetting& Setting = It.Value();
-
-		FRPGGameSessionAttribute Attribute;
-		Attribute.Key = Key.ToString();
-		Attribute.ValueType = Setting.Data.GetTypeString();
-		Attribute.Value = Setting.Data.ToString();
-
-		SessionDetails.Attributes.Add(Attribute);
-	}
-
-	TSharedPtr<FOnlineSessionInfoRPG> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoRPG>(OnlineSession->SessionInfo);
-	if (SessionInfo)
-	{
-		SessionDetails.HostAddress = SessionInfo->HostAddr->ToString(true);
-	}
-}
-
-void FOnlineSessionRPG::SetupOnlineSession(FOnlineSession* OnlineSession, const FRPGGameSessionDetails& SessionDetails)
-{
-	FOnlineSessionSettings& OnlineSettings = OnlineSession->SessionSettings;
-	
-	// Settings -> FOnlineSessionSettings
-	OnlineSettings.NumPublicConnections = SessionDetails.Settings.NumPublicConnections;
-	OnlineSettings.bAllowInvites = SessionDetails.Settings.bInvitesAllowed;
-
-	// Attributes -> FOnlineSessionSettings.Settings
-	for (auto& Attribute : SessionDetails.Attributes)
-	{
-		FOnlineSessionSetting AttributeSetting;
-
-		const FString& NewValue = Attribute.Value;
-		EOnlineKeyValuePairDataType::Type ValueType = EOnlineKeyValuePairDataType::FromString(Attribute.ValueType);
-
-		switch (ValueType)
-		{
-		case EOnlineKeyValuePairDataType::Float:
-			{
-				// Convert the string to a float
-				float FloatVal = FCString::Atof(*NewValue);
-				AttributeSetting.Data.SetValue(FloatVal);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::Int32:
-			{
-				// Convert the string to a int
-				int32 IntVal = FCString::Atoi(*NewValue);
-				AttributeSetting.Data.SetValue(IntVal);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::UInt32:
-			{
-				// Convert the string to a int
-				uint64 IntVal = FCString::Strtoui64(*NewValue, nullptr, 10);
-				AttributeSetting.Data.SetValue(static_cast<uint32>(IntVal));
-				break;
-			}
-		case EOnlineKeyValuePairDataType::Double:
-			{
-				// Convert the string to a double
-				double Val = FCString::Atod(*NewValue);
-				AttributeSetting.Data.SetValue(Val);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::Int64:
-			{
-				int64 Val = FCString::Atoi64(*NewValue);
-				AttributeSetting.Data.SetValue(Val);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::UInt64:
-			{
-				uint64 Val = FCString::Strtoui64(*NewValue, nullptr, 10);
-				AttributeSetting.Data.SetValue(Val);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::String:
-			{
-				// Copy the string
-				AttributeSetting.Data.SetValue(NewValue);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::Bool:
-			{
-				bool Val = NewValue.Equals(TEXT("true"), ESearchCase::IgnoreCase) ? true : false;
-				AttributeSetting.Data.SetValue(Val);
-				break;
-			}
-		case EOnlineKeyValuePairDataType::Blob:
-		case EOnlineKeyValuePairDataType::Empty: break;
-		}
-
-		OnlineSettings.Set(FName(Attribute.Key), AttributeSetting);
-	}
-
-	// Create a New Session Info & Update It
-	TSharedPtr<FOnlineSessionInfoRPG> SessionInfoRPG = MakeShared<FOnlineSessionInfoRPG>();
-	if (SessionInfoRPG)
-	{
-		SessionInfoRPG->SessionId = FUniqueNetIdRPG(SessionDetails.SessionId);
-
-		SessionInfoRPG->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-		bool IsValid = false;
-		SessionInfoRPG->HostAddr->SetIp(*SessionDetails.HostAddress, IsValid);
-
-		OnlineSession->SessionInfo = SessionInfoRPG;
-	}
+	// auto HttpRequest = RPGSubsystem->DSMasterClient.CreateHttpRequest(TEXT("/sessions"), EHttpRequestVerbs::VERB_GET);
+	// HttpRequest->SetURL(URL);
+	// HttpRequest->OnProcessRequestComplete().BindLambda([this, SearchSettings](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+	// {
+	// 	UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
+	//
+	// 	FGameSessionSearchResult HttpSessionSearchResult;
+	// 	if (bSucceeded && FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &HttpSessionSearchResult))
+	// 	{
+	// 		// Update SearchSettings
+	// 		for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
+	// 		{
+	// 			FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
+	// 			SetupOnlineSession(&SearchResult.Session, SessionDetail);
+	// 		}
+	// 		
+	// 		SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
+	// 	}
+	// 	else
+	// 	{
+	// 		SearchSettings->SearchState = EOnlineAsyncTaskState::Failed;
+	// 		UE_LOG_ONLINE_SESSION(Error, TEXT("GetSessionList - failed"));
+	// 	}
+	// 	
+	// 	TriggerOnFindSessionsCompleteDelegates(bSucceeded);
+	// 	CurrentSessionSearch = nullptr;
+	// });
+	//
+	// // Execute Search
+	// HttpRequest->ProcessRequest();
+	// SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
+	// return ONLINE_IO_PENDING;
 }
 
 void FOnlineSessionRPG::RegisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnRegisterLocalPlayerCompleteDelegate& Delegate)
@@ -1675,46 +1631,4 @@ FUniqueNetIdPtr FOnlineSessionRPG::CreateSessionIdFromString(const FString& Sess
 		SessionId = FUniqueNetIdRPG::Create(SessionIdStr);
 	}
 	return SessionId;
-}
-
-// --------------------
-
-TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FHttpSessionClient::CreateRequest(FString RelativeURL, EHttpRequestVerbs Verb) const
-{
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-
-	FString URL = SessionServiceURL / RelativeURL; 
-	HttpRequest->SetURL(URL);
-	HttpRequest->SetHeader("Content-Type", TEXT("application/json"));
-
-	switch (Verb)
-	{
-	case EHttpRequestVerbs::VERB_GET:
-		{
-			HttpRequest->SetVerb(TEXT("GET"));
-		}
-		break;
-	case EHttpRequestVerbs::VERB_POST:
-		{
-			HttpRequest->SetVerb(TEXT("POST"));
-		}
-		break;
-	case EHttpRequestVerbs::VERB_PUT:
-		{
-			HttpRequest->SetVerb(TEXT("PUT"));
-		}
-		break;
-	case EHttpRequestVerbs::VERB_DELETE:
-		{
-			HttpRequest->SetVerb(TEXT("DELETE"));
-		}
-		break;
-	default:
-		{
-			HttpRequest->SetVerb(TEXT("GET"));
-		}
-		break;
-	}
-	
-	return HttpRequest;
 }

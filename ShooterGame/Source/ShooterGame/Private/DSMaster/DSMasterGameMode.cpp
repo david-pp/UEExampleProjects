@@ -16,6 +16,7 @@
 #include "GameSessionTypes.h"
 #include "OnlineAsyncTaskManager.h"
 #include "OnlineBeaconHost.h"
+#include "OnlineSessionAsyncTasks.h"
 #include "OnlineSessionRPG.h"
 #include "OnlineSubsystemRPG.h"
 
@@ -235,264 +236,6 @@ public:
 	virtual ~FRPGOnlineSessionSearch() {}
 };
 
-class FOnlineAsyncTaskRequestRPGGameSession : public FOnlineAsyncTaskBasic<FOnlineSubsystemRPG>
-{
-private:
-	/** Name of session ending */
-	FName SessionName;
-
-	/** Search settings specified for the query */
-	TSharedPtr<class FOnlineSessionSearch> SearchSettings;
-
-	enum class ERequestGameSessionTaskState : uint8
-	{
-		Init,
-		WaitForSessionRequest,
-		TryFindSession,
-		WaitForFindSession,
-		Finished
-	};
-	
-	ERequestGameSessionTaskState RequestTaskState;
-
-	TSharedPtr<FOnlineSessionRPG, ESPMode::ThreadSafe> OnlineSessionRPG = nullptr;
-
-	FDateTime TryFindSessionTime;
-	int32 TryFindSessionCount = 0;
-
-	int32 MaxTryFindSessionCount = 100;
-
-	FTimespan GetTryDuration() const
-	{
-		return FDateTime::UtcNow() - TryFindSessionTime;
-	}
-	
-public:
-	FOnlineAsyncTaskRequestRPGGameSession(FOnlineSubsystemRPG* InSubsystem, TSharedPtr<class FOnlineSessionSearch> InSearchSettings) :
-		FOnlineAsyncTaskBasic(InSubsystem),
-		SearchSettings(InSearchSettings),
-		RequestTaskState(ERequestGameSessionTaskState::Init)
-	{
-		if (InSubsystem)
-		{
-			OnlineSessionRPG = StaticCastSharedPtr<FOnlineSessionRPG>(Subsystem->GetSessionInterface());
-		}
-	}
-
-	virtual ~FOnlineAsyncTaskRequestRPGGameSession()
-	{
-	}
-
-	bool RequestGameSession()
-	{
-		auto HttpRequest = OnlineSessionRPG->HttpSession.CreateRequest(TEXT("/gamesession/request"), EHttpRequestVerbs::VERB_GET);
-
-		// Add the search settings
-		FString URL = HttpRequest->GetURL();
-		if (SearchSettings->QuerySettings.SearchParams.Num() > 0)
-		{
-			URL = URL / FString::Printf(TEXT("?"));
-		
-			for (FSearchParams::TConstIterator It(SearchSettings->QuerySettings.SearchParams); It; ++It)
-			{
-				const FName Key = It.Key();
-				const FOnlineSessionSearchParam& SearchParam = It.Value();
-				URL += FString::Printf(TEXT("%s=%s&"), *Key.ToString(), *SearchParam.Data.ToString());
-		
-				UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
-			}
-		}
-		//
-		// URL += TEXT("&game=ShooterGameMode");
-	
-		HttpRequest->SetURL(URL);
-		HttpRequest->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-		{
-			UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
-
-			FHttpSessionSearchResult HttpSessionSearchResult;
-			if (bSucceeded && FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &HttpSessionSearchResult))
-			{
-				// Give a GameSession directly
-				if (HttpSessionSearchResult.Sessions.Num() > 0)
-				{
-					// Update SearchSettings
-					for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
-					{
-						FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
-						OnlineSessionRPG->SetupOnlineSession(&SearchResult.Session, SessionDetail);
-					}
-					
-					SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
-
-					bWasSuccessful = true;
-					RequestTaskState = ERequestGameSessionTaskState::Finished;
-				}
-				// DS Master is Launching a Server
-				else
-				{
-					TryFindSessionTime = FDateTime::UtcNow();
-					RequestTaskState = ERequestGameSessionTaskState::TryFindSession;
-				}
-			}
-		});
-
-		// Execute Search
-		HttpRequest->ProcessRequest();
-		SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
-		return true;
-	}
-
-	bool TryFindGameSession()
-	{
-		UE_LOG_ONLINE_SESSION(Log, TEXT("TryFindSession - %d"), TryFindSessionCount);
-		
-		auto HttpRequest = OnlineSessionRPG->HttpSession.CreateRequest(TEXT("/sessions"), EHttpRequestVerbs::VERB_GET);
-
-		// Add the search settings
-		FString URL = HttpRequest->GetURL();
-		if (SearchSettings->QuerySettings.SearchParams.Num() > 0)
-		{
-			URL = URL / FString::Printf(TEXT("?"));
-		
-			for (FSearchParams::TConstIterator It(SearchSettings->QuerySettings.SearchParams); It; ++It)
-			{
-				const FName Key = It.Key();
-				const FOnlineSessionSearchParam& SearchParam = It.Value();
-				URL += FString::Printf(TEXT("%s=%s&"), *Key.ToString(), *SearchParam.Data.ToString());
-		
-				UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
-			}
-		}
-	
-		HttpRequest->SetURL(URL);
-		HttpRequest->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-		{
-			UE_LOG(LogOnlineSession, Log, TEXT("GetSessionList - Reply from Server:%s"), *HttpResponse->GetContentAsString());
-
-			FHttpSessionSearchResult HttpSessionSearchResult;
-			if (bSucceeded && FJsonObjectConverter::JsonObjectStringToUStruct(HttpResponse->GetContentAsString(), &HttpSessionSearchResult))
-			{
-				// Give a GameSession directly
-				if (HttpSessionSearchResult.Sessions.Num() > 0)
-				{
-					// Update SearchSettings
-					for (auto& SessionDetail : HttpSessionSearchResult.Sessions)
-					{
-						FOnlineSessionSearchResult& SearchResult = SearchSettings->SearchResults.AddZeroed_GetRef();
-						OnlineSessionRPG->SetupOnlineSession(&SearchResult.Session, SessionDetail);
-					}
-					
-					SearchSettings->SearchState = EOnlineAsyncTaskState::Done;
-
-					bWasSuccessful = true;
-					RequestTaskState = ERequestGameSessionTaskState::Finished;
-				}
-				// DS Master is Launching a Server
-				else
-				{
-					TryFindSessionCount ++;
-					TryFindSessionTime = FDateTime::UtcNow();
-					RequestTaskState = ERequestGameSessionTaskState::TryFindSession;
-				}
-			}
-		});
-
-		// Execute Search
-		HttpRequest->ProcessRequest();
-		SearchSettings->SearchState = EOnlineAsyncTaskState::InProgress;
-		return true;
-	}
-
-	virtual FString ToString() const override
-	{
-		return FString::Printf(TEXT("FOnlineAsyncTaskRequestRPGGameSession bWasSuccessful: %d SessionName: %s"), WasSuccessful(), *SessionName.ToString());
-	}
-
-	virtual void Tick() override
-	{
-		switch (RequestTaskState)
-		{
-		case ERequestGameSessionTaskState::Init :
-			{
-				if (RequestGameSession())
-				{
-					RequestTaskState = ERequestGameSessionTaskState::WaitForSessionRequest;
-				}
-				else
-				{
-					UE_LOG_ONLINE_SESSION(Warning, TEXT("Init Failed"));
-					bWasSuccessful = false;
-					RequestTaskState = ERequestGameSessionTaskState::Finished;
-				}
-				break;
-			}
-		case ERequestGameSessionTaskState::WaitForSessionRequest:
-			{
-				// TODO: timeout check
-				break;
-			}
-		case ERequestGameSessionTaskState::TryFindSession:
-			{
-				if (TryFindSessionCount > MaxTryFindSessionCount)
-				{
-					UE_LOG_ONLINE_SESSION(Warning, TEXT("TryFindSession - Exceed limit Count"));
-					bWasSuccessful = false;
-					RequestTaskState = ERequestGameSessionTaskState::Finished;
-					break;
-				}
-				
-				if (GetTryDuration() > FTimespan::FromSeconds(0.1))
-				{
-					TryFindGameSession();
-					RequestTaskState = ERequestGameSessionTaskState::WaitForFindSession;
-				}
-				break;
-			}
-		case ERequestGameSessionTaskState::WaitForFindSession:
-			{
-				// TODO: timeout check
-				break;
-			}
-		case ERequestGameSessionTaskState::Finished:
-			{
-				bIsComplete = true;
-				break;
-			}
-		default:
-			{
-				UE_LOG_ONLINE_SESSION(Warning, TEXT("Unexpected state ending task."));
-				bWasSuccessful = false;
-				RequestTaskState = ERequestGameSessionTaskState::Finished;
-				break;
-			}
-		}
-	}
-
-	/**
-	 * Give the async task a chance to marshal its data back to the game thread
-	 * Can only be called on the game thread by the async task manager
-	 */
-	virtual void Finalize() override
-	{
-		// IOnlineSessionPtr SessionInt = Subsystem->GetSessionInterface();
-		// FNamedOnlineSession* Session = SessionInt->GetNamedSession(SessionName);
-		// if (Session)
-		// {
-		// 	Session->SessionState = EOnlineSessionState::Ended;
-		// }
-	}
-
-	virtual void TriggerDelegates() override
-	{
-		IOnlineSessionPtr SessionInt = Subsystem->GetSessionInterface();
-		if (SessionInt.IsValid())
-		{
-			SessionInt->TriggerOnFindSessionsCompleteDelegates(bWasSuccessful);
-		}
-	}
-};
-
 void ADSMasterGameMode::DebugRequestOneGameSession()
 {
 	IOnlineSubsystem* OnlineSub = Online::GetSubsystem(GetWorld());
@@ -512,8 +255,9 @@ void ADSMasterGameMode::DebugRequestOneGameSession()
 			
 			SearchSettings->QuerySettings.Set(SEARCH_KEYWORDS, FString(TEXT("SomeThing")), EOnlineComparisonOp::Equals);
 			SearchSettings->QuerySettings.Set(FName(TEXT("TESTSETTING1")), (int32)5, EOnlineComparisonOp::Equals);
-			SearchSettings->QuerySettings.Set(FName(TEXT("game")), FString(TEXT("ShooterGameMode")), EOnlineComparisonOp::Equals);
+			// SearchSettings->QuerySettings.Set(FName(TEXT("game")), FString(TEXT("ShooterGameMode")), EOnlineComparisonOp::Equals);
 
+			SearchSettings->QuerySettings.Set(FName(TEXT("map")), FString(TEXT("Sanctuary")), EOnlineComparisonOp::Equals);
 			TSharedRef<FOnlineSessionSearch> SearchSettingsRef = SearchSettings.ToSharedRef();
 
 			OnFindSessionCompleteDelegateHandle = Sessions->AddOnFindSessionsCompleteDelegate_Handle(OnFindSessionsCompleteDelegate);
@@ -526,6 +270,11 @@ void ADSMasterGameMode::DebugRequestOneGameSession()
 			}
 		}
 	}
+}
+
+void ADSMasterGameMode::DebugCreateServiceConfigFile()
+{
+	DSMasterService.SaveServiceSettingToJsonFile(TEXT("DSMasterService-Saved.json"));
 }
 
 void ADSMasterGameMode::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)

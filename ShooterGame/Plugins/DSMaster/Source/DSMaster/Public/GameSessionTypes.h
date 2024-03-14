@@ -3,31 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
 #include "GameSessionTypes.generated.h"
 
-UENUM()
-enum class ERPGGameSessionStateType
-{
-	/** An online session has not been created yet */
-	NoSession,
-	/** An online session is in the process of being created */
-	Creating,
-	/** Session has been created but the session hasn't started (pre match lobby) */
-	Pending,
-	/** Session has been asked to start (may take time due to communication with backend) */
-	Starting,
-	/** The current session has started. Sessions with join in progress disabled are no longer joinable */
-	InProgress,
-	/** The session is still valid, but the session is no longer being played (post match lobby) */
-	Ending,
-	/** The session is closed and any stats committed */
-	Ended,
-	/** The session is being destroyed */
-	Destroying
-};
-
 USTRUCT(BlueprintType)
-struct DSMASTER_API FRPGGameSessionAttribute
+struct DSMASTER_API FGameSessionAttribute
 {
 	GENERATED_BODY()
 
@@ -48,7 +28,7 @@ struct DSMASTER_API FRPGGameSessionAttribute
  * FOnlineSessionSettings -> FGameSessionSettings
  */
 USTRUCT(BlueprintType)
-struct DSMASTER_API FRPGGameSessionSettings
+struct DSMASTER_API FGameSessionDetailSettings
 {
 	GENERATED_BODY()
 
@@ -79,17 +59,20 @@ struct DSMASTER_API FRPGGameSessionSettings
  *  - SessionInfo -> Member Variables
  */
 USTRUCT(BlueprintType)
-struct DSMASTER_API FRPGGameSessionDetails
+struct DSMASTER_API FGameSessionDetails
 {
 	GENERATED_BODY()
-
-	/** Game server id */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString ServerGuid;
 
 	/** Session ID assigned by the backend service */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString SessionId;
+
+	/** Game server id */
+	UPROPERTY()
+	FString ServerGuid;
+	/** Game server PID */
+	UPROPERTY()
+	uint32 ServerPID;
 
 	/** IP address of this session as visible by the backend service */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -101,7 +84,10 @@ struct DSMASTER_API FRPGGameSessionDetails
 
 	/** Current state of the session */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ERPGGameSessionStateType SessionState = ERPGGameSessionStateType::NoSession;
+	int32 SessionState = 0;
+	/** State debugging string (don't use in code)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString SessionStateString;
 
 	/** List of players registered in the session */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -109,53 +95,85 @@ struct DSMASTER_API FRPGGameSessionDetails
 
 	/** The settings associated with this session */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRPGGameSessionSettings Settings;
+	FGameSessionDetailSettings Settings;
 
 	/** The settings associated with this session */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FRPGGameSessionAttribute> Attributes;
+	TArray<FGameSessionAttribute> Attributes;
 
-	bool operator ==(const FRPGGameSessionDetails& Lhs) const
+	bool operator ==(const FGameSessionDetails& Lhs) const
 	{
 		return SessionId == Lhs.SessionId;
 	}
-};
 
-/**
- * FNamedOnlineSession -> FActiveRPGGameSession (TODO: delete)
- */
-USTRUCT(BlueprintType)
-struct DSMASTER_API FActiveRPGGameSession
-{
-	GENERATED_BODY()
+	void SetSessionState(EOnlineSessionState::Type StateValue)
+	{
+		SessionState = StateValue;
+		SessionStateString = EOnlineSessionState::ToString(StateValue);
+	}
 
-public:
-	/** Name of the session */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString SessionName;
+	EOnlineSessionState::Type GetSessionState() const
+	{
+		return static_cast<EOnlineSessionState::Type>(SessionState);
+	}
 
-	/** The User ID of the local user who created or joined the session */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString LocalOwnerId;
-
-	/** Current state of the session */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ERPGGameSessionStateType SessionState = ERPGGameSessionStateType::NoSession;
-
-	/** List of players registered in the session */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FString> RegisteredPlayers;
-
-	/** Session details */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRPGGameSessionDetails SessionDetails;
+	FString GetSessionStateString() const
+	{
+		return EOnlineSessionState::ToString(GetSessionState());
+	}
 };
 
 USTRUCT()
-struct FHttpSessionSearchResult
+struct FGameSessionSearchResult
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FRPGGameSessionDetails> Sessions;
+	TArray<FGameSessionDetails> Sessions;
+};
+
+USTRUCT()
+struct FGameSessionUpdateReply
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString ErrorMessage;
+
+	bool IsSuccess() const
+	{
+		return ErrorMessage.IsEmpty();
+	}
+};
+
+USTRUCT()
+struct FGameSessionUpdateStateRequest
+{
+	GENERATED_BODY()
+
+	/** Session ID */
+	UPROPERTY()
+	FString SessionId;
+
+	/** Current state of the session */
+	UPROPERTY()
+	int32 SessionState = 0;
+
+	void SetSessionState(EOnlineSessionState::Type StateValue)
+	{
+		SessionState = StateValue;
+	}
+	EOnlineSessionState::Type GetSessionState() const
+	{
+		return static_cast<EOnlineSessionState::Type>(SessionState);
+	}
+};
+
+USTRUCT()
+struct FGameSessionSetAttributeRequest
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGameSessionAttribute Attribute;
 };

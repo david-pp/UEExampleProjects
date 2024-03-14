@@ -32,6 +32,7 @@ public class DSMaster : ModuleRules
 				"JsonUtilities",
 				"HTTP",
 				"HTTPServer", 
+				"OnlineSubsystem",
 				"OnlineSubsystemUtils", 
 			}
 		);

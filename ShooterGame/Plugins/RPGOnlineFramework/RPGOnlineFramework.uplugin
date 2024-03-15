@@ -33,6 +33,11 @@
 				"Mac",
 				"Android"
 			]
+		},
+		{
+			"Name": "OnlineRPG",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

@@ -20,7 +20,11 @@ public class ThirdPersonMP : ModuleRules
 				"GameplayDebugger", 
 				"AIModule",
 				"GameplayTasks",
-				"GameplayTags", "OnlineSubsystemUtils", "OnlineSubsystemUtils"
+				"GameplayTags", 
+				"OnlineSubsystemUtils",
+				"OnlineSubsystemUtils",
+				"Messaging",
+				"MessagingCommon",
 			});
 	}
 }

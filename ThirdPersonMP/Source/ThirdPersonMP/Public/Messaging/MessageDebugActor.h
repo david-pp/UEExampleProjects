@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "IMessageContext.h"
 #include "IMessageBus.h"
+#include "IMessageBridge.h"
 #include "MessageEndpoint.h"
 #include "DebugingMessages.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
@@ -44,6 +45,17 @@ public:
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 };
 
+UCLASS()
+class AMessageDebugBusActor : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	virtual void BeginPlay() override;
+	
+	
+};
+
 
 UCLASS()
 class THIRDPERSONMP_API AMessageDebugPingClientCharacter : public AThirdPersonMPCharacter
@@ -56,6 +68,22 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	UFUNCTION(BlueprintCallable)
+	void CreateBus(FString BusName, FString ListenEndpoint, TArray<FString> ConnectToEndpoints);
+
+	UFUNCTION(BlueprintCallable)
+	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg=false);
+
+	UFUNCTION(BlueprintCallable)
+	void EndPointSendHeartBeat(FString EndPointName);
+
+	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+
+	TMap<FString,TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
+	TMap<FString,TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
+	TMap<FString, TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>> EndPoints;
+	
+public:
 	UFUNCTION(BlueprintCallable)
 	void StartClient();
 

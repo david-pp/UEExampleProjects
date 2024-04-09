@@ -4,9 +4,11 @@
 #include "Messaging/MessageDebugActor.h"
 
 #include "IMessagingModule.h"
+#include "MessageBridgeBuilder.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "Messaging/DebugingMessages.h"
+#include "Messaging/TcpMessageTransport.h"
 
 AMessageDebugPingServiceActor::AMessageDebugPingServiceActor()
 {
@@ -84,6 +86,13 @@ void AMessageDebugPingServiceActor::HandleHeartBeatMessage(const FDebugServiceHe
 
 // --------------------------------------
 
+void AMessageDebugBusActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+
+}
+
 AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ClientName = TEXT("PingClient");
@@ -99,6 +108,88 @@ void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPla
 {
 	Super::EndPlay(EndPlayReason);
 	StopClient();
+}
+
+void AMessageDebugPingClientCharacter::CreateBus(FString BusName, FString ListenEndpointString, TArray<FString> ConnectToEndpointStrings)
+{
+	if (Buses.Find(BusName))
+		return;
+
+	// Create Bus
+	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = IMessagingModule::Get().CreateBus(BusName);
+	Buses.Add(BusName, Bus);
+
+	// Listen 
+	FIPv4Endpoint ListenEndpoint;
+	if (!FIPv4Endpoint::Parse(ListenEndpointString, ListenEndpoint))
+	{
+		if (!ListenEndpointString.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Invalid setting for ListenEndpoint '%s', listening disabled"), *ListenEndpointString);
+		}
+
+		ListenEndpoint = FIPv4Endpoint::Any;
+	}
+
+	// Connections
+	TArray<FIPv4Endpoint> ConnectToEndpoints;
+	for (FString& ConnectToEndpointString : ConnectToEndpointStrings)
+	{
+		FIPv4Endpoint ConnectToEndpoint;
+		if (FIPv4Endpoint::Parse(ConnectToEndpointString, ConnectToEndpoint) || FIPv4Endpoint::FromHostAndPort(ConnectToEndpointString, ConnectToEndpoint))
+		{
+			ConnectToEndpoints.Add(ConnectToEndpoint);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Invalid entry for ConnectToEndpoint '%s', ignoring"), *ConnectToEndpointString);
+		}
+	}
+
+	// Create Bridge with Transport
+	TSharedRef<FTcpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
+		
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef())
+		.UsingTransport(Transport);
+	if (MessageBridge)
+	{
+		Bridges.Add(BusName, MessageBridge);
+	}
+}
+
+void AMessageDebugPingClientCharacter::CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg)
+{
+	auto Bus = Buses.FindRef(BusName);
+	if (!Bus) return;
+	
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>  Endpoint = FMessageEndpoint::Builder(FName(EndPointName), Bus.ToSharedRef())
+		.Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingClientCharacter::HandleHeartBeatMessage);
+
+	if (Endpoint)
+	{
+		if (bSubscribeMsg)
+		{
+			Endpoint->Subscribe<FDebugServiceHeartBeat>();
+		}
+		
+		EndPoints.Add(EndPointName, Endpoint);
+	}
+}
+
+void AMessageDebugPingClientCharacter::EndPointSendHeartBeat(FString EndPointName)
+{
+	auto EndPoint = EndPoints.FindRef(EndPointName);
+	if (EndPoint.IsValid())
+	{
+		auto Msg = FMessageEndpoint::MakeMessage<FDebugServiceHeartBeat>();
+		Msg->ServiceName = EndPointName;
+		EndPoint->Publish(Msg, EMessageScope::All);
+	}
+}
+
+void AMessageDebugPingClientCharacter::HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	UE_LOG(LogTemp, Log, TEXT("HandleHeartBeatMessage - From : %s@%s"), *Message.ServiceName, *Context->GetSender().ToString());
 }
 
 void AMessageDebugPingClientCharacter::StartClient()

@@ -4,6 +4,7 @@
 #include "Messaging/MessageDebugActor.h"
 
 #include "IMessagingModule.h"
+#include "IMessagingRpcModule.h"
 #include "MessageBridgeBuilder.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
@@ -190,6 +191,125 @@ void AMessageDebugPingClientCharacter::EndPointSendHeartBeat(FString EndPointNam
 void AMessageDebugPingClientCharacter::HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	UE_LOG(LogTemp, Log, TEXT("HandleHeartBeatMessage - From : %s@%s"), *Message.ServiceName, *Context->GetSender().ToString());
+}
+
+void AMessageDebugPingClientCharacter::CreateBusRpcClient(FString BusName, FString RpcClientName, FString RpcServerToConnect)
+{
+	auto Bus = Buses.FindRef(BusName);
+	if (!Bus) return;
+	
+	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
+	if (MessagingRpcModule)
+	{
+		TSharedPtr<IMessageRpcClient> RpcClient = MessagingRpcModule->CreateRpcClient(RpcClientName, Bus.ToSharedRef());
+		if (RpcClient)
+		{
+			// connect to server
+			auto RpcServer = RpcServers.FindRef(RpcServerToConnect);
+			if (RpcServer)
+			{
+				RpcClient->Connect(RpcServer->GetAddress());
+			}
+			
+			RpcClients.Add(RpcClientName, RpcClient);
+
+			// create a locator to find rpc server
+			TSharedPtr<IMyRpcLocator> RpcLocator = IMyRpcLocator::Create(FName(RpcClientName), RpcServerToConnect, Bus.ToSharedRef());
+			if (RpcLocator)
+			{
+				RpcLocators.Add(RpcClientName, RpcLocator);
+
+				RpcLocator->OnServerLocated().BindLambda([RpcClient, RpcLocator]()
+				{
+					UE_LOG(LogTemp, Warning, TEXT("OnServerLocated ... %s"), *RpcLocator->GetServerAddress().ToString());
+					RpcClient->Connect(RpcLocator->GetServerAddress());
+				});
+
+				RpcLocator->OnServerLost().BindLambda([RpcClient, RpcLocator]()
+				{
+					UE_LOG(LogTemp, Warning, TEXT("OnServerLost ... %s"), *RpcLocator->GetServerAddress().ToString());
+					RpcClient->Disconnect();
+				});
+			}
+		}
+	}
+
+}
+
+void AMessageDebugPingClientCharacter::CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers)
+{
+	auto Bus = Buses.FindRef(BusName);
+	if (!Bus) return;
+	
+	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
+	if (MessagingRpcModule)
+	{
+		
+		// TSharedPtr<IMessageRpcServer> RpcServer = MessagingRpcModule->CreateRpcServer(RpcServerName, Bus.ToSharedRef());
+		TSharedPtr<IMessageRpcServer> RpcServer =  MakeShared<FMyRpcServerImpl>(RpcServerName, Bus.ToSharedRef());
+		if (RpcServer)
+		{
+			if (bRegisterHandlers)
+			{
+				RpcServer->RegisterHandler<FMyRpc>(this, &AMessageDebugPingClientCharacter::HandleMyRpc);
+			}
+			RpcServers.Add(RpcServerName, RpcServer);
+		}
+	}
+
+	TSharedPtr<IMyRpcResponder> RpcResponder = IMyRpcResponder::Create(FName(RpcServerName), Bus.ToSharedRef());
+	if (RpcResponder)
+	{
+		RpcResponders.Add(RpcServerName, RpcResponder);
+		
+		RpcResponder->OnLookup().BindLambda([this](const FString& ProductionKey)
+		{
+			auto RpcServer = RpcServers.FindRef(ProductionKey);
+			return RpcServer;
+		});
+	}
+}
+
+FMyResult AMessageDebugPingClientCharacter::MyRpcDemo(FString RpcClientName, FString Param1, int32 Param2)
+{
+	auto RpcClient = RpcClients.FindRef(RpcClientName);
+	if (RpcClient)
+	{
+		TAsyncResult<FMyResult> AsyncResult = RpcClient->Call<FMyRpc>(Param1, Param2);
+		// AsyncResult.GetFuture().Wait();
+		AsyncResult.GetFuture().WaitFor(FTimespan::FromSeconds(5.0f));
+		if (AsyncResult.GetFuture().IsReady())
+		{
+			return AsyncResult.GetFuture().Get();
+		}
+	}
+
+	return FMyResult();
+}
+
+void AMessageDebugPingClientCharacter::AsyncMyRpcDemo(FString RpcClientName, FString Param1, int32 Param2)
+{
+	auto RpcClient = RpcClients.FindRef(RpcClientName);
+	if (RpcClient)
+	{
+		TAsyncResult<FMyResult> AsyncResult = RpcClient->Call<FMyRpc>(Param1, Param2);
+		TFuture<FMyResult>& Future = const_cast<TFuture<FMyResult>&>(AsyncResult.GetFuture());
+		
+		Future.Then([this](TFuture<FMyResult> Result)
+		{
+			OnMyRpcComplete.Broadcast(Result.Get());
+		});
+	}
+}
+
+TAsyncResult<FMyResult> AMessageDebugPingClientCharacter::HandleMyRpc(const FMyRpcRequest& Request)
+{
+	UE_LOG(LogTemp, Log, TEXT("HanldeMyRpc -- %s, %d"), *Request.Param1, Request.Param2);
+	
+	FMyResult Result;
+	Result.RetValString = Request.Param1;
+	Result.RetVal = Request.Param2 + 1;
+	return TAsyncResult<FMyResult>(Result);
 }
 
 void AMessageDebugPingClientCharacter::StartClient()

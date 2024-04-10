@@ -8,7 +8,11 @@
 #include "IMessageBus.h"
 #include "IMessageBridge.h"
 #include "MessageEndpoint.h"
+#include "IMessageRpcServer.h"
+#include "IMessageRpcClient.h"
 #include "DebugingMessages.h"
+#include "IMyRpcLocator.h"
+#include "IMyRpcResponder.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 #include "MessageDebugActor.generated.h"
 
@@ -68,6 +72,10 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	//
+	// Messaging Demos
+	//
+	
 	UFUNCTION(BlueprintCallable)
 	void CreateBus(FString BusName, FString ListenEndpoint, TArray<FString> ConnectToEndpoints);
 
@@ -82,6 +90,36 @@ public:
 	TMap<FString,TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
 	TMap<FString,TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
 	TMap<FString, TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>> EndPoints;
+
+
+	//
+	// RPC Demos
+	//
+	UFUNCTION(BlueprintCallable)
+	void CreateBusRpcClient(FString BusName, FString RpcClientName, FString RpcServerToConnect);
+
+	UFUNCTION(BlueprintCallable)
+	void CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers=true);
+
+	UFUNCTION(BlueprintCallable)
+	FMyResult MyRpcDemo(FString RpcClientName, FString Param1, int32 Param2);
+
+	UFUNCTION(BlueprintCallable)
+	void AsyncMyRpcDemo(FString RpcClientName, FString Param1, int32 Param2);
+	UPROPERTY(BlueprintAssignable, EditAnywhere)
+	FOnMyRpcComplete OnMyRpcComplete;
+
+
+	
+	// Server Handle Rpc
+	TAsyncResult<FMyResult> HandleMyRpc(const FMyRpcRequest& Request);
+
+	TMap<FString, TSharedPtr<IMessageRpcClient>> RpcClients;
+	TMap<FString, TSharedPtr<IMessageRpcServer>> RpcServers;
+
+	/** RPC server locator per client */
+	TMap<FString, TSharedPtr<IMyRpcLocator>> RpcLocators;
+	TMap<FString, TSharedPtr<IMyRpcResponder>> RpcResponders;
 	
 public:
 	UFUNCTION(BlueprintCallable)

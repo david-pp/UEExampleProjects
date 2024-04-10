@@ -25,6 +25,7 @@ public class ThirdPersonMP : ModuleRules
 				"OnlineSubsystemUtils",
 				"Messaging",
 				"MessagingCommon", 
+				"MessagingRpc",
 				"Networking", 
 				"Serialization",
 				"Sockets"

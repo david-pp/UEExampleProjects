@@ -3,6 +3,10 @@
 
 #include "Messaging/MessageDebugActor.h"
 
+#include "GameUserMessages.h"
+#include "IGameServiceRpcLocator.h"
+#include "IGameServiceRpcModule.h"
+#include "IGameServicesModule.h"
 #include "IMessagingModule.h"
 #include "IMessagingRpcModule.h"
 #include "MessageBridgeBuilder.h"
@@ -310,6 +314,54 @@ TAsyncResult<FMyResult> AMessageDebugPingClientCharacter::HandleMyRpc(const FMyR
 	Result.RetValString = Request.Param1;
 	Result.RetVal = Request.Param2 + 1;
 	return TAsyncResult<FMyResult>(Result);
+}
+
+void AMessageDebugPingClientCharacter::CreateUserRpcClient()
+{
+	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+	IGameServiceRpcModule* ServiceRpcModule = IGameServiceRpcModule::Get();
+	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
+	if (MessagingRpcModule && ServiceRpcModule && ServiceEngine && ServiceEngine->GetServiceBus())
+	{
+		UserRpcClient = MessagingRpcModule->CreateRpcClient(TEXT("UserRpcClient"), ServiceEngine->GetServiceBus().ToSharedRef());
+		if (UserRpcClient)
+		{
+			// create a locator to find rpc server
+			UserRpcLocator = ServiceRpcModule->CreateLocator(TEXT("UserServiceLocator"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
+			if (UserRpcLocator)
+			{
+				UserRpcLocator->OnServerLocated().BindLambda([=]()
+				{
+					UE_LOG(LogTemp, Warning, TEXT("OnServerLocated ... %s"), *UserRpcLocator->GetServerAddress().ToString());
+					UserRpcClient->Connect(UserRpcLocator->GetServerAddress());
+				});
+
+				UserRpcLocator->OnServerLost().BindLambda([=]()
+				{
+					UE_LOG(LogTemp, Warning, TEXT("OnServerLost ... %s"), *UserRpcLocator->GetServerAddress().ToString());
+					UserRpcClient->Disconnect();
+				});
+			}
+		}
+	}
+}
+
+void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
+{
+	if (UserRpcClient)
+	{
+		TAsyncResult<FGameUserDetails> AsyncResult = UserRpcClient->Call<FGameUserGetUserDetails>();
+		TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+		
+		Future.Then([this](TFuture<FGameUserDetails> InFuture)
+		{
+			if (InFuture.IsReady())
+			{
+				FGameUserDetails Result = InFuture.Get();
+				UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
+			}
+		});
+	}
 }
 
 void AMessageDebugPingClientCharacter::StartClient()

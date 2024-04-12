@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+class IGameServiceRpcServer;
+
 class IGameService
 {
 public:
@@ -12,4 +14,9 @@ public:
 	}
 
 	virtual bool IsAvailable() const = 0;
+
+	virtual TSharedPtr<IGameServiceRpcServer> GetRpcServer() const
+	{
+		return nullptr;
+	}
 };

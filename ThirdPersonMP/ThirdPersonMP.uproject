@@ -51,6 +51,10 @@
 		{
 			"Name": "ExampleAssetEditor",
 			"Enabled": true
+		},
+		{
+			"Name": "GameServices",
+			"Enabled": true
 		}
 	]
 }

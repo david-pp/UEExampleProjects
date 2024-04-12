@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/WildcardString.h"
 
-class FWildcardString;
 class IGameService;
 
 class IGameServiceLocator

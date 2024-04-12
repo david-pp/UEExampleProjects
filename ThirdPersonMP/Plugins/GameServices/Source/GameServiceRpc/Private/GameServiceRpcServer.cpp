@@ -26,18 +26,14 @@ public:
 
 	virtual ~FGameServiceRpcServerImpl() { }
 
-private:
-
-	FGameServiceRpcServerImpl()
-		: FMessageRpcServer()
-	{}
+	using FMessageRpcServer::FMessageRpcServer;
 
 private:
 
 	friend FGameServiceRpcServerFactory;
 };
 
-TSharedRef<IGameServiceRpcServer> FGameServiceRpcServerFactory::Create()
+TSharedRef<IGameServiceRpcServer> FGameServiceRpcServerFactory::Create(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus)
 {
-	return MakeShareable(new FGameServiceRpcServerImpl());
+	return MakeShareable(new FGameServiceRpcServerImpl(DebugName, MessageBus));
 }

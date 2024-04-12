@@ -13,6 +13,9 @@ struct FGameServiceRpcLocateServer
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY(EditAnywhere, Category="Message")
+	FString ServiceKey;
+	
 	/** The product's unique identifier. */
 	UPROPERTY(EditAnywhere, Category="Message")
 	FGuid ProductId;

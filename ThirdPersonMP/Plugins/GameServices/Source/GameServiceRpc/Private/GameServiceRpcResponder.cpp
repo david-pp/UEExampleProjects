@@ -13,10 +13,7 @@ class FGameServiceRpcResponderImpl
 	: public IGameServiceRpcResponder
 {
 public:
-
 	virtual ~FGameServiceRpcResponderImpl() { }
-
-public:
 
 	// IGameServiceRpcResponder interface
 	virtual FOnGameServiceRpcLookup& OnLookup() override
@@ -25,14 +22,15 @@ public:
 	}
 
 private:
-
 	FGameServiceRpcResponderImpl(
+		const FName& InName,
+		const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& ServiceBus,
 		const FString& InMyHostMacAddress,
 		const FString& InMyHostUserId)
 		: MyHostMacAddress(InMyHostMacAddress)
 		, MyHostUserId(InMyHostUserId)
 	{
-		MessageEndpoint = FMessageEndpoint::Builder("FGameServiceRpcResponder")
+		MessageEndpoint = FMessageEndpoint::Builder(InName, ServiceBus)
 			.Handling<FGameServiceRpcLocateServer>(this, &FGameServiceRpcResponderImpl::HandleMessage);
 
 		if (MessageEndpoint.IsValid())
@@ -40,8 +38,6 @@ private:
 			MessageEndpoint->Subscribe<FGameServiceRpcLocateServer>();
 		}
 	}
-
-private:
 
 	void HandleMessage(const FGameServiceRpcLocateServer& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 	{
@@ -55,12 +51,13 @@ private:
 			return;
 		}
 
-		const FString ProductKey = Message.ProductId.ToString() + Message.ProductVersion;
-		TSharedPtr<IGameServiceRpcServer> Server = Servers.FindRef(ProductKey);
+		// const FString ServiceKey = Message.ProductId.ToString() + Message.ProductVersion;
+		const FString ServiceKey = Message.ServiceKey;
+		TSharedPtr<IGameServiceRpcServer> Server = Servers.FindRef(ServiceKey);
 
 		if (!Server.IsValid())
 		{
-			Server = LookupDelegate.Execute(ProductKey);
+			Server = LookupDelegate.Execute(ServiceKey);
 		}
 
 		if (Server.IsValid())
@@ -87,7 +84,7 @@ private:
 	friend FGameServiceRpcResponderFactory;
 };
 
-TSharedRef<IGameServiceRpcResponder> FGameServiceRpcResponderFactory::Create()
+TSharedRef<IGameServiceRpcResponder> FGameServiceRpcResponderFactory::Create(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus)
 {
 	// @todo: this need to use GetLoginId, but we need to deprecate this functionality over time.
 	// eventually, when GetMacAddressString is removed from the codebase, this coude will need to be removed also.
@@ -95,5 +92,5 @@ TSharedRef<IGameServiceRpcResponder> FGameServiceRpcResponderFactory::Create()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FString Identifier = FPlatformMisc::GetMacAddressString();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return MakeShareable(new FGameServiceRpcResponderImpl(Identifier, FPlatformProcess::UserName(false)));
+	return MakeShareable(new FGameServiceRpcResponderImpl(FName(DebugName), MessageBus, Identifier, FPlatformProcess::UserName(false)));
 }

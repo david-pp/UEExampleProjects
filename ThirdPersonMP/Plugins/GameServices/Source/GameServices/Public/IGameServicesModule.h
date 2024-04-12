@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IGameServiceEngine.h"
 #include "Modules/ModuleInterface.h"
 
 class FTypeContainer;
@@ -11,6 +12,17 @@ class IGameServiceLocator;
 class IGameServicesModule : public IModuleInterface
 {
 public:
+	static IGameServicesModule* Get()
+	{
+		return static_cast<IGameServicesModule*>(FModuleManager::Get().LoadModule("GameServices"));
+	}
+
+	static IGameServiceEngine* GetServiceEngine()
+	{
+		IGameServicesModule* Module = Get();
+		return Module ? Module->GetEngine() : nullptr;
+	}
+
 	/**
 	 * Create a locator for Game services.
 	 *
@@ -18,6 +30,11 @@ public:
 	 * @return A service locator.
 	 */
 	virtual TSharedRef<IGameServiceLocator> CreateLocator(const TSharedRef<FTypeContainer>& ServiceDependencies) = 0;
+
+	/*
+	 * Get service engine
+	 */
+	virtual IGameServiceEngine* GetEngine() const = 0;
 
 public:
 	/** Virtual destructor. */

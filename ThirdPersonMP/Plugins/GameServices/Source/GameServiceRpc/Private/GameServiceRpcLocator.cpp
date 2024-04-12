@@ -23,10 +23,7 @@ public:
 		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
-public:
-
 	// IGameServiceRpcLocator interface
-
 	virtual const FMessageAddress& GetServerAddress() const override
 	{
 		return ServerAddress;
@@ -67,22 +64,24 @@ private:
 			ServerLostDelegate.ExecuteIfBound();
 		}
 
-		// @todo sarge: implement actual product GUID
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FGameServiceRpcLocateServer));
-		MessageEndpoint->Publish(new(Memory) FGameServiceRpcLocateServer(FGuid(), EngineVersion, MacAddress, UserId), EMessageScope::Network);
-
+		auto Message = FMessageEndpoint::MakeMessage<FGameServiceRpcLocateServer>();
+		Message->ServiceKey = ServiceKey;
+		Message->ProductVersion = EngineVersion;
+		Message->HostMacAddress = MacAddress;
+		Message->HostUserId = UserId;
+		MessageEndpoint->Publish(Message, EMessageScope::Network);
 		return true;
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FGameServiceRpcLocatorImpl()
-		: EngineVersion(FEngineVersion::Current().ToString())
+	FGameServiceRpcLocatorImpl(const FName& InName, const FString& InServiceKey, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InBus)
+		: ServiceKey(InServiceKey)
+		, EngineVersion(FEngineVersion::Current().ToString())
 		, MacAddress(FPlatformMisc::GetMacAddressString())
 		, UserId(FPlatformProcess::UserName(false))
 		, LastServerResponse(FDateTime::MinValue())
 	{
-		MessageEndpoint = FMessageEndpoint::Builder("FGameServiceRpcLocator")
+		MessageEndpoint = FMessageEndpoint::Builder(InName, InBus)
 			.Handling<FGameServiceRpcServer>(this, &FGameServiceRpcLocatorImpl::HandleMessage);
 
 		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FGameServiceRpcLocatorImpl::HandleTicker), PORTAL_RPC_LOCATE_INTERVAL);
@@ -90,6 +89,7 @@ private:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
+	const FString ServiceKey;
 
 	const FString EngineVersion;
 	const FString MacAddress;
@@ -116,8 +116,7 @@ private:
 	friend FGameServiceRpcLocatorFactory;
 };
 
-
-TSharedRef<IGameServiceRpcLocator> FGameServiceRpcLocatorFactory::Create()
+TSharedRef<IGameServiceRpcLocator> FGameServiceRpcLocatorFactory::Create(const FString& DebugName, const FString& ServiceKey, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus)
 {
-	return MakeShareable(new FGameServiceRpcLocatorImpl());
+	return MakeShareable(new FGameServiceRpcLocatorImpl(FName(DebugName), ServiceKey, MessageBus));
 }

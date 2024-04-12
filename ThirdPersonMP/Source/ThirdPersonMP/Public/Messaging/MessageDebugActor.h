@@ -16,6 +16,8 @@
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 #include "MessageDebugActor.generated.h"
 
+class IGameServiceRpcLocator;
+
 UCLASS()
 class THIRDPERSONMP_API AMessageDebugPingServiceActor : public AActor
 {
@@ -120,6 +122,18 @@ public:
 	/** RPC server locator per client */
 	TMap<FString, TSharedPtr<IMyRpcLocator>> RpcLocators;
 	TMap<FString, TSharedPtr<IMyRpcResponder>> RpcResponders;
+
+
+	//
+	// User Service Demo
+	//
+	UFUNCTION(BlueprintCallable)
+	void CreateUserRpcClient();
+	UFUNCTION(BlueprintCallable)
+	void AsyncGetUserDetails();
+
+	TSharedPtr<IMessageRpcClient> UserRpcClient;
+	TSharedPtr<IGameServiceRpcLocator> UserRpcLocator;
 	
 public:
 	UFUNCTION(BlueprintCallable)

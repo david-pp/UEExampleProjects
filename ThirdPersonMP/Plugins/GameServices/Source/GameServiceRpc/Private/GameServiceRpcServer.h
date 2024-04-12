@@ -2,11 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IMessageBus.h"
 
 class IGameServiceRpcServer;
 
 class FGameServiceRpcServerFactory
 {
 public:
-	static TSharedRef<IGameServiceRpcServer> Create();
+	static TSharedRef<IGameServiceRpcServer> Create(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus);
 };

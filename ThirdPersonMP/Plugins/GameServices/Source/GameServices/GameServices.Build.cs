@@ -12,9 +12,17 @@ public class GameServices : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
+				"CoreUObject", 
+				"Messaging",
 			}
 		);
+
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Messaging",
+			"MessagingRpc", 
+			"GameServiceRpc"
+		});
 
 		PublicDefinitions.Add("WITH_GAME_SERVICES=1");
 	}

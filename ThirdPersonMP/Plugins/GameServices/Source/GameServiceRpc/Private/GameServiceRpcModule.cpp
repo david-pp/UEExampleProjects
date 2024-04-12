@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "GameServiceRpcClient.h"
 #include "Modules/ModuleManager.h"
 #include "IGameServiceRpcModule.h"
 #include "GameServiceRpcLocator.h"
@@ -38,6 +39,11 @@ public:
 	virtual TSharedRef<IGameServiceRpcServer> CreateServer(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) override
 	{
 		return FGameServiceRpcServerFactory::Create(DebugName, MessageBus);
+	}
+
+	virtual TSharedRef<IGameServiceRpcClient> CreateClient(const FString& ClientName, const FString& ServiceKey, const FServiceMessageBusRef& ServiceBus) override
+	{
+		return MakeShared<FGameServiceRpcClient>(ClientName, ServiceKey, ServiceBus);
 	}
 };
 

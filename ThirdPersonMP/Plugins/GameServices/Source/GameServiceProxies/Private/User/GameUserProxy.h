@@ -8,5 +8,5 @@
 class FGameUserProxyFactory
 {
 public:
-	static TSharedRef<IGameService> Create(const TSharedRef<IMessageRpcClient>& RpcClient);
+	static TSharedRef<IGameService> Create();
 }; 

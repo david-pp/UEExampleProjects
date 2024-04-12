@@ -62,7 +62,7 @@ private:
 
 		if (Server.IsValid())
 		{
-			Server->ConnectTo(Context->GetSender());
+			Server->SendServiceAddress(Context->GetSender());
 		}
 	}
 

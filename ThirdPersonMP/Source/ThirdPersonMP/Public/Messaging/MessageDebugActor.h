@@ -17,6 +17,7 @@
 #include "MessageDebugActor.generated.h"
 
 class IGameServiceRpcLocator;
+class IGameServiceRpcClient;
 
 UCLASS()
 class THIRDPERSONMP_API AMessageDebugPingServiceActor : public AActor
@@ -131,7 +132,10 @@ public:
 	void CreateUserRpcClient();
 	UFUNCTION(BlueprintCallable)
 	void AsyncGetUserDetails();
+	UFUNCTION(BlueprintCallable)
+	void AsyncGetUserDetails2();
 
+	TSharedPtr<IGameServiceRpcClient> UserServiceRpcClient;
 	TSharedPtr<IMessageRpcClient> UserRpcClient;
 	TSharedPtr<IGameServiceRpcLocator> UserRpcLocator;
 	

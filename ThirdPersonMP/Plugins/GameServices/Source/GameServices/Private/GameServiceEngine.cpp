@@ -11,7 +11,6 @@
 #include "Misc/TypeContainer.h"
 #include "User/IGameUserService.h"
 
-
 void FGameServicesEngine::InitializeGameServices()
 {
 	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
@@ -104,6 +103,7 @@ void FGameServicesEngine::InitializeGameServers()
 		if (ServiceLocator)
 		{
 			ServiceLocator->Configure(TEXT("IGameUserService"), TEXT("*"), "GameUserService");
+			ServiceLocator->Configure(TEXT("GameUserProxy"), TEXT("*"), "GameServiceProxies");
 		}
 	}
 

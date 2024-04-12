@@ -8,12 +8,15 @@
 class IGameServiceRpcLocator;
 class IGameServiceRpcResponder;
 class IGameServiceRpcServer;
+class IGameServiceRpcClient;
+
+typedef TSharedRef<IMessageBus, ESPMode::ThreadSafe> FServiceMessageBusRef;
+typedef TSharedPtr<IMessageBus, ESPMode::ThreadSafe> FServiceMessageBusPtr;
 
 /**
  * Interface for the GameServiceRpc module.
  */
-class IGameServiceRpcModule
-	: public IModuleInterface
+class IGameServiceRpcModule : public IModuleInterface
 {
 public:
 	static IGameServiceRpcModule* Get()
@@ -21,7 +24,9 @@ public:
 		return static_cast<IGameServiceRpcModule*>(FModuleManager::Get().LoadModule("GameServiceRpc"));
 	}
 
-	virtual TSharedRef<IGameServiceRpcLocator> CreateLocator(const FString& DebugName, const FString& ServiceKey, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) = 0;
-	virtual TSharedRef<IGameServiceRpcResponder> CreateResponder(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) = 0;
-	virtual TSharedRef<IGameServiceRpcServer> CreateServer(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) = 0;
+	virtual TSharedRef<IGameServiceRpcLocator> CreateLocator(const FString& Name, const FString& ServiceKey, const FServiceMessageBusRef& ServiceBus) = 0;
+	virtual TSharedRef<IGameServiceRpcResponder> CreateResponder(const FString& Name, const FServiceMessageBusRef& ServiceBus) = 0;
+
+	virtual TSharedRef<IGameServiceRpcServer> CreateServer(const FString& ServerName, const FServiceMessageBusRef& ServiceBus) = 0;
+	virtual TSharedRef<IGameServiceRpcClient> CreateClient(const FString& ClientName, const FString& ServiceKey, const FServiceMessageBusRef& ServiceBus) = 0;
 };

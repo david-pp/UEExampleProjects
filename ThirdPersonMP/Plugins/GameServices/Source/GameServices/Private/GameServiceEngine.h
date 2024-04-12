@@ -1,5 +1,8 @@
+#pragma once
+
 #include "CoreMinimal.h"
 #include "IGameServiceEngine.h"
+#include "IGameServiceLocator.h"
 #include "Misc/TypeContainer.h"
 
 class IGameServiceRpcResponder;
@@ -27,6 +30,20 @@ public:
 	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> GetServiceBus() const override
 	{
 		return ServiceBus;
+	}
+
+	virtual TSharedPtr<IGameServiceLocator> GetServiceLocator() const override
+	{
+		return ServiceLocator;
+	}
+
+	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName) override
+	{
+		if (ServiceLocator)
+		{
+			return ServiceLocator->GetService(ServiceName, TEXT(""));
+		}
+		return TSharedPtr<IGameService>();
 	}
 
 	void InitializeGameServices();

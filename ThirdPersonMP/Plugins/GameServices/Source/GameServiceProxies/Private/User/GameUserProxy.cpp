@@ -4,6 +4,9 @@
 
 #include "User/IGameUserService.h"
 #include "GameUserMessages.h"
+#include "IGameServiceRpcClient.h"
+#include "IGameServiceRpcModule.h"
+#include "IGameServicesModule.h"
 #include "IMessageRpcClient.h"
 
 class FGameUserProxy : public IGameUserService
@@ -11,6 +14,10 @@ class FGameUserProxy : public IGameUserService
 public:
 	virtual ~FGameUserProxy()
 	{
+		if (RpcClient)
+		{
+			RpcClient.Reset();
+		}
 	}
 
 	virtual bool IsAvailable() const override
@@ -21,21 +28,28 @@ public:
 public:
 	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
 	{
+		UE_LOG(LogTemp, Warning, TEXT("GetUserDetails@Proxy -----"));
 		return RpcClient->Call<FGameUserGetUserDetails>();
 	}
 
 private:
-	FGameUserProxy(const TSharedRef<IMessageRpcClient>& InRpcClient) : RpcClient(InRpcClient)
+	FGameUserProxy()
 	{
+		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+		IGameServiceRpcModule* ServiceRpcModule = IGameServiceRpcModule::Get();
+		if (ServiceRpcModule)
+		{
+			RpcClient = ServiceRpcModule->CreateClient(TEXT("UserRpcClient"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
+		}
 	}
 
 private:
-	TSharedRef<IMessageRpcClient> RpcClient;
+	TSharedPtr<IGameServiceRpcClient> RpcClient;
 
 	friend FGameUserProxyFactory;
 };
 
-TSharedRef<IGameService> FGameUserProxyFactory::Create(const TSharedRef<IMessageRpcClient>& RpcClient)
+TSharedRef<IGameService> FGameUserProxyFactory::Create()
 {
-	return MakeShareable(new FGameUserProxy(RpcClient));
+	return MakeShareable(new FGameUserProxy);
 }

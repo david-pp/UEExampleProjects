@@ -40,6 +40,12 @@ public:
 		return StaticCastSharedPtr<ServiceType>(GetService(TNameOf<ServiceType>::GetName(), ProductId));
 	}
 
+	template <typename ServiceType>
+	TSharedPtr<ServiceType> GetServiceByName(const FString& ServiceName, const FString& ProductId = TEXT(""))
+	{
+		return StaticCastSharedPtr<ServiceType>(GetService(ServiceName, ProductId));
+	}
+
 	/**
 	 * Get a service of the specified type.
 	 *
@@ -56,7 +62,7 @@ public:
 		return GetService<ServiceType>(ProductId).ToSharedRef();
 	}
 
-protected:
+
 	/**
 	 * Get a service of the specified type.
 	 *

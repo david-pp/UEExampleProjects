@@ -30,6 +30,7 @@ public:
 
 	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
 	{
+		UE_LOG(LogTemp, Warning, TEXT("GetUserDetails@Service -----"));
 		FGameUserDetails UserDetails;
 		UserDetails.DisplayName = FText::FromString(TEXT("David"));
 		return TAsyncResult<FGameUserDetails>(UserDetails);

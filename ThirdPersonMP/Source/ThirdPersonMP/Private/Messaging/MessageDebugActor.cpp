@@ -4,6 +4,7 @@
 #include "Messaging/MessageDebugActor.h"
 
 #include "GameUserMessages.h"
+#include "IGameServiceRpcClient.h"
 #include "IGameServiceRpcLocator.h"
 #include "IGameServiceRpcModule.h"
 #include "IGameServicesModule.h"
@@ -321,46 +322,107 @@ void AMessageDebugPingClientCharacter::CreateUserRpcClient()
 	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
 	IGameServiceRpcModule* ServiceRpcModule = IGameServiceRpcModule::Get();
 	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
+
 	if (MessagingRpcModule && ServiceRpcModule && ServiceEngine && ServiceEngine->GetServiceBus())
 	{
-		UserRpcClient = MessagingRpcModule->CreateRpcClient(TEXT("UserRpcClient"), ServiceEngine->GetServiceBus().ToSharedRef());
-		if (UserRpcClient)
-		{
-			// create a locator to find rpc server
-			UserRpcLocator = ServiceRpcModule->CreateLocator(TEXT("UserServiceLocator"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
-			if (UserRpcLocator)
-			{
-				UserRpcLocator->OnServerLocated().BindLambda([=]()
-				{
-					UE_LOG(LogTemp, Warning, TEXT("OnServerLocated ... %s"), *UserRpcLocator->GetServerAddress().ToString());
-					UserRpcClient->Connect(UserRpcLocator->GetServerAddress());
-				});
-
-				UserRpcLocator->OnServerLost().BindLambda([=]()
-				{
-					UE_LOG(LogTemp, Warning, TEXT("OnServerLost ... %s"), *UserRpcLocator->GetServerAddress().ToString());
-					UserRpcClient->Disconnect();
-				});
-			}
-		}
+		UserServiceRpcClient = ServiceRpcModule->CreateClient(TEXT("UserRpcClient"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
+		// UserRpcClient = MessagingRpcModule->CreateRpcClient(TEXT("UserRpcClient"), ServiceEngine->GetServiceBus().ToSharedRef());
+		// if (UserRpcClient)
+		// {
+		// 	// create a locator to find rpc server
+		// 	UserRpcLocator = ServiceRpcModule->CreateLocator(TEXT("UserServiceLocator"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
+		// 	if (UserRpcLocator)
+		// 	{
+		// 		UserRpcLocator->OnServerLocated().BindLambda([=]()
+		// 		{
+		// 			UE_LOG(LogTemp, Warning, TEXT("OnServerLocated ... %s"), *UserRpcLocator->GetServerAddress().ToString());
+		// 			UserRpcClient->Connect(UserRpcLocator->GetServerAddress());
+		// 		});
+		//
+		// 		UserRpcLocator->OnServerLost().BindLambda([=]()
+		// 		{
+		// 			UE_LOG(LogTemp, Warning, TEXT("OnServerLost ... %s"), *UserRpcLocator->GetServerAddress().ToString());
+		// 			UserRpcClient->Disconnect();
+		// 		});
+		// 	}
+		// }
 	}
 }
 
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 {
-	if (UserRpcClient)
+	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+	if (ServiceEngine)
 	{
-		TAsyncResult<FGameUserDetails> AsyncResult = UserRpcClient->Call<FGameUserGetUserDetails>();
-		TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-		
-		Future.Then([this](TFuture<FGameUserDetails> InFuture)
+		auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("GameUserProxy"));
+		if (UserService)
 		{
-			if (InFuture.IsReady())
+			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
+			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+			
+			Future.Then([this](TFuture<FGameUserDetails> InFuture)
 			{
-				FGameUserDetails Result = InFuture.Get();
-				UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
-			}
-		});
+				if (InFuture.IsReady())
+				{
+					FGameUserDetails Result = InFuture.Get();
+					UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
+				}
+			});
+		}
+	}
+	
+	// if (UserServiceRpcClient)
+	// {
+	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserServiceRpcClient->Call<FGameUserGetUserDetails>();
+	// 	TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+	// 	
+	// 	Future.Then([this](TFuture<FGameUserDetails> InFuture)
+	// 	{
+	// 		if (InFuture.IsReady())
+	// 		{
+	// 			FGameUserDetails Result = InFuture.Get();
+	// 			UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
+	// 		}
+	// 	});
+	// }
+
+	
+	// if (UserRpcClient)
+	// {
+	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserRpcClient->Call<FGameUserGetUserDetails>();
+	// 	TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+	// 	
+	// 	Future.Then([this](TFuture<FGameUserDetails> InFuture)
+	// 	{
+	// 		if (InFuture.IsReady())
+	// 		{
+	// 			FGameUserDetails Result = InFuture.Get();
+	// 			UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
+	// 		}
+	// 	});
+	// }
+}
+
+void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
+{
+	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+	if (ServiceEngine)
+	{
+		auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("IGameUserService"));
+		if (UserService)
+		{
+			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
+			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+			
+			Future.Then([this](TFuture<FGameUserDetails> InFuture)
+			{
+				if (InFuture.IsReady())
+				{
+					FGameUserDetails Result = InFuture.Get();
+					UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
+				}
+			});
+		}
 	}
 }
 

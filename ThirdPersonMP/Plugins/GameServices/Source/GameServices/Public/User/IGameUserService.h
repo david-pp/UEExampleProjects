@@ -29,11 +29,7 @@ struct FGameUserDetails
 
 	/** Whether this user is currently signed-in to the game */
 	UPROPERTY(EditAnywhere, Category = "User")
-	bool IsSignedIn;
-
-	FGameUserDetails() : DisplayName(), Email(), RealName(), IsSignedIn(false)
-	{
-	}
+	bool IsSignedIn = false;
 };
 
 

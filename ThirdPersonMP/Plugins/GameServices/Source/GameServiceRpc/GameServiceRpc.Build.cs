@@ -6,7 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public GameServiceRpc(ReadOnlyTargetRules Target) : base(Target)
 		{
-            DynamicallyLoadedModuleNames.AddRange(
+			DynamicallyLoadedModuleNames.AddRange(
                 new string[] {
                 }
             );
@@ -16,7 +16,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
-                    "MessagingRpc", "Messaging",
+                    "MessagingRpc", 
+                    "Messaging",
 				}
 			);
 

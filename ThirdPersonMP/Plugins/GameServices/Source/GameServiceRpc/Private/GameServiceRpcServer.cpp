@@ -12,7 +12,7 @@ class FGameServiceRpcServerImpl
 {
 public:
 
-	virtual void ConnectTo(const FMessageAddress& Address) const
+	virtual void SendServiceAddress(const FMessageAddress& Address) const
 	{
 		MessageEndpoint->Send(new FGameServiceRpcServer(GetAddress().ToString()), Address);
 	}

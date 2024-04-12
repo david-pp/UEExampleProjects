@@ -18,7 +18,7 @@ public:
 
 	virtual void StartupModule() override
 	{
-		GameServiceUser_SupportedServiceNames.Add(TNameOf<IGameUserService>::GetName());
+		// GameServiceUser_SupportedServiceNames.Add(TNameOf<IGameUserService>::GetName());
 		// GameServiceUserLogin_SupportedServiceNames.Add(TNameOf<IGameServiceUserLogin>::GetName());
 	}
 
@@ -35,16 +35,16 @@ public:
 	// IGameServiceProvider interface
 	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName, const TSharedRef<FTypeContainer>& Dependencies) override
 	{
-		TSharedPtr<IMessageRpcClient> RpcClient = Dependencies->GetInstance<IMessageRpcClient>();
+		// TSharedPtr<IMessageRpcClient> RpcClient = Dependencies->GetInstance<IMessageRpcClient>();
+		//
+		// if (!RpcClient.IsValid())
+		// {
+		// 	return nullptr;
+		// }
 
-		if (!RpcClient.IsValid())
+		if (ServiceName == TEXT("GameUserProxy"))
 		{
-			return nullptr;
-		}
-
-		if (GameServiceUser_SupportedServiceNames.Contains(ServiceName))
-		{
-			return FGameUserProxyFactory::Create(RpcClient.ToSharedRef());
+			return FGameUserProxyFactory::Create();
 		}
 
 		//Add additional supported proxy services here

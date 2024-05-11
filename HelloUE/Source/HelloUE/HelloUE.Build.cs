@@ -18,7 +18,8 @@ public class HelloUE : ModuleRules
 			"UMG",
 			"Slate",
 			"GameplayTags",
-			"GameplayTasks"
+			"GameplayTasks",
+			"DeveloperSettings"
 		});
 	}
 }

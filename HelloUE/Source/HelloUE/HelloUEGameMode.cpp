@@ -3,6 +3,7 @@
 #include "HelloUEGameMode.h"
 #include "HelloUECharacter.h"
 #include "FloatingActor.h"
+#include "HelloGameSettings.h"
 #include "MySaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
@@ -87,6 +88,12 @@ void AHelloUEGameMode::SaveGame(int32 UserIndex)
 
 void AHelloUEGameMode::LoadGame(int32 UserIndex)
 {
+	const UHelloGameSettings* GameSettings = GetDefault<UHelloGameSettings>();
+	if (GameSettings)
+	{
+		// GameSettings->SaveSlotName;
+	}
+	
 	// Retrieve and cast the USaveGame object to UMySaveGame.
 	if (UMySaveGame* LoadedGame = Cast<UMySaveGame>(UGameplayStatics::LoadGameFromSlot(SlotNameString, 0)))
 	{

@@ -19,6 +19,7 @@ public class HelloUE : ModuleRules
 			"Slate",
 			"GameplayTags",
 			"GameplayTasks",
+			"GameplayDebugger",
 			"DeveloperSettings"
 		});
 	}

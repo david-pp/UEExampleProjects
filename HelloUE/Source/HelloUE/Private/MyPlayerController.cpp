@@ -18,8 +18,7 @@ void UGameCheatManager::GrantItems()
 		ItemsToStream.AddUnique(ItemList[i].ToSoftObjectPath());
 	}
 
-	Streamable.RequestAsyncLoad(ItemsToStream,
-	                            FStreamableDelegate::CreateUObject(this, &UGameCheatManager::GrantItemsDeferred));
+	Streamable.RequestAsyncLoad(ItemsToStream, FStreamableDelegate::CreateUObject(this, &UGameCheatManager::GrantItemsDeferred));
 }
 
 void UGameCheatManager::GrantItemsDeferred()
@@ -32,6 +31,11 @@ void UGameCheatManager::GrantItemsDeferred()
 			UE_LOG(LogHello, Log, TEXT("Item-%d"), ItemData->Value);
 		}
 	}
+}
+
+void UGameCheatManager::DebugServerXXX(const FString& Msg)
+{
+	UE_LOG(LogHello, Log, TEXT("DebugServerXXX - %s"), *Msg);
 }
 
 AMyPlayerController::AMyPlayerController()

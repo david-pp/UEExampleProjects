@@ -29,6 +29,9 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TSoftObjectPtr<UGameItem>> ItemList;
+
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void DebugServerXXX(const FString& Msg);
 };
 
 /**

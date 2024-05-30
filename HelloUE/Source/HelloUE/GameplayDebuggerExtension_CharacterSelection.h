@@ -15,8 +15,12 @@ public:
 
 protected:
 	void TogglePlayerSelect();
+	void OnDebugNextPawn();
+	void OnDebugPrevPawn();
 	// void OnShowNextCharacter();
 
 	TWeakObjectPtr<APawn> SelectedPlayer;
 	TWeakObjectPtr<APawn> InitialActor;
+
+	int32 CurrentTargetIndex = 0;
 };

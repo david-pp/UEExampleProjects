@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TcpMessageTransport.h"
+#include "GameTcpMessageTransport.h"
 
 #include "HAL/RunnableThread.h"
 #include "Common/TcpSocketBuilder.h"
 #include "Common/TcpListener.h"
 #include "IMessageTransportHandler.h"
-#include "TcpMessagingPrivate.h"
+#include "GameTcpMessagingPrivate.h"
 
-#include "TcpDeserializedMessage.h"
-#include "TcpSerializedMessage.h"
-#include "TcpMessageTransportConnection.h"
-#include "TcpSerializeMessageTask.h"
+#include "GameTcpDeserializedMessage.h"
+#include "GameTcpSerializedMessage.h"
+#include "GameTcpMessageTransportConnection.h"
+#include "GameTcpSerializeMessageTask.h"
 
 /* FTcpMessageTransport structors
  *****************************************************************************/

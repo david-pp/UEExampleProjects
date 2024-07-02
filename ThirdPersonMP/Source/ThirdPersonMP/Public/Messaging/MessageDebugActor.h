@@ -11,6 +11,7 @@
 #include "IMessageRpcServer.h"
 #include "IMessageRpcClient.h"
 #include "DebugingMessages.h"
+#include "IMessageTransport.h"
 #include "IMyRpcLocator.h"
 #include "IMyRpcResponder.h"
 #include "NatsClient.h"
@@ -83,6 +84,9 @@ public:
 	void CreateBus(FString BusName, FString ListenEndpoint, TArray<FString> ConnectToEndpoints);
 
 	UFUNCTION(BlueprintCallable)
+	void CreateNatsBus(FString BusName, FString NatsServerURL);
+	
+	UFUNCTION(BlueprintCallable)
 	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg = false);
 
 	UFUNCTION(BlueprintCallable)
@@ -92,6 +96,7 @@ public:
 
 	TMap<FString, TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
 	TMap<FString, TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
+	TMap<FString, TSharedPtr<class FGameNatsMessageTransport, ESPMode::ThreadSafe>> NatsTransports;
 	TMap<FString, TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>> EndPoints;
 
 

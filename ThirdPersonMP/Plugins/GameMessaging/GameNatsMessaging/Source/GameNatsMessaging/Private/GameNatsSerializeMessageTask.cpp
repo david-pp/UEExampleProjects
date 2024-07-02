@@ -1,21 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TcpSerializeMessageTask.h"
-#include "TcpMessageTransportConnection.h"
+#include "GameNatsSerializeMessageTask.h"
 #include "Backends/JsonStructSerializerBackend.h"
 #include "StructSerializer.h"
 
 
-/* FTcpSerializeMessageTask interface
+/* FNatsSerializeMessageTask interface
  *****************************************************************************/
 
-void FTcpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void FNatsSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	if (MessageContext->IsValid())
 	{
 		// Note that some complex values are serialized manually here, so that we can ensure
 		// a consistent wire format, if their implementations change. This allows us to sanity
-		// check the values during deserialization. @see FTcpDeserializeMessage::Deserialize()
+		// check the values during deserialization. @see FNatsDeserializeMessage::Deserialize()
 
 		// serialize context
 		FArchive& Archive = SerializedMessage.Get();
@@ -54,27 +53,25 @@ void FTcpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const F
 		FStructSerializer::Serialize(MessageContext->GetMessage(), *MessageTypeInfoPtr, Backend);
 
 		// enqueue to recipients
-		for (auto& Connection : RecipientConnections)
+		if (NatsClient)
 		{
-			Connection->Send(SerializedMessage);
+			NatsClient->Publish(TEXT("GameNatsTransport"), (char*)SerializedMessage->GetDataArray().GetData(), SerializedMessage->GetDataArray().Num());
 		}
 	}
 }
 
-
-ENamedThreads::Type FTcpSerializeMessageTask::GetDesiredThread()
+ENamedThreads::Type FNatsSerializeMessageTask::GetDesiredThread()
 {
 	return ENamedThreads::AnyThread;
 }
 
-
-TStatId FTcpSerializeMessageTask::GetStatId() const
+TStatId FNatsSerializeMessageTask::GetStatId() const
 {
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FTcpSerializeMessageTask, STATGROUP_TaskGraphTasks);
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FNatsSerializeMessageTask, STATGROUP_TaskGraphTasks);
 }
 
 
-ESubsequentsMode::Type FTcpSerializeMessageTask::GetSubsequentsMode() 
-{ 
-	return ESubsequentsMode::FireAndForget; 
+ESubsequentsMode::Type FNatsSerializeMessageTask::GetSubsequentsMode()
+{
+	return ESubsequentsMode::FireAndForget;
 }

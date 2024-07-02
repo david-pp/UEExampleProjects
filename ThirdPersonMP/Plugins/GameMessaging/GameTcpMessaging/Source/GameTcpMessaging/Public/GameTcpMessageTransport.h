@@ -40,7 +40,7 @@ struct FNodeConnectionMapUpdate
  * one for per-process unicast sending/receiving, and one for multicast receiving.
  * Console and mobile platforms use a single multicast socket for all sending and receiving.
  */
-class FTcpMessageTransport
+class GAMETCPMESSAGING_API FTcpMessageTransport
 	: FRunnable
 	, public IMessageTransport
 {

@@ -6,7 +6,7 @@ public class ThirdPersonMP : ModuleRules
 {
 	public ThirdPersonMP(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(new string[] { "GameServices", "GameServiceRpc", "GameServiceMessages", "NatsClient" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "GameServices", "GameServiceRpc", "GameServiceMessages", "NatsClient", "GameTcpMessaging", "GameNatsMessaging" });
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new string[]

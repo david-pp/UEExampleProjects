@@ -63,6 +63,14 @@
 		{
 			"Name": "MessagingDebugger",
 			"Enabled": true
+		},
+		{
+			"Name": "GameTcpMessaging",
+			"Enabled": true
+		},
+		{
+			"Name": "GameNatsMessaging",
+			"Enabled": true
 		}
 	]
 }

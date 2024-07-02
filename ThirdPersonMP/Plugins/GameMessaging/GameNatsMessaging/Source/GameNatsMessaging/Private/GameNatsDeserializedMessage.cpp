@@ -1,22 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TcpDeserializedMessage.h"
+#include "GameNatsDeserializedMessage.h"
 #include "UObject/Package.h"
-#include "TcpMessagingPrivate.h"
+#include "GameNatsMessagingPrivate.h"
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "StructDeserializer.h"
 
-
-/* FTcpDeserializedMessage structors
+/* FNatsDeserializedMessage structors
 *****************************************************************************/
 
-FTcpDeserializedMessage::FTcpDeserializedMessage(const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& InAttachment)
-	: Attachment(InAttachment)
-	, MessageData(nullptr)
-{ }
+FNatsDeserializedMessage::FNatsDeserializedMessage(const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& InAttachment)
+	: Attachment(InAttachment), MessageData(nullptr)
+{
+}
 
 
-FTcpDeserializedMessage::~FTcpDeserializedMessage()
+FNatsDeserializedMessage::~FNatsDeserializedMessage()
 {
 	if (MessageData != nullptr)
 	{
@@ -31,15 +30,15 @@ FTcpDeserializedMessage::~FTcpDeserializedMessage()
 }
 
 
-/* FTcpDeserializedMessage interface
+/* FNatsDeserializedMessage interface
  *****************************************************************************/
 
-bool FTcpDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Message)
+bool FNatsDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Message)
 {
 	FArrayReader& MessageReader = Message.ToSharedRef().Get();
 
 	// Note that some complex values are deserialized manually here, so that we
-	// can sanity check their values. @see FTcpSerializeMessageTask::DoTask()
+	// can sanity check their values. @see FNatsSerializeMessageTask::DoTask()
 	MessageReader.ArMaxSerializeSize = NAME_SIZE;
 
 	UScriptStruct* TypeInfoPtr = nullptr;
@@ -127,7 +126,6 @@ bool FTcpDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMode
 
 	// deserialize message body
 	FJsonStructDeserializerBackend Backend(MessageReader);
-
 	return FStructDeserializer::Deserialize(MessageData, *TypeInfoPtr, Backend);
 }
 
@@ -135,84 +133,84 @@ bool FTcpDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMode
 /* IMessageContext interface
  *****************************************************************************/
 
-const TMap<FName, FString>& FTcpDeserializedMessage::GetAnnotations() const
+const TMap<FName, FString>& FNatsDeserializedMessage::GetAnnotations() const
 {
 	return Annotations;
 }
 
 
-TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe> FTcpDeserializedMessage::GetAttachment() const
+TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe> FNatsDeserializedMessage::GetAttachment() const
 {
 	return Attachment;
 }
 
 
-const FDateTime& FTcpDeserializedMessage::GetExpiration() const
+const FDateTime& FNatsDeserializedMessage::GetExpiration() const
 {
 	return Expiration;
 }
 
 
-const void* FTcpDeserializedMessage::GetMessage() const
+const void* FNatsDeserializedMessage::GetMessage() const
 {
 	return MessageData;
 }
 
 
-const TWeakObjectPtr<UScriptStruct>& FTcpDeserializedMessage::GetMessageTypeInfo() const
+const TWeakObjectPtr<UScriptStruct>& FNatsDeserializedMessage::GetMessageTypeInfo() const
 {
 	return TypeInfo;
 }
 
 
-TSharedPtr<IMessageContext, ESPMode::ThreadSafe> FTcpDeserializedMessage::GetOriginalContext() const
+TSharedPtr<IMessageContext, ESPMode::ThreadSafe> FNatsDeserializedMessage::GetOriginalContext() const
 {
 	return nullptr;
 }
 
 
-const TArray<FMessageAddress>& FTcpDeserializedMessage::GetRecipients() const
+const TArray<FMessageAddress>& FNatsDeserializedMessage::GetRecipients() const
 {
 	return Recipients;
 }
 
 
-EMessageScope FTcpDeserializedMessage::GetScope() const
+EMessageScope FNatsDeserializedMessage::GetScope() const
 {
 	return Scope;
 }
 
-EMessageFlags FTcpDeserializedMessage::GetFlags() const
+EMessageFlags FNatsDeserializedMessage::GetFlags() const
 {
 	return EMessageFlags::None;
 }
 
 
-const FMessageAddress& FTcpDeserializedMessage::GetSender() const
+const FMessageAddress& FNatsDeserializedMessage::GetSender() const
 {
 	return Sender;
 }
 
 
-const FMessageAddress& FTcpDeserializedMessage::GetForwarder() const
+const FMessageAddress& FNatsDeserializedMessage::GetForwarder() const
 {
 	return Sender;
 }
 
 
-ENamedThreads::Type FTcpDeserializedMessage::GetSenderThread() const
+ENamedThreads::Type FNatsDeserializedMessage::GetSenderThread() const
 {
 	return ENamedThreads::AnyThread;
 }
 
 
-const FDateTime& FTcpDeserializedMessage::GetTimeForwarded() const
+const FDateTime& FNatsDeserializedMessage::GetTimeForwarded() const
 {
 	return TimeSent;
 }
 
 
-const FDateTime& FTcpDeserializedMessage::GetTimeSent() const
+const FDateTime& FNatsDeserializedMessage::GetTimeSent() const
 {
 	return TimeSent;
 }

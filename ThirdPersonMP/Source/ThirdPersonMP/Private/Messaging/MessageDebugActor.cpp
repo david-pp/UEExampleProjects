@@ -3,6 +3,8 @@
 
 #include "Messaging/MessageDebugActor.h"
 
+#include "GameNatsMessageTransport.h"
+#include "GameNatsMessageTransport.h"
 #include "GameUserMessages.h"
 #include "IGameServiceRpcClient.h"
 #include "IGameServiceRpcLocator.h"
@@ -15,7 +17,7 @@
 #include "MessageEndpointBuilder.h"
 #include "NatsClientModule.h"
 #include "Messaging/DebugingMessages.h"
-#include "Messaging/TcpMessageTransport.h"
+#include "GameTcpMessageTransport.h"
 
 AMessageDebugPingServiceActor::AMessageDebugPingServiceActor()
 {
@@ -115,6 +117,11 @@ void AMessageDebugPingClientCharacter::TickActor(float DeltaTime, ELevelTick Tic
 	{
 		KV.Value->Tick();
 	}
+
+	for (auto& NatsKV : NatsTransports)
+	{
+		NatsKV.Value->DispatchMessageCallbacks();
+	}
 }
 
 void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -169,6 +176,24 @@ void AMessageDebugPingClientCharacter::CreateBus(FString BusName, FString Listen
 	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef()).UsingTransport(Transport);
 	if (MessageBridge)
 	{
+		Bridges.Add(BusName, MessageBridge);
+	}
+}
+
+void AMessageDebugPingClientCharacter::CreateNatsBus(FString BusName, FString NatsServerURL)
+{
+	if (Buses.Find(BusName)) return;
+
+	// Create Bus
+	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = IMessagingModule::Get().CreateBus(BusName);
+	Buses.Add(BusName, Bus);
+
+	// Create Bridge with Transport
+	TSharedRef<FGameNatsMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FGameNatsMessageTransport(NatsServerURL));
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef()).UsingTransport(Transport);
+	if (MessageBridge)
+	{
+		NatsTransports.Add(BusName, Transport);
 		Bridges.Add(BusName, MessageBridge);
 	}
 }

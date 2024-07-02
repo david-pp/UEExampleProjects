@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TcpMessageTransportConnection.h"
+#include "GameTcpMessageTransportConnection.h"
 #include "Serialization/ArrayWriter.h"
 #include "Common/TcpSocketBuilder.h"
-#include "TcpMessagingPrivate.h"
-#include "TcpDeserializedMessage.h"
+#include "GameTcpMessagingPrivate.h"
+#include "GameTcpDeserializedMessage.h"
 #include "Misc/ScopeLock.h"
 
 /** Header sent over the connection as soon as it's opened */

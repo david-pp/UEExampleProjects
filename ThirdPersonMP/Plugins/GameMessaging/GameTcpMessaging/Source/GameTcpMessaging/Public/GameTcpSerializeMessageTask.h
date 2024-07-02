@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "IMessageContext.h"
-#include "TcpSerializedMessage.h"
+#include "GameTcpSerializedMessage.h"
 
 class FTcpMessageTransportConnection;
 

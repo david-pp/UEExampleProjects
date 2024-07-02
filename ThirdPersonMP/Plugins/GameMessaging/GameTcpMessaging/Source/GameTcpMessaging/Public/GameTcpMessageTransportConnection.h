@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
-#include "TcpSerializedMessage.h"
+#include "GameTcpSerializedMessage.h"
 #include "HAL/Runnable.h"
 #include "Containers/Queue.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"

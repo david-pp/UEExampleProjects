@@ -13,6 +13,7 @@
 #include "MessageBridgeBuilder.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
+#include "NatsClientModule.h"
 #include "Messaging/DebugingMessages.h"
 #include "Messaging/TcpMessageTransport.h"
 
@@ -41,10 +42,8 @@ void AMessageDebugPingServiceActor::StartService()
 	{
 		return;
 	}
-	
-	MessageEndpoint = FMessageEndpoint::Builder(ServiceName)
-		.Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage)
-		.Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
+
+	MessageEndpoint = FMessageEndpoint::Builder(ServiceName).Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage).Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
 
 	if (MessageEndpoint)
 	{
@@ -95,8 +94,6 @@ void AMessageDebugPingServiceActor::HandleHeartBeatMessage(const FDebugServiceHe
 void AMessageDebugBusActor::BeginPlay()
 {
 	Super::BeginPlay();
-
-
 }
 
 AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -110,16 +107,30 @@ void AMessageDebugPingClientCharacter::BeginPlay()
 	StartClient();
 }
 
+void AMessageDebugPingClientCharacter::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
+{
+	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
+
+	for (auto& KV : NatsClients)
+	{
+		KV.Value->Tick();
+	}
+}
+
 void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 	StopClient();
+
+	for (auto& KV : NatsClients)
+	{
+		KV.Value->Close();
+	}
 }
 
 void AMessageDebugPingClientCharacter::CreateBus(FString BusName, FString ListenEndpointString, TArray<FString> ConnectToEndpointStrings)
 {
-	if (Buses.Find(BusName))
-		return;
+	if (Buses.Find(BusName)) return;
 
 	// Create Bus
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = IMessagingModule::Get().CreateBus(BusName);
@@ -154,9 +165,8 @@ void AMessageDebugPingClientCharacter::CreateBus(FString BusName, FString Listen
 
 	// Create Bridge with Transport
 	TSharedRef<FTcpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
-		
-	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef())
-		.UsingTransport(Transport);
+
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef()).UsingTransport(Transport);
 	if (MessageBridge)
 	{
 		Bridges.Add(BusName, MessageBridge);
@@ -167,9 +177,8 @@ void AMessageDebugPingClientCharacter::CreateBusEndPoint(FString BusName, FStrin
 {
 	auto Bus = Buses.FindRef(BusName);
 	if (!Bus) return;
-	
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>  Endpoint = FMessageEndpoint::Builder(FName(EndPointName), Bus.ToSharedRef())
-		.Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingClientCharacter::HandleHeartBeatMessage);
+
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Endpoint = FMessageEndpoint::Builder(FName(EndPointName), Bus.ToSharedRef()).Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingClientCharacter::HandleHeartBeatMessage);
 
 	if (Endpoint)
 	{
@@ -177,7 +186,7 @@ void AMessageDebugPingClientCharacter::CreateBusEndPoint(FString BusName, FStrin
 		{
 			Endpoint->Subscribe<FDebugServiceHeartBeat>();
 		}
-		
+
 		EndPoints.Add(EndPointName, Endpoint);
 	}
 }
@@ -202,7 +211,7 @@ void AMessageDebugPingClientCharacter::CreateBusRpcClient(FString BusName, FStri
 {
 	auto Bus = Buses.FindRef(BusName);
 	if (!Bus) return;
-	
+
 	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
 	if (MessagingRpcModule)
 	{
@@ -215,7 +224,7 @@ void AMessageDebugPingClientCharacter::CreateBusRpcClient(FString BusName, FStri
 			{
 				RpcClient->Connect(RpcServer->GetAddress());
 			}
-			
+
 			RpcClients.Add(RpcClientName, RpcClient);
 
 			// create a locator to find rpc server
@@ -238,20 +247,18 @@ void AMessageDebugPingClientCharacter::CreateBusRpcClient(FString BusName, FStri
 			}
 		}
 	}
-
 }
 
 void AMessageDebugPingClientCharacter::CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers)
 {
 	auto Bus = Buses.FindRef(BusName);
 	if (!Bus) return;
-	
+
 	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
 	if (MessagingRpcModule)
 	{
-		
 		// TSharedPtr<IMessageRpcServer> RpcServer = MessagingRpcModule->CreateRpcServer(RpcServerName, Bus.ToSharedRef());
-		TSharedPtr<IMessageRpcServer> RpcServer =  MakeShared<FMyRpcServerImpl>(RpcServerName, Bus.ToSharedRef());
+		TSharedPtr<IMessageRpcServer> RpcServer = MakeShared<FMyRpcServerImpl>(RpcServerName, Bus.ToSharedRef());
 		if (RpcServer)
 		{
 			if (bRegisterHandlers)
@@ -266,7 +273,7 @@ void AMessageDebugPingClientCharacter::CreateBusRpcServer(FString BusName, FStri
 	if (RpcResponder)
 	{
 		RpcResponders.Add(RpcServerName, RpcResponder);
-		
+
 		RpcResponder->OnLookup().BindLambda([this](const FString& ProductionKey)
 		{
 			auto RpcServer = RpcServers.FindRef(ProductionKey);
@@ -299,7 +306,7 @@ void AMessageDebugPingClientCharacter::AsyncMyRpcDemo(FString RpcClientName, FSt
 	{
 		TAsyncResult<FMyResult> AsyncResult = RpcClient->Call<FMyRpc>(Param1, Param2);
 		TFuture<FMyResult>& Future = const_cast<TFuture<FMyResult>&>(AsyncResult.GetFuture());
-		
+
 		Future.Then([this](TFuture<FMyResult> Result)
 		{
 			OnMyRpcComplete.Broadcast(Result.Get());
@@ -310,7 +317,7 @@ void AMessageDebugPingClientCharacter::AsyncMyRpcDemo(FString RpcClientName, FSt
 TAsyncResult<FMyResult> AMessageDebugPingClientCharacter::HandleMyRpc(const FMyRpcRequest& Request)
 {
 	UE_LOG(LogTemp, Log, TEXT("HanldeMyRpc -- %s, %d"), *Request.Param1, Request.Param2);
-	
+
 	FMyResult Result;
 	Result.RetValString = Request.Param1;
 	Result.RetVal = Request.Param2 + 1;
@@ -359,7 +366,7 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 		{
 			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
 			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-			
+
 			Future.Then([this](TFuture<FGameUserDetails> InFuture)
 			{
 				if (InFuture.IsReady())
@@ -370,7 +377,7 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 			});
 		}
 	}
-	
+
 	// if (UserServiceRpcClient)
 	// {
 	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserServiceRpcClient->Call<FGameUserGetUserDetails>();
@@ -386,7 +393,7 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 	// 	});
 	// }
 
-	
+
 	// if (UserRpcClient)
 	// {
 	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserRpcClient->Call<FGameUserGetUserDetails>();
@@ -413,7 +420,7 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
 		{
 			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
 			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-			
+
 			Future.Then([this](TFuture<FGameUserDetails> InFuture)
 			{
 				if (InFuture.IsReady())
@@ -423,6 +430,42 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
 				}
 			});
 		}
+	}
+}
+
+void AMessageDebugPingClientCharacter::CreateNatsClient(FString InName, FString NatsURL, FString DefaultSubject)
+{
+	auto NatsClient = INatsClientModule::Get().CreateNatsClient();
+	if (NatsClient)
+	{
+		if (!NatsClient->ConnectTo(NatsURL))
+		{
+			return;
+		}
+
+		NatsClients.Add(InName, NatsClient);
+
+		if (!DefaultSubject.IsEmpty())
+		{
+			bool bOk = NatsClient->Subscribe(DefaultSubject, [this](const char* DataPtr, int32 DataLength)
+			{
+				this->HandleNatsMessage(DataPtr, DataLength);
+			});
+		}
+	}
+}
+
+void AMessageDebugPingClientCharacter::HandleNatsMessage(const char* DataPtr, int32 DataLength)
+{
+	UE_LOG(LogTemp, Log, TEXT("HandleNatsMessage : %s"), ANSI_TO_TCHAR(DataPtr));
+}
+
+void AMessageDebugPingClientCharacter::PublishMessage(FString InName, FString Subject, const FString& Message)
+{
+	TSharedPtr<INatsClient> NatsClient = NatsClients.FindRef(InName);
+	if (NatsClient)
+	{
+		NatsClient->Publish(Subject, TCHAR_TO_ANSI(*Message), Message.Len());
 	}
 }
 
@@ -436,9 +479,7 @@ void AMessageDebugPingClientCharacter::StartClient()
 		return;
 	}
 
-	MessageEndpoint = FMessageEndpoint::Builder(ClientName)
-		.Handling<FDebugServicePong>(this, &AMessageDebugPingClientCharacter::HandlePongMessage)
-		.NotificationHandling(FOnBusNotification::CreateUObject(this, &AMessageDebugPingClientCharacter::OnBusNotification));
+	MessageEndpoint = FMessageEndpoint::Builder(ClientName).Handling<FDebugServicePong>(this, &AMessageDebugPingClientCharacter::HandlePongMessage).NotificationHandling(FOnBusNotification::CreateUObject(this, &AMessageDebugPingClientCharacter::OnBusNotification));
 }
 
 void AMessageDebugPingClientCharacter::StopClient()
@@ -484,4 +525,3 @@ void AMessageDebugPingClientCharacter::OnBusNotification(const FMessageBusNotifi
 		UE_LOG(LogTemp, Log, TEXT("OnBusNotification - UnRegister : %s"), *Notification.RegistrationAddress.ToString());
 	}
 }
-

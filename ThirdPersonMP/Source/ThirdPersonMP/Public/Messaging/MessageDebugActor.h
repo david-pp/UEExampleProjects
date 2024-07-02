@@ -13,6 +13,7 @@
 #include "DebugingMessages.h"
 #include "IMyRpcLocator.h"
 #include "IMyRpcResponder.h"
+#include "NatsClient.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 #include "MessageDebugActor.generated.h"
 
@@ -59,8 +60,6 @@ class AMessageDebugBusActor : public AActor
 
 public:
 	virtual void BeginPlay() override;
-	
-	
 };
 
 
@@ -73,25 +72,26 @@ public:
 	AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
+	virtual void TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//
 	// Messaging Demos
 	//
-	
+
 	UFUNCTION(BlueprintCallable)
 	void CreateBus(FString BusName, FString ListenEndpoint, TArray<FString> ConnectToEndpoints);
 
 	UFUNCTION(BlueprintCallable)
-	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg=false);
+	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg = false);
 
 	UFUNCTION(BlueprintCallable)
 	void EndPointSendHeartBeat(FString EndPointName);
 
 	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
-	TMap<FString,TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
-	TMap<FString,TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
+	TMap<FString, TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
+	TMap<FString, TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
 	TMap<FString, TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>> EndPoints;
 
 
@@ -102,7 +102,7 @@ public:
 	void CreateBusRpcClient(FString BusName, FString RpcClientName, FString RpcServerToConnect);
 
 	UFUNCTION(BlueprintCallable)
-	void CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers=true);
+	void CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers = true);
 
 	UFUNCTION(BlueprintCallable)
 	FMyResult MyRpcDemo(FString RpcClientName, FString Param1, int32 Param2);
@@ -113,7 +113,6 @@ public:
 	FOnMyRpcComplete OnMyRpcComplete;
 
 
-	
 	// Server Handle Rpc
 	TAsyncResult<FMyResult> HandleMyRpc(const FMyRpcRequest& Request);
 
@@ -138,6 +137,19 @@ public:
 	TSharedPtr<IGameServiceRpcClient> UserServiceRpcClient;
 	TSharedPtr<IMessageRpcClient> UserRpcClient;
 	TSharedPtr<IGameServiceRpcLocator> UserRpcLocator;
+
+
+	//
+	// NATs Demo
+	//
+	UFUNCTION(BlueprintCallable)
+	void CreateNatsClient(FString InName, FString NatsURL = TEXT("nats://127.0.0.1:4222"), FString DefaultSubject=TEXT("Default"));
+	void HandleNatsMessage(const char* DataPtr, int32 DataLength);
+
+	UFUNCTION(BlueprintCallable)
+	void PublishMessage(FString InName, FString Subject, const FString& Message);
+	
+	TMap<FString, TSharedPtr<INatsClient>> NatsClients;
 	
 public:
 	UFUNCTION(BlueprintCallable)
@@ -168,4 +180,3 @@ public:
 	/** Holds the message endpoint. */
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 };
-

@@ -45,7 +45,9 @@ void AMessageDebugPingServiceActor::StartService()
 		return;
 	}
 
-	MessageEndpoint = FMessageEndpoint::Builder(ServiceName).Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage).Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
+	MessageEndpoint = FMessageEndpoint::Builder(ServiceName)
+		.Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage)
+		.Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
 
 	if (MessageEndpoint)
 	{
@@ -98,6 +100,9 @@ void AMessageDebugBusActor::BeginPlay()
 	Super::BeginPlay();
 }
 
+
+
+
 AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ClientName = TEXT("PingClient");
@@ -106,7 +111,7 @@ AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObject
 void AMessageDebugPingClientCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	StartClient();
+	// StartClient();
 }
 
 void AMessageDebugPingClientCharacter::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
@@ -127,7 +132,7 @@ void AMessageDebugPingClientCharacter::TickActor(float DeltaTime, ELevelTick Tic
 void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	StopClient();
+	// StopClient();
 
 	for (auto& KV : NatsClients)
 	{
@@ -188,14 +193,24 @@ void AMessageDebugPingClientCharacter::CreateNatsBus(FString BusName, FString Na
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = IMessagingModule::Get().CreateBus(BusName);
 	Buses.Add(BusName, Bus);
 
+	FMessageAddress BridgeAddress = FMessageAddress::NewAddress();
+
 	// Create Bridge with Transport
-	TSharedRef<FGameNatsMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FGameNatsMessageTransport(NatsServerURL));
-	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef()).UsingTransport(Transport);
+	TSharedRef<FGameNatsMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FGameNatsMessageTransport(BusName, NatsServerURL));
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = IMessagingModule::Get().CreateBridge(BridgeAddress, Bus.ToSharedRef(), Transport);
 	if (MessageBridge)
 	{
+		MessageBridge->Enable();
 		NatsTransports.Add(BusName, Transport);
 		Bridges.Add(BusName, MessageBridge);
 	}
+	
+	// TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(Bus.ToSharedRef()).UsingTransport(Transport);
+	// if (MessageBridge)
+	// {
+	// 	NatsTransports.Add(BusName, Transport);
+	// 	Bridges.Add(BusName, MessageBridge);
+	// }
 }
 
 void AMessageDebugPingClientCharacter::CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg)
@@ -203,17 +218,66 @@ void AMessageDebugPingClientCharacter::CreateBusEndPoint(FString BusName, FStrin
 	auto Bus = Buses.FindRef(BusName);
 	if (!Bus) return;
 
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Endpoint = FMessageEndpoint::Builder(FName(EndPointName), Bus.ToSharedRef()).Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingClientCharacter::HandleHeartBeatMessage);
+	TSharedPtr<FBusEndpoint, ESPMode::ThreadSafe> BusEndpoint = MakeShareable(new FBusEndpoint());
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Endpoint = FMessageEndpoint::Builder(FName(EndPointName), Bus.ToSharedRef())
+		.Handling<FDebugServiceHeartBeat>(BusEndpoint.Get(), &FBusEndpoint::HandleHeartBeatMessage)
+		.Handling<FDebugServicePing>(BusEndpoint.Get(), &FBusEndpoint::HandlePingMessage)
+		.Handling<FDebugServicePong>(BusEndpoint.Get(), &FBusEndpoint::HandlePongMessage);
 
 	if (Endpoint)
 	{
+		BusEndpoint->MessageEndpoint = Endpoint;
 		if (bSubscribeMsg)
 		{
 			Endpoint->Subscribe<FDebugServiceHeartBeat>();
 		}
 
-		EndPoints.Add(EndPointName, Endpoint);
+		EndPoints.Add(EndPointName, BusEndpoint);
 	}
+}
+
+void FBusEndpoint::HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	if (MessageEndpoint)
+	{
+		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
+		UE_LOG(LogTemp, Log, TEXT("HandleHeartBeatMessage@%s - From : %s@%s, To: %s"),
+			*MessageEndpoint->GetDebugName().ToString(),
+			*Message.ServiceName, *Context->GetSender().ToString(), *RecipientStr);
+	}
+}
+
+void FBusEndpoint::HandlePingMessage(const FDebugServicePing& PingMessage, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	if (!MessageEndpoint) return;
+
+	UE_LOG(LogTemp, Log, TEXT("HandlePingMessage@%s - From %s@%s"),
+			*MessageEndpoint->GetDebugName().ToString(),
+			*PingMessage.UserName, *Context->GetSender().ToString());
+
+	FDebugServicePong* Message = new FDebugServicePong();
+	{
+		Message->SericeName = MessageEndpoint->GetDebugName().ToString();
+		Message->UserName = PingMessage.UserName;
+		Message->BuildDate = FApp::GetBuildDate();
+		Message->DeviceName = FPlatformProcess::ComputerName();
+		Message->InstanceId = FApp::GetInstanceId();
+		Message->InstanceName = FApp::GetInstanceName();
+		Message->PlatformName = FPlatformProperties::PlatformName();
+		Message->SessionId = FApp::GetSessionId();
+		Message->SessionName = FApp::GetSessionName();
+		Message->SessionOwner = FApp::GetSessionOwner();
+		Message->Standalone = FApp::IsStandalone();
+	}
+
+	MessageEndpoint->Send(Message, Context->GetSender());
+}
+
+void FBusEndpoint::HandlePongMessage(const FDebugServicePong& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	UE_LOG(LogTemp, Log, TEXT("HandlePongMessage@%s - From %s@%s"),
+			*MessageEndpoint->GetDebugName().ToString(),
+			*Message.SericeName, *Context->GetSender().ToString());
 }
 
 void AMessageDebugPingClientCharacter::EndPointSendHeartBeat(FString EndPointName)
@@ -223,13 +287,27 @@ void AMessageDebugPingClientCharacter::EndPointSendHeartBeat(FString EndPointNam
 	{
 		auto Msg = FMessageEndpoint::MakeMessage<FDebugServiceHeartBeat>();
 		Msg->ServiceName = EndPointName;
-		EndPoint->Publish(Msg, EMessageScope::All);
+		EndPoint->MessageEndpoint->Publish(Msg, EMessageScope::All);
 	}
 }
 
 void AMessageDebugPingClientCharacter::HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	UE_LOG(LogTemp, Log, TEXT("HandleHeartBeatMessage - From : %s@%s"), *Message.ServiceName, *Context->GetSender().ToString());
+	FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
+	
+	UE_LOG(LogTemp, Log, TEXT("HandleHeartBeatMessage - From : %s@%s, To: %s"), *Message.ServiceName, *Context->GetSender().ToString(), *RecipientStr);
+}
+
+void AMessageDebugPingClientCharacter::EndPointSendPing(FString EndPointNameA, FString EndPointNameB)
+{
+	auto EndPointA = EndPoints.FindRef(EndPointNameA);
+	auto EndPointB = EndPoints.FindRef(EndPointNameB);
+
+	if (EndPointA && EndPointB)
+	{
+		const FMessageAddress& Recipient = EndPointB->MessageEndpoint->GetAddress();
+		EndPointA->MessageEndpoint->Send(new FDebugServicePing(EndPointNameA), Recipient);
+	}
 }
 
 void AMessageDebugPingClientCharacter::CreateBusRpcClient(FString BusName, FString RpcClientName, FString RpcServerToConnect)

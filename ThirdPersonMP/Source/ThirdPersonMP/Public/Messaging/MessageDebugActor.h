@@ -63,6 +63,14 @@ public:
 	virtual void BeginPlay() override;
 };
 
+class FBusEndpoint
+{
+public:
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	void HandlePingMessage(const FDebugServicePing& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	void HandlePongMessage(const FDebugServicePong& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+};
 
 UCLASS()
 class THIRDPERSONMP_API AMessageDebugPingClientCharacter : public AThirdPersonMPCharacter
@@ -89,15 +97,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg = false);
 
+	// Pub/Sub
 	UFUNCTION(BlueprintCallable)
 	void EndPointSendHeartBeat(FString EndPointName);
-
 	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
+	// Request/Reply
+	UFUNCTION(BlueprintCallable)
+	void EndPointSendPing(FString EndPointA, FString EndPointB);
+	
 	TMap<FString, TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
 	TMap<FString, TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
 	TMap<FString, TSharedPtr<class FGameNatsMessageTransport, ESPMode::ThreadSafe>> NatsTransports;
-	TMap<FString, TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>> EndPoints;
+	TMap<FString, TSharedPtr<FBusEndpoint, ESPMode::ThreadSafe>> EndPoints;
 
 
 	//

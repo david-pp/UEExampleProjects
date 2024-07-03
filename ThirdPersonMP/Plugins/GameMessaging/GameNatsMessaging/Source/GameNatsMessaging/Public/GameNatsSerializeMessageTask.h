@@ -20,8 +20,8 @@ public:
 	 * @param InMessageContext The context of the message to serialize.
 	 * @param InSerializedMessage Will hold the serialized message data.
 	 */
-	FNatsSerializeMessageTask(TSharedRef<IMessageContext, ESPMode::ThreadSafe> InMessageContext, FNatsSerializedMessageRef InSerializedMessage, const TSharedPtr<INatsClient>& InNatsClient)
-		: MessageContext(InMessageContext), SerializedMessage(InSerializedMessage), NatsClient(InNatsClient)
+	FNatsSerializeMessageTask(TSharedRef<IMessageContext, ESPMode::ThreadSafe> InMessageContext, FNatsSerializedMessageRef InSerializedMessage, const TSharedPtr<INatsClient>& InNatsClient, const FGuid& InNatsNodeId, const TArray<FString>& InChannels)
+		: MessageContext(InMessageContext), SerializedMessage(InSerializedMessage), NatsClient(InNatsClient), NatsNodeId(InNatsNodeId), NatsChannels(InChannels)
 	{
 	}
 
@@ -64,4 +64,8 @@ private:
 
 	/** Connections we're going to enqueue the serialized message for */
 	TSharedPtr<INatsClient> NatsClient;
+	/** Hold a NatsNodeId */
+	FGuid NatsNodeId;
+
+	TArray<FString> NatsChannels;
 };

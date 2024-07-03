@@ -43,6 +43,11 @@ bool FNatsDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMod
 
 	UScriptStruct* TypeInfoPtr = nullptr;
 
+	// message nats node
+	{
+		MessageReader << NatsNodeId;
+	}
+
 	// message type info
 	{
 		FName MessageType;

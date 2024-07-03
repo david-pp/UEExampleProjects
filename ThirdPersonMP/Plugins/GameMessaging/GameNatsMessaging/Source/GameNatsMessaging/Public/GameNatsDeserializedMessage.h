@@ -54,8 +54,12 @@ public:
 	virtual const FDateTime& GetTimeForwarded() const override;
 	virtual const FDateTime& GetTimeSent() const override;
 
-private:
 
+	const FGuid& GetNatsNodeId() const { return NatsNodeId; }
+
+private:
+	FGuid NatsNodeId;
+	
 	/** Holds the optional message annotations. */
 	TMap<FName, FString> Annotations;
 

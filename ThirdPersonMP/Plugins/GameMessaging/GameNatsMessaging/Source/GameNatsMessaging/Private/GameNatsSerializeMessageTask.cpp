@@ -19,6 +19,8 @@ void FNatsSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const 
 		// serialize context
 		FArchive& Archive = SerializedMessage.Get();
 		{
+			Archive << NatsNodeId;
+			
 			const FName& MessageType = MessageContext->GetMessageType();
 			Archive << const_cast<FName&>(MessageType);
 
@@ -55,7 +57,10 @@ void FNatsSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const 
 		// enqueue to recipients
 		if (NatsClient)
 		{
-			NatsClient->Publish(TEXT("GameNatsTransport"), (char*)SerializedMessage->GetDataArray().GetData(), SerializedMessage->GetDataArray().Num());
+			for (const FString& NatsChannel : NatsChannels)
+			{
+				NatsClient->Publish(NatsChannel, (char*)SerializedMessage->GetDataArray().GetData(), SerializedMessage->GetDataArray().Num());
+			}
 		}
 	}
 }

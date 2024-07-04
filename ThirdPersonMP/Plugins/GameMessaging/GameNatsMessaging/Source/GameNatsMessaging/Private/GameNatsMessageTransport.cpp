@@ -8,8 +8,8 @@
 #include "NatsClientModule.h"
 #include "Serialization/ArrayWriter.h"
 
-FGameNatsMessageTransport::FGameNatsMessageTransport(const FString& InNatsClientName, const FString& InNatsURL, const FGuid& InNodeId)
-	: NatsClientName(InNatsClientName), NatServerURL(InNatsURL), NatsNodeId(InNodeId)
+FGameNatsMessageTransport::FGameNatsMessageTransport(const FString& InNatsNodeName, const FString& InNatsURL, const FGuid& InNodeId)
+	: NatsNodeName(InNatsNodeName), NatServerURL(InNatsURL), NatsNodeId(InNodeId)
 {
 }
 
@@ -53,7 +53,7 @@ bool FGameNatsMessageTransport::StartTransport(IMessageTransportHandler& Handler
 			this->HandleClientStatusMessage(DataPtr, DataLength);
 		});
 
-		NatsClientStatusTicker = FTicker::GetCoreTicker().AddTicker(TEXT("NatsClientStatusTicker"), NatsClientStatusInterval, [this](float DeltaTime) -> bool
+		NatsNodeStatusTicker = FTicker::GetCoreTicker().AddTicker(TEXT("NatsClientStatusTicker"), NatsNodeStatusBroadcastInterval, [this](float DeltaTime) -> bool
 		{
 			this->UpdateRemoteClientStatus();
 			this->PublishClientStatus();
@@ -75,9 +75,9 @@ void FGameNatsMessageTransport::StopTransport()
 		NatsClient = nullptr;
 	}
 
-	if (NatsClientStatusTicker.IsValid())
+	if (NatsNodeStatusTicker.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(NatsClientStatusTicker);
+		FTicker::GetCoreTicker().RemoveTicker(NatsNodeStatusTicker);
 	}
 }
 
@@ -98,7 +98,7 @@ bool FGameNatsMessageTransport::TransportMessage(const TSharedRef<IMessageContex
 		// Find connections for each recipient. (as NatsNode)
 		for (auto& NodeId : Recipients)
 		{
-			FGameNatsClientStatus* RemoteNatsNode = RemoteNatsClients.Find(NodeId);
+			FGameNatsNodeStatus* RemoteNatsNode = RemoteNatsNodes.Find(NodeId);
 			if (RemoteNatsNode)
 			{
 				Channels.Add(FString::Printf(TEXT("%s.%s"), NATS_CLIENT_PRIVATE_CHANNEL, *RemoteNatsNode->NodeName));
@@ -151,34 +151,34 @@ void FGameNatsMessageTransport::HandleGameMessage(const char* DataPtr, int32 Dat
 void FGameNatsMessageTransport::PublishClientStatus()
 {
 	// current client status
-	FGameNatsClientStatus ClientStatus(NatsNodeId);
+	FGameNatsNodeStatus ClientStatus(NatsNodeId);
 	ClientStatus.Status = 200;
-	ClientStatus.NodeName = NatsClientName;
+	ClientStatus.NodeName = NatsNodeName;
 
 	FArrayWriter MessageData;
 	MessageData << ClientStatus;
 
 	if (NatsClient)
 	{
-		NatsClient->Publish(GetClientStatusChannel(), (char*)MessageData.GetData(), sizeof(FGameNatsClientStatus));
+		NatsClient->Publish(GetClientStatusChannel(), (char*)MessageData.GetData(), sizeof(FGameNatsNodeStatus));
 	}
 }
 
 void FGameNatsMessageTransport::HandleClientStatusMessage(const char* DataPtr, int32 DataLength)
 {
-	if (DataLength >= sizeof(FGameNatsClientStatus))
+	if (DataLength >= sizeof(FGameNatsNodeStatus))
 	{
 		FArrayReader MessageData = FArrayReader(true);
-		MessageData.SetNumUninitialized(sizeof(FGameNatsClientStatus));
+		MessageData.SetNumUninitialized(sizeof(FGameNatsNodeStatus));
 		FMemory::Memcpy(MessageData.GetData(), DataPtr, DataLength);
 
-		FGameNatsClientStatus InClientStatus;
+		FGameNatsNodeStatus InClientStatus;
 		MessageData << InClientStatus;
 
 		// new remote client status
-		if (!RemoteNatsClients.Contains(InClientStatus.NodeId))
+		if (!RemoteNatsNodes.Contains(InClientStatus.NodeId))
 		{
-			RemoteNatsClients.Add(InClientStatus.NodeId, InClientStatus);
+			RemoteNatsNodes.Add(InClientStatus.NodeId, InClientStatus);
 			if (TransportHandler)
 			{
 				TransportHandler->DiscoverTransportNode(InClientStatus.NodeId);
@@ -189,7 +189,7 @@ void FGameNatsMessageTransport::HandleClientStatusMessage(const char* DataPtr, i
 		else
 		{
 			// update remote client status
-			FGameNatsClientStatus& ClientStatus = RemoteNatsClients.FindOrAdd(InClientStatus.NodeId);
+			FGameNatsNodeStatus& ClientStatus = RemoteNatsNodes.FindOrAdd(InClientStatus.NodeId);
 			ClientStatus = InClientStatus;
 			// UE_LOG(LogTemp, Log, TEXT("GameNatsMessaging - Update nats node,  status : %s"), *InClientStatus.ToDebugString());
 		}
@@ -199,12 +199,12 @@ void FGameNatsMessageTransport::HandleClientStatusMessage(const char* DataPtr, i
 void FGameNatsMessageTransport::UpdateRemoteClientStatus()
 {
 	TArray<FGuid> TimeoutClients;
-	for (auto& Pair : RemoteNatsClients)
+	for (auto& Pair : RemoteNatsNodes)
 	{
 		FDateTime Now = FDateTime::Now();
 
 		// time out
-		if (Now > Pair.Value.Timestamp + FTimespan::FromSeconds(RemoteNatsClientTimeoutSeconds))
+		if (Now > Pair.Value.Timestamp + FTimespan::FromSeconds(RemoteNatsNodeTimeoutSeconds))
 		{
 			TimeoutClients.Add(Pair.Key);
 		}
@@ -212,7 +212,7 @@ void FGameNatsMessageTransport::UpdateRemoteClientStatus()
 
 	for (auto& NodeId : TimeoutClients)
 	{
-		FGameNatsClientStatus* ClientStatus = RemoteNatsClients.Find(NodeId);
+		FGameNatsNodeStatus* ClientStatus = RemoteNatsNodes.Find(NodeId);
 		if (ClientStatus)
 		{
 			if (TransportHandler)
@@ -220,7 +220,7 @@ void FGameNatsMessageTransport::UpdateRemoteClientStatus()
 				TransportHandler->ForgetTransportNode(ClientStatus->NodeId);
 			}
 			UE_LOG(LogTemp, Log, TEXT("GameNatsMessaging - Forget nats node,  status : %s"), *ClientStatus->ToDebugString());
-			RemoteNatsClients.Remove(NodeId);
+			RemoteNatsNodes.Remove(NodeId);
 		}
 	}
 }

@@ -10,7 +10,7 @@ public:
 	/**
 	 * Creates and initializes a new instance.
 	 */
-	FGameNatsMessageTransport(const FString& InNatsClientName, const FString& InNatsURL = TEXT("nats://127.0.0.1:4222"), const FGuid& InNodeId = FGuid::NewGuid());
+	FGameNatsMessageTransport(const FString& InNatsNodeName, const FString& InNatsURL = TEXT("nats://127.0.0.1:4222"), const FGuid& InNodeId = FGuid::NewGuid());
 
 	/** Virtual destructor. */
 	virtual ~FGameNatsMessageTransport();
@@ -29,7 +29,7 @@ public:
 
 	FString GetPrivateMessageChannel() const
 	{
-		return FString::Printf(TEXT("%s.%s"), NATS_CLIENT_PRIVATE_CHANNEL, *NatsClientName);
+		return FString::Printf(TEXT("%s.%s"), NATS_CLIENT_PRIVATE_CHANNEL, *NatsNodeName);
 	}
 
 	void PublishClientStatus();
@@ -38,7 +38,7 @@ public:
 	//~ IMessageTransport interface
 	virtual FName GetDebugName() const override
 	{
-		return FName(NatsClientName);
+		return FName(NatsNodeName);
 	}
 
 	virtual bool StartTransport(IMessageTransportHandler& Handler) override;
@@ -56,20 +56,20 @@ private:
 	IMessageTransportHandler* TransportHandler = nullptr;
 
 	/** Nats client name */
-	FString NatsClientName;
-	/** Nats client */
-	TSharedPtr<INatsClient> NatsClient;
+	FString NatsNodeName;
 	/** Local Node Id */
 	FGuid NatsNodeId;
 
-	/** Nats client status broadcast time interval */
-	float NatsClientStatusInterval = 1.0;
-	FDelegateHandle NatsClientStatusTicker;
-
+	/** Nats client */
+	TSharedPtr<INatsClient> NatsClient;
 	/** Nats Server URL */
 	FString NatServerURL;
 
+	/** Nats client status broadcast time interval */
+	float NatsNodeStatusBroadcastInterval = 1.0;
+	FDelegateHandle NatsNodeStatusTicker;
+
 	/** Remote Nats Node */
-	TMap<FGuid, FGameNatsClientStatus> RemoteNatsClients;
-	float RemoteNatsClientTimeoutSeconds = 10.0;
+	TMap<FGuid, FGameNatsNodeStatus> RemoteNatsNodes;
+	float RemoteNatsNodeTimeoutSeconds = 10.0;
 };

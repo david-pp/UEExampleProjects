@@ -8,7 +8,7 @@
 
 #define NATS_PUBLIC_CHANNEL TEXT("GameNatsPublic")
 #define NATS_CLIENT_PRIVATE_CHANNEL TEXT("GameNatsPrivate")
-#define NATS_CLIENT_STATUS_CHANNEL TEXT("GameNatsClientStatus")
+#define NATS_CLIENT_STATUS_CHANNEL TEXT("GameNatsNodeStatus")
 
 /** Defines the protocol version of the Nats message transport. */
 namespace ENatsMessagingVersion
@@ -32,7 +32,7 @@ namespace ENatsMessagingVersion
 #define NATS_MESSAGING_TRANSPORT_PROTOCOL_MAGIC 0x45504943
 
 /** Header sent over the connection as soon as it's opened */
-struct FGameNatsClientStatus
+struct FGameNatsNodeStatus
 {
 	uint32 MagicNumber = 0;
 	uint32 Version = 0;
@@ -43,13 +43,13 @@ struct FGameNatsClientStatus
 	uint32 Status = 0;
 	FDateTime Timestamp;
 
-	FGameNatsClientStatus()
+	FGameNatsNodeStatus()
 		: MagicNumber(0), Version(0)
 	{
 		Timestamp = FDateTime::Now();
 	}
 
-	FGameNatsClientStatus(const FGuid& InNodeId)
+	FGameNatsNodeStatus(const FGuid& InNodeId)
 		: MagicNumber(NATS_MESSAGING_TRANSPORT_PROTOCOL_MAGIC), Version(ENatsMessagingVersion::LatestVersion), NodeId(InNodeId)
 	{
 		Timestamp = FDateTime::Now();
@@ -76,7 +76,7 @@ struct FGameNatsClientStatus
 	}
 
 	// Serializer
-	friend FArchive& operator<<(FArchive& Ar, FGameNatsClientStatus& H)
+	friend FArchive& operator<<(FArchive& Ar, FGameNatsNodeStatus& H)
 	{
 		return Ar << H.MagicNumber << H.Version << H.NodeId << H.Status << H.Timestamp << H.NodeName;
 	}

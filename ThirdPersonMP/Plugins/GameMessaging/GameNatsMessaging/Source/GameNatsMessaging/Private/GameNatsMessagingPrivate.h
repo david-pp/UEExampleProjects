@@ -25,19 +25,3 @@
 /** Defines a magic number for the the TCP message transport. */
 #define TCP_MESSAGING_TRANSPORT_PROTOCOL_MAGIC 0x45504943
 
-/** Defines the protocol version of the TCP message transport. */
-namespace ENatsMessagingVersion
-{
-	enum Type
-	{
-		Initial,
-		ChangedMessageLengthToInt32,
-
-		// -----<new versions can be added before this line>-------------------------------------------------
-		// - this needs to be the last line (see note below)
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1,
-		// bump this when break need to break compatibility.
-		OldestSupportedVersion = ChangedMessageLengthToInt32
-	};
-}

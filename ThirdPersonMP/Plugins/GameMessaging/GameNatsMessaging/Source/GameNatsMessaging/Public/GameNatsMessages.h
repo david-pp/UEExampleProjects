@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-// #include "GameNatsMessages.generated.h"
+#include "GameNatsMessages.generated.h"
 
 #define NATS_PUBLIC_CHANNEL TEXT("GameNatsPublic")
 #define NATS_CLIENT_PRIVATE_CHANNEL TEXT("GameNatsPrivate")
@@ -93,3 +93,10 @@ struct FGameNatsClientStatus
 		}
 	}
 };
+
+USTRUCT()
+struct FGameNatsMessage_NodeHeartBeat
+{
+	GENERATED_BODY()
+};
+

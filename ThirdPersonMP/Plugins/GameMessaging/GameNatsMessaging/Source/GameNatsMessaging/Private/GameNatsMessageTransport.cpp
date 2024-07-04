@@ -139,7 +139,10 @@ void FGameNatsMessageTransport::HandleGameMessage(const char* DataPtr, int32 Dat
 			UE_LOG(LogTemp, Log, TEXT("GameNatsMessaging - Received message '%s' from %s@natsnode:%s"), *DeserializedMessage->GetMessageType().ToString(), *DeserializedMessage->GetSender().ToString(), *DeserializedMessage->GetNatsNodeId().ToString());
 
 			FGuid SenderNodeId = DeserializedMessage->GetNatsNodeId();
-			TransportHandler->ReceiveTransportMessage(DeserializedMessage.ToSharedRef(), SenderNodeId);
+			if (SenderNodeId != NatsNodeId) // very important !!!
+			{
+				TransportHandler->ReceiveTransportMessage(DeserializedMessage.ToSharedRef(), SenderNodeId);
+			}
 		}
 		// TransportHandler->ReceiveTransportMessage();	
 	}

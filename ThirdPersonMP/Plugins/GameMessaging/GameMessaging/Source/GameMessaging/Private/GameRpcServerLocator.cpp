@@ -64,8 +64,8 @@ private:
 
 		if (ServerAddress.IsValid() && ((FDateTime::UtcNow() - LastServerResponse).GetTotalSeconds() > GAME_RPC_LOCATE_TIMEOUT))
 		{
-			ServerAddress.Invalidate();
 			ServerLostDelegate.ExecuteIfBound();
+			ServerAddress.Invalidate();
 		}
 
 		// Broadcast the locate message to all Responder

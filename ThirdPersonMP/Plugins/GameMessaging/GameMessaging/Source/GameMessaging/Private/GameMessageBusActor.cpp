@@ -33,7 +33,7 @@ void AGameMessageBusActor::BeginPlay()
 
 	// Creates a new message bus.
 	MessageBus = IMessagingModule::Get().CreateBus(MessageBusName);
-	if (MessageBus) return;
+	if (!MessageBus) return;
 
 	// Create a message bridge with tcp transport layer
 	if (bEnableTcpBridge)
@@ -66,9 +66,9 @@ void AGameMessageBusActor::BeginPlay()
 		}
 
 		// Create Bridge with Transport
-		TSharedRef<FTcpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
-		TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = FMessageBridgeBuilder(MessageBus.ToSharedRef()).UsingTransport(Transport);
-		if (MessageBridge)
+		TcpTransport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
+		TcpBridge = FMessageBridgeBuilder(MessageBus.ToSharedRef()).UsingTransport(TcpTransport.ToSharedRef());
+		if (TcpBridge)
 		{
 			// TODO: ...
 		}
@@ -80,11 +80,11 @@ void AGameMessageBusActor::BeginPlay()
 		FMessageAddress BridgeAddress = FMessageAddress::NewAddress();
 
 		// Create Bridge with Transport
-		TSharedRef<FGameNatsMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FGameNatsMessageTransport(MessageBusName, NatsServerURL));
-		TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> MessageBridge = IMessagingModule::Get().CreateBridge(BridgeAddress, MessageBus.ToSharedRef(), Transport);
-		if (MessageBridge)
+		NatsTransport = MakeShareable(new FGameNatsMessageTransport(MessageBusName, NatsServerURL));
+		NatsBridge = IMessagingModule::Get().CreateBridge(BridgeAddress, MessageBus.ToSharedRef(), NatsTransport.ToSharedRef());
+		if (NatsBridge)
 		{
-			MessageBridge->Enable();
+			NatsBridge->Enable();
 		}
 	}
 }
@@ -93,14 +93,22 @@ void AGameMessageBusActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	if (MessageBus)
-	{
-		MessageBus = nullptr;
-	}
+	MessageBus = nullptr;
+
+	TcpBridge = nullptr;
+	TcpTransport = nullptr;
+	
+	NatsBridge = nullptr;
+	NatsTransport = nullptr;
 }
 
 // Called every frame
 void AGameMessageBusActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (NatsTransport)
+	{
+		NatsTransport->DispatchMessageCallbacks();
+	}
 }

@@ -7,6 +7,9 @@
 #include "GameMessageBusActor.generated.h"
 
 class IMessageBus;
+class IMessageBridge;
+class FTcpMessageTransport;
+class FGameNatsMessageTransport;
 
 UCLASS()
 class GAMEMESSAGING_API AGameMessageBusActor : public AActor
@@ -23,27 +26,33 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=GameMessaging)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
 	FString MessageBusName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=GameMessaging)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
 	uint8 bEnableMessageBus : 1;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=GameMessaging)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
 	uint8 bEnableTcpBridge : 1;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=GameMessaging)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
 	uint8 bEnableNatsBridge : 1;
 
 	/** Tcp Listen Server */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableTcpBridge"), Category=TcpTransport)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableTcpBridge", ExposeOnSpawn=true), Category=TcpTransport)
 	FString TcpListenEndpoint;
 	/** Tcp Servers to connect */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableTcpBridge"), Category=TcpTransport)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableTcpBridge", ExposeOnSpawn=true), Category=TcpTransport)
 	TArray<FString> TcpConnectToEndpoints;
 
 	/** Nats Server, such as : nats://127.0.0.1:4222 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableNatsBridge"), Category=TcpTransport)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(EditCondition="bEnableNatsBridge", ExposeOnSpawn=true), Category=TcpTransport)
 	FString NatsServerURL;
-	
+
 protected:
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> MessageBus;
+
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> TcpBridge;
+	TSharedPtr<FTcpMessageTransport, ESPMode::ThreadSafe> TcpTransport;
+
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> NatsBridge;
+	TSharedPtr<FGameNatsMessageTransport, ESPMode::ThreadSafe> NatsTransport;
 };

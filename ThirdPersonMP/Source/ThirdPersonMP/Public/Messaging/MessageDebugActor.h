@@ -85,63 +85,6 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//
-	// Messaging Demos
-	//
-
-	UFUNCTION(BlueprintCallable)
-	void CreateBus(FString BusName, FString ListenEndpoint, TArray<FString> ConnectToEndpoints);
-
-	UFUNCTION(BlueprintCallable)
-	void CreateNatsBus(FString BusName, FString NatsServerURL);
-	
-	UFUNCTION(BlueprintCallable)
-	void CreateBusEndPoint(FString BusName, FString EndPointName, bool bSubscribeMsg = false);
-
-	// Pub/Sub
-	UFUNCTION(BlueprintCallable)
-	void EndPointSendHeartBeat(FString EndPointName);
-	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-
-	// Request/Reply
-	UFUNCTION(BlueprintCallable)
-	void EndPointSendPing(FString EndPointA, FString EndPointB);
-	
-	TMap<FString, TSharedPtr<IMessageBus, ESPMode::ThreadSafe>> Buses;
-	TMap<FString, TSharedPtr<IMessageBridge, ESPMode::ThreadSafe>> Bridges;
-	TMap<FString, TSharedPtr<class FGameNatsMessageTransport, ESPMode::ThreadSafe>> NatsTransports;
-	TMap<FString, TSharedPtr<FBusEndpoint, ESPMode::ThreadSafe>> EndPoints;
-
-
-	//
-	// RPC Demos
-	//
-	UFUNCTION(BlueprintCallable)
-	void CreateBusRpcClient(FString BusName, FString RpcClientName, FString RpcServerToConnect);
-
-	UFUNCTION(BlueprintCallable)
-	void CreateBusRpcServer(FString BusName, FString RpcServerName, bool bRegisterHandlers = true);
-
-	UFUNCTION(BlueprintCallable)
-	FMyResult MyRpcDemo(FString RpcClientName, FString Param1, int32 Param2);
-
-	UFUNCTION(BlueprintCallable)
-	void AsyncMyRpcDemo(FString RpcClientName, FString Param1, int32 Param2);
-	UPROPERTY(BlueprintAssignable, EditAnywhere)
-	FOnMyRpcComplete OnMyRpcComplete;
-
-
-	// Server Handle Rpc
-	TAsyncResult<FMyResult> HandleMyRpc(const FMyRpcRequest& Request);
-
-	TMap<FString, TSharedPtr<IMessageRpcClient>> RpcClients;
-	TMap<FString, TSharedPtr<IMessageRpcServer>> RpcServers;
-
-	/** RPC server locator per client */
-	TMap<FString, TSharedPtr<IMyRpcLocator>> RpcLocators;
-	TMap<FString, TSharedPtr<IMyRpcResponder>> RpcResponders;
-
-
-	//
 	// User Service Demo
 	//
 	UFUNCTION(BlueprintCallable)
@@ -169,23 +112,6 @@ public:
 	TMap<FString, TSharedPtr<INatsClient>> NatsClients;
 	
 public:
-	UFUNCTION(BlueprintCallable)
-	void StartClient();
-
-	UFUNCTION(BlueprintCallable)
-	void StopClient();
-
-
-	UFUNCTION(BlueprintCallable)
-	void SendPing();
-
-	UFUNCTION(BlueprintCallable)
-	void SendHearBeat();
-
-	/** Handles FDebugServicePong messages. */
-	void HandlePongMessage(const FDebugServicePong& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-	void OnBusNotification(const FMessageBusNotification& Notification);
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Messaging)
 	FName ClientName;
 

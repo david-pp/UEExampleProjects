@@ -6,6 +6,9 @@
 #include "IGameServiceEngine.h"
 #include "Modules/ModuleInterface.h"
 
+/** Declares a log category for this module. */
+GAMESERVICES_API DECLARE_LOG_CATEGORY_EXTERN(LogGameServices, Log, All);
+
 class FTypeContainer;
 class IGameServiceLocator;
 

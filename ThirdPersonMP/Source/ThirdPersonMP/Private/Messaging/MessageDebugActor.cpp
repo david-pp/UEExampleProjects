@@ -18,6 +18,7 @@
 #include "NatsClientModule.h"
 #include "Messaging/DebugingMessages.h"
 #include "GameTcpMessageTransport.h"
+#include "IGameServiceLocator.h"
 
 AMessageDebugPingServiceActor::AMessageDebugPingServiceActor()
 {
@@ -45,9 +46,7 @@ void AMessageDebugPingServiceActor::StartService()
 		return;
 	}
 
-	MessageEndpoint = FMessageEndpoint::Builder(ServiceName)
-		.Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage)
-		.Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
+	MessageEndpoint = FMessageEndpoint::Builder(ServiceName).Handling<FDebugServicePing>(this, &AMessageDebugPingServiceActor::HandlePingMessage).Handling<FDebugServiceHeartBeat>(this, &AMessageDebugPingServiceActor::HandleHeartBeatMessage);
 
 	if (MessageEndpoint)
 	{
@@ -99,8 +98,6 @@ void AMessageDebugBusActor::BeginPlay()
 {
 	Super::BeginPlay();
 }
-
-
 
 
 AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -170,77 +167,52 @@ void AMessageDebugPingClientCharacter::CreateUserRpcClient()
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 {
 	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
-	if (ServiceEngine)
+	if (!ServiceEngine) return;
+
+	auto UserProxy = ServiceEngine->GetProxyByName<IGameUserService>(TEXT("UserProxy"));
+	if (UserProxy)
 	{
-		auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("GameUserProxy"));
-		if (UserService)
+		TAsyncResult<FGameUserDetails> AsyncResult = UserProxy->GetUserDetails();
+		TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+
+		Future.Then([this](TFuture<FGameUserDetails> InFuture)
 		{
-			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
-			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-
-			Future.Then([this](TFuture<FGameUserDetails> InFuture)
+			if (InFuture.IsReady())
 			{
-				if (InFuture.IsReady())
-				{
-					FGameUserDetails Result = InFuture.Get();
-					UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
-				}
-			});
-		}
+				FGameUserDetails Result = InFuture.Get();
+				UE_LOG(LogGameServices, Log, TEXT("AsyncGetUserDetails - Complete : %s"), *Result.DisplayName.ToString());
+			}
+		});
 	}
-
-	// if (UserServiceRpcClient)
-	// {
-	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserServiceRpcClient->Call<FGameUserGetUserDetails>();
-	// 	TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-	// 	
-	// 	Future.Then([this](TFuture<FGameUserDetails> InFuture)
-	// 	{
-	// 		if (InFuture.IsReady())
-	// 		{
-	// 			FGameUserDetails Result = InFuture.Get();
-	// 			UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
-	// 		}
-	// 	});
-	// }
-
-
-	// if (UserRpcClient)
-	// {
-	// 	TAsyncResult<FGameUserDetails> AsyncResult = UserRpcClient->Call<FGameUserGetUserDetails>();
-	// 	TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
-	// 	
-	// 	Future.Then([this](TFuture<FGameUserDetails> InFuture)
-	// 	{
-	// 		if (InFuture.IsReady())
-	// 		{
-	// 			FGameUserDetails Result = InFuture.Get();
-	// 			UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
-	// 		}
-	// 	});
-	// }
+	else
+	{
+		UE_LOG(LogGameServices, Warning, TEXT("AsyncGetUserDetails - Invalid User Proxy"));
+	}
 }
 
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
 {
 	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
-	if (ServiceEngine)
-	{
-		auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("IGameUserService"));
-		if (UserService)
-		{
-			TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
-			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+	if (!ServiceEngine) return;
 
-			Future.Then([this](TFuture<FGameUserDetails> InFuture)
+	auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("UserService"));
+	if (UserService)
+	{
+		TAsyncResult<FGameUserDetails> AsyncResult = UserService->GetUserDetails();
+		TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+
+		Future.Then([this](TFuture<FGameUserDetails> InFuture)
+		{
+			if (InFuture.IsReady())
 			{
-				if (InFuture.IsReady())
-				{
-					FGameUserDetails Result = InFuture.Get();
-					UE_LOG(LogTemp, Log, TEXT("AsyncGetUserDetails Complete : %s"), *Result.DisplayName.ToString());
-				}
-			});
-		}
+				FGameUserDetails Result = InFuture.Get();
+				UE_LOG(LogGameServices, Log, TEXT("AsyncGetUserDetails2 Complete : %s"), *Result.DisplayName.ToString());
+			}
+		});
+	}
+	else
+	{
+		UE_LOG(LogGameServices, Warning, TEXT("AsyncGetUserDetails2 - Invalid User Service"));
 	}
 }
 

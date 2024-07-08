@@ -26,7 +26,8 @@ public class GameMessaging : ModuleRules
 			new string[]
 			{
 				"Core", 
-				"MessagingRpc",
+				"MessagingRpc", 
+				"Messaging", 
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

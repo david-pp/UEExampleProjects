@@ -1,114 +1,60 @@
 #include "GameServiceEngine.h"
-#include "IGameServiceEngine.h"
+
+#include "GameMessaging.h"
 #include "IGameServiceLocator.h"
-#include "IGameServiceRpcLocator.h"
-#include "IGameServiceRpcModule.h"
 #include "IGameServicesModule.h"
-#include "IGameServiceRpcResponder.h"
 #include "IMessageRpcClient.h"
 #include "IMessagingModule.h"
-#include "IMessagingRpcModule.h"
+#include "JsonObjectConverter.h"
+#include "MessageBridgeBuilder.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/App.h"
+#include "Misc/FileHelper.h"
 #include "Misc/TypeContainer.h"
 #include "User/IGameUserService.h"
 
-void FGameServicesEngine::InitializeGameServices()
+bool FGameServicesEngine::Init()
 {
-	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
-	IGameServiceRpcModule* ServiceRpcModule = static_cast<IGameServiceRpcModule*>(FModuleManager::Get().LoadModule("GameServiceRpc"));
-	IGameServicesModule* ServiceModule = IGameServicesModule::Get();
-
-	if (MessagingRpcModule && ServiceRpcModule && ServiceModule)
+	// Load config
+	const FString ServiceConfigFile = GetSettingFileName();
+	const FString FilePath = FPaths::ProjectConfigDir() / ServiceConfigFile;
+	if (!FPaths::FileExists(FilePath)) // not exist then create the config file
 	{
-		// Initialize Game services
-		ServiceRpcClient = MessagingRpcModule->CreateRpcClient();
-
-		// ServiceRpcLocator = ServiceRpcModule->CreateLocator();
-		// {
-		// 	ServiceRpcLocator->OnServerLocated().BindLambda([=]()
-		// 	{
-		// 		ServiceRpcClient->Connect(ServiceRpcLocator->GetServerAddress());
-		// 	});
-		// 	ServiceRpcLocator->OnServerLost().BindLambda([=]()
-		// 	{
-		// 		ServiceRpcClient->Disconnect();
-		// 	});
-		// }
-
-		ServiceDependencies = MakeShareable(new FTypeContainer);
-		{
-			ServiceDependencies->RegisterInstance<IMessageRpcClient>(ServiceRpcClient.ToSharedRef());
-		}
-
-		ServiceLocator = ServiceModule->CreateLocator(ServiceDependencies.ToSharedRef());
-		{
-			ServiceLocator->Configure(TEXT("IGameUserService"), TEXT("*"), "GameServiceProxies");
-		}
-	}
-	else
-	{
-		class FNullGameServiceLocator : public IGameServiceLocator
-		{
-			virtual void Configure(const FString& ServiceName, const FWildcardString& ProductId, const FName& ServiceModule) override
-			{
-			}
-
-			virtual TSharedPtr<IGameService> GetService(const FString& ServiceName, const FString& ProductId) override
-			{
-				return nullptr;
-			}
-		};
-
-		ServiceLocator = MakeShareable(new FNullGameServiceLocator());
-	}
-}
-
-void FGameServicesEngine::InitializeGameServers()
-{
-	// Create Service Bus
-	ServiceBus = IMessagingModule::Get().CreateBus(TEXT("ServiceBus"));
-	if (!ServiceBus)
-	{
-		return;
+		SaveSettingToJsonFile(ServiceConfigFile);
 	}
 
-	IGameServiceRpcModule* ServiceRpcModule = IGameServiceRpcModule::Get();
-	IGameServicesModule* ServiceModule = IGameServicesModule::Get();
-	if (ServiceRpcModule && ServiceModule)
+	if (!LoadSettingFromJsonFile(ServiceConfigFile))
 	{
-		RpcResponder = ServiceRpcModule->CreateResponder(TEXT("ServiceResponder"), ServiceBus.ToSharedRef());
-		if (RpcResponder)
-		{
-			// ServerKey = Type:Instance
-			RpcResponder->OnLookup().BindLambda([this](const FString& ServerKey)
-			{
-				if (ServerKey == TEXT("UserService"))
-				{
-					auto UserService = ServiceLocator->GetService<IGameUserService>();
-					if (UserService)
-					{
-						return UserService->GetRpcServer();
-					}
-				}
-				return TSharedPtr<IGameServiceRpcServer>();
-			});
-		}
-		
-		ServiceDependencies = MakeShareable(new FTypeContainer);
-		if (ServiceDependencies)
-		{
-			// TODO: add more dependencies
-		}
-		
-		ServiceLocator = ServiceModule->CreateLocator(ServiceDependencies.ToSharedRef());
-		if (ServiceLocator)
-		{
-			ServiceLocator->Configure(TEXT("IGameUserService"), TEXT("*"), "GameUserService");
-			ServiceLocator->Configure(TEXT("GameUserProxy"), TEXT("*"), "GameServiceProxies");
-		}
+		UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - load config file failed : %s"), *FilePath);
+		return false;
 	}
 
-	// TODO: remove
-	Start();
+	// Create service bus
+	if (!InitServiceBus(EngineSettings.ServiceBus))
+	{
+		UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - init service bus failed"));
+		return false;
+	}
+
+	// Init services/proxies
+	if (!InitServices())
+	{
+		UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - init services/proxies failed"));
+		return false;
+	}
+
+	// Init rpc server responder
+	if (!InitRpcServerResponder())
+	{
+		UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - init rpc server responder failed"));
+		return false;
+	}
+
+	UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Init - success"));
+
+	// dump engine services/proxies
+	DumpServices();
+	return true;
 }
 
 void FGameServicesEngine::Start()
@@ -116,7 +62,14 @@ void FGameServicesEngine::Start()
 	TSharedPtr<IGameUserService> UserService = ServiceLocator->GetService<IGameUserService>();
 	if (UserService)
 	{
-		
+	}
+}
+
+void FGameServicesEngine::Tick()
+{
+	if (NatsTransport)
+	{
+		NatsTransport->DispatchMessageCallbacks();
 	}
 }
 
@@ -126,4 +79,223 @@ void FGameServicesEngine::Stop()
 	{
 		ServiceBus.Reset();
 	}
+
+	TcpBridge = nullptr;
+	TcpTransport = nullptr;
+
+	NatsBridge = nullptr;
+	NatsTransport = nullptr;
+}
+
+// ----------------------- config -------------------------
+
+FString FGameServicesEngine::GetSettingFileName()
+{
+	// Command line argument is the first priority!
+	FString ServiceConfigCmdParam;
+	if (FParse::Value(FCommandLine::Get(), TEXT("GameServices="), ServiceConfigCmdParam))
+	{
+		const FString ServiceConfigFileByCmd = FString::Printf(TEXT("GameServices-%s.json"), *ServiceConfigCmdParam);
+		const FString FilePath = FPaths::ProjectConfigDir() / ServiceConfigFileByCmd;
+		if (FPaths::FileExists(FilePath))
+		{
+			return ServiceConfigFileByCmd;
+		}
+	}
+
+	// Then Build
+	{
+		const FString ServiceConfigFileByBuild = FString::Printf(TEXT("GameServices-%s.json"), LexToString(FApp::GetBuildConfiguration()));
+		const FString FilePath = FPaths::ProjectConfigDir() / ServiceConfigFileByBuild;
+		if (FPaths::FileExists(FilePath))
+		{
+			return ServiceConfigFileByBuild;
+		}
+	}
+
+	return TEXT("GameServices.json");
+}
+
+bool FGameServicesEngine::LoadSettingFromJsonFile(const FString& JsonFileName)
+{
+	const FString FilePath = FPaths::ProjectConfigDir() / JsonFileName;
+	if (FPaths::FileExists(FilePath))
+	{
+		FString JsonString;
+		if (FFileHelper::LoadFileToString(JsonString, *FilePath))
+		{
+			if (FJsonObjectConverter::JsonObjectStringToUStruct(JsonString, &EngineSettings))
+			{
+				UE_LOG(LogGameServices, Log, TEXT("Load services settings sucess : \n%s"), *JsonString);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool FGameServicesEngine::SaveSettingToJsonFile(const FString& JsonFileName)
+{
+	const FString FilePath = FPaths::ProjectConfigDir() / JsonFileName;
+
+	FString JsonString;
+	if (FJsonObjectConverter::UStructToJsonObjectString(EngineSettings, JsonString))
+	{
+		if (FFileHelper::SaveStringToFile(JsonString, *FilePath))
+		{
+			UE_LOG(LogGameServices, Log, TEXT("Save services settings to : %s"), *FilePath);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+// ----------------------- init  -------------------------
+
+bool FGameServicesEngine::InitServiceBus(const FGameServiceMessageBusSettings& BusSettings)
+{
+	// Creates a new message bus.
+	ServiceBus = IMessagingModule::Get().CreateBus(BusSettings.MessageBusName);
+	if (!ServiceBus)
+	{
+		UE_LOG(LogGameServices, Error, TEXT("InitServiceBus - failed to create service bus : %s"), *BusSettings.MessageBusName);
+		return false;
+	}
+
+	// Create a message bridge with tcp transport layer
+	if (BusSettings.bEnableTcpBridge)
+	{
+		// Listen 
+		FIPv4Endpoint ListenEndpoint;
+		if (!FIPv4Endpoint::Parse(BusSettings.TcpListenEndpoint, ListenEndpoint))
+		{
+			if (!BusSettings.TcpListenEndpoint.IsEmpty())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("InitServiceBus - Invalid setting for ListenEndpoint '%s', listening disabled"), *BusSettings.TcpListenEndpoint);
+			}
+
+			ListenEndpoint = FIPv4Endpoint::Any;
+		}
+
+		// Connections
+		TArray<FIPv4Endpoint> ConnectToEndpoints;
+		for (const FString& ConnectToEndpointString : BusSettings.TcpConnectToEndpoints)
+		{
+			FIPv4Endpoint ConnectToEndpoint;
+			if (FIPv4Endpoint::Parse(ConnectToEndpointString, ConnectToEndpoint) || FIPv4Endpoint::FromHostAndPort(ConnectToEndpointString, ConnectToEndpoint))
+			{
+				ConnectToEndpoints.Add(ConnectToEndpoint);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("InitServiceBus - Invalid entry for ConnectToEndpoint '%s', ignoring"), *ConnectToEndpointString);
+			}
+		}
+
+		// Create Bridge with Transport
+		TcpTransport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
+		TcpBridge = FMessageBridgeBuilder(ServiceBus.ToSharedRef()).UsingTransport(TcpTransport.ToSharedRef());
+		if (TcpBridge)
+		{
+			// TODO: ...
+		}
+	}
+
+	// Create a message bridge with nats transport layer
+	if (BusSettings.bEnableNatsBridge)
+	{
+		FMessageAddress BridgeAddress = FMessageAddress::NewAddress();
+
+		// Create Bridge with Transport
+		NatsTransport = MakeShareable(new FGameNatsMessageTransport(BusSettings.MessageBusName, BusSettings.NatsServerURL));
+		NatsBridge = IMessagingModule::Get().CreateBridge(BridgeAddress, ServiceBus.ToSharedRef(), NatsTransport.ToSharedRef());
+		if (NatsBridge)
+		{
+			NatsBridge->Enable();
+		}
+	}
+
+	return true;
+}
+
+bool FGameServicesEngine::InitServices()
+{
+	if (!ServiceBus)
+	{
+		UE_LOG(LogGameServices, Error, TEXT("InitServices - invalid service bus"));
+		return false;
+	}
+
+	IGameServicesModule* ServiceModule = IGameServicesModule::Get();
+	if (ServiceModule)
+	{
+		ServiceDependencies = MakeShareable(new FTypeContainer);
+		if (ServiceDependencies)
+		{
+			// TODO: add more dependencies
+		}
+
+		// Services
+		ServiceLocator = ServiceModule->CreateLocator(ServiceDependencies.ToSharedRef());
+		if (ServiceLocator)
+		{
+			for (const FGameServiceSettings& ServiceSettings : EngineSettings.GameServices)
+			{
+				ServiceLocator->Configure(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard, ServiceSettings.ServiceModule);
+			}
+		}
+
+		// Proxies
+		ProxyLocator = ServiceModule->CreateLocator(ServiceDependencies.ToSharedRef());
+		if (ServiceLocator)
+		{
+			for (const FGameServiceSettings& ServiceSettings : EngineSettings.GameProxies)
+			{
+				ServiceLocator->Configure(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard, ServiceSettings.ServiceModule);
+			}
+		}
+	}
+
+
+	return true;
+}
+
+bool FGameServicesEngine::InitRpcServerResponder()
+{
+	// create rpc server responder
+	IGameMessagingModule* GameMessagingModule = IGameMessagingModule::Get();
+	if (!GameMessagingModule)
+	{
+		UE_LOG(LogGameServices, Error, TEXT("InitRpcServerResponder - invalid GameMessaging module"));
+		return false;
+	}
+
+	static FName RpcServerResponderName = TEXT("RpcServerPresponder");
+	RpcServerResponder = GameMessagingModule->CreateResponder(RpcServerResponderName, ServiceBus.ToSharedRef());
+	if (!RpcServerResponder)
+	{
+		return false;
+	}
+
+	// ServerKey = Type:Instance
+	// RpcServerResponder->OnLookup().BindLambda([this](const FString& ServerKey)
+	// {
+	// 	if (ServerKey == TEXT("UserService"))
+	// 	{
+	// 		auto UserService = ServiceLocator->GetService<IGameUserService>();
+	// 		if (UserService)
+	// 		{
+	// 			return UserService->GetRpcServer();
+	// 		}
+	// 	}
+	// 	return TSharedPtr<IGameServiceRpcServer>();
+	// });
+
+	return true;
+}
+
+void FGameServicesEngine::DumpServices()
+{
 }

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "MessageRpcServer.h"
 
-class FGameRpcServer : public FMessageRpcServer
+class GAMEMESSAGING_API FGameRpcServer : public FMessageRpcServer
 {
 public:
 	using FMessageRpcServer::FMessageRpcServer;

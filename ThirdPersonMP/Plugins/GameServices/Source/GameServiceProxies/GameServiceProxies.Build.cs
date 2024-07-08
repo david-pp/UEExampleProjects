@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CoreUObject",
+					"GameMessaging",
 					"GameServiceMessages", 
 					"GameServiceRpc",
 				}

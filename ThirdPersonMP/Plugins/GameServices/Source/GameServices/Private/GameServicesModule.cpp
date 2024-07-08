@@ -7,6 +7,7 @@
 #include "GameServiceLocator.h"
 #include "Misc/CoreDelegates.h"
 
+DEFINE_LOG_CATEGORY(LogGameServices);
 
 /**
  * Implements the GameServices module.

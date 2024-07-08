@@ -24,7 +24,7 @@ public:
 	 * @param ProductVersion The version string of the product that this configuration applies to.
 	 * @param ServiceModule The name of the module that implements the service.
 	 */
-	virtual void Configure(const FString& ServiceName, const FWildcardString& ProductId, const FName& ServiceModule);
+	virtual void Configure(const FString& ServiceName, const FWildcardString& ProductId, const FName& ServiceModule) = 0;
 
 public:
 	/**
@@ -77,7 +77,3 @@ public:
 	{
 	}
 };
-
-inline void IGameServiceLocator::Configure(const FString& ServiceName, const FWildcardString& ProductId, const FName& ServiceModule)
-{
-}

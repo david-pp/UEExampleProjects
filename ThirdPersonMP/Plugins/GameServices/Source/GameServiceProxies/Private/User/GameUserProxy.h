@@ -2,11 +2,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IMessageRpcClient.h"
+#include "GameUserMessages.h"
 #include "IGameService.h"
+#include "GameRpcClient.h"
+#include "User/IGameUserService.h"
 
-class FGameUserProxyFactory
+class FGameUserProxy : public IGameService, public IGameUserInterface
 {
 public:
-	static TSharedRef<IGameService> Create();
-}; 
+	using IGameService::IGameService;
+	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetUserDetails@Proxy -----"));
+		return RpcClient->Call<FGameUserGetUserDetails>();
+	}
+};
+
+

@@ -6,39 +6,41 @@ namespace UnrealBuildTool.Rules
 	{
 		public GameUserService(ReadOnlyTargetRules Target) : base(Target)
 		{
-            DynamicallyLoadedModuleNames.AddRange(
-                new string[] {
-                    "Messaging",
-                    "MessagingRpc",
-                }
-            );
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[]
+				{
+				}
+			);
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
+					"Messaging",
+					"MessagingRpc",
+					"GameMessaging",
+					"GameServices",
+					"GameServiceMessages",
 				}
 			);
-			
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"CoreUObject",
-					"GameServiceMessages", 
-					"GameServiceRpc",
 				}
 			);
 
-            PrivateIncludePathModuleNames.AddRange(
-                new string[] {
-                    "Messaging",
-                    "MessagingRpc",
-                    "GameServices",
-                }
-            );
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
+				
+				}
+			);
 
 			PrivateIncludePaths.AddRange(
-				new string[] {
+				new string[]
+				{
 					"Runtime/GameService/Proxies/Private",
 					"Runtime/GameService/Proxies/Private/User",
 				}

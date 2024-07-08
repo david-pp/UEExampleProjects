@@ -8,6 +8,7 @@
 #include "IGameServiceProvider.h"
 #include "IGameServicesModule.h"
 #include "IMessageBus.h"
+#include "../../../../GameMessaging/GameMessaging/Source/GameMessaging/Public/GameRpcServerResponder.h"
 #include "User/GameUserService.h"
 #include "User/IGameUserService.h"
 
@@ -36,10 +37,11 @@ public:
 	// IGameServiceProvider interface
 	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName, const TSharedRef<FTypeContainer>& Dependencies) override
 	{
+		// UserService Only
 		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
-		if (ServiceEngine && ServiceEngine->GetServiceBus())
+		if (ServiceEngine)
 		{
-			return FGameUserServiceFactory::Create(ServiceEngine->GetServiceBus());
+			ServiceEngine->CreateRPCService<FGameUserService>(TEXT("UserService"));
 		}
 		return nullptr;
 	}

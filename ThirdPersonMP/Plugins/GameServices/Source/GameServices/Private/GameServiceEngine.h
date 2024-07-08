@@ -1,8 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameNatsMessageTransport.h"
+#include "GameRpcServerResponder.h"
+#include "GameServiceSettings.h"
 #include "IGameServiceEngine.h"
 #include "IGameServiceLocator.h"
+#include "IMessageBridge.h"
+#include "GameTcpMessageTransport.h"
 #include "Misc/TypeContainer.h"
 
 class IGameServiceRpcResponder;
@@ -18,13 +23,9 @@ public:
 	{
 	}
 
-	virtual void Init() override
-	{
-		// InitializeGameServices();
-		InitializeGameServers();
-	}
-
+	virtual bool Init() override;
 	virtual void Start() override;
+	virtual void Tick() override;
 	virtual void Stop() override;
 
 	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> GetServiceBus() const override
@@ -37,34 +38,50 @@ public:
 		return ServiceLocator;
 	}
 
-	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName) override
+	virtual TSharedPtr<IGameServiceLocator> GetProxyLocator() const override
 	{
-		if (ServiceLocator)
-		{
-			return ServiceLocator->GetService(ServiceName, TEXT(""));
-		}
-		return TSharedPtr<IGameService>();
+		return ProxyLocator;
 	}
 
-	void InitializeGameServices();
+	virtual TSharedPtr<IGameRpcServerResponder> GetRpcServerResponder() const override
+	{
+		return RpcServerResponder;
+	}
 
-	void InitializeGameServers();
+	bool InitServiceBus(const FGameServiceMessageBusSettings& BusSettings);
+	bool InitServices();
+	bool InitRpcServerResponder();
+
+	void DumpServices();
 
 protected:
-	/** Game Service RPC client. */
-	TSharedPtr<IMessageRpcClient> ServiceRpcClient;
+	static FString GetSettingFileName();
+	bool LoadSettingFromJsonFile(const FString& JsonFileName);
+	bool SaveSettingToJsonFile(const FString& JsonFileName);
 
-	/** Game Service RPC server locator. */
-	TSharedPtr<IGameServiceRpcLocator> ServiceRpcLocator;
+	/** Service settings */
+	FGameServiceEngineSettings EngineSettings;
+
+protected:
+	/** Rpc server responder */
+	TSharedPtr<IGameRpcServerResponder> RpcServerResponder;
 
 	/** Holds a type container for service dependencies. */
 	TSharedPtr<FTypeContainer> ServiceDependencies;
 
 	/** Holds registered service instances. */
 	TSharedPtr<IGameServiceLocator> ServiceLocator;
+	/** Holds registered proxy instances. */
+	TSharedPtr<IGameServiceLocator> ProxyLocator;
 
 protected:
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> ServiceBus;
+
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> TcpBridge;
+	TSharedPtr<FTcpMessageTransport, ESPMode::ThreadSafe> TcpTransport;
+
+	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> NatsBridge;
+	TSharedPtr<FGameNatsMessageTransport, ESPMode::ThreadSafe> NatsTransport;
 
 	TSharedPtr<IGameServiceRpcResponder> RpcResponder;
 };

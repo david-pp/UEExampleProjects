@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "IGameServiceEngine.h"
 #include "Modules/ModuleManager.h"
 #include "IMessageRpcClient.h"
 #include "Misc/TypeContainer.h"
 #include "IGameServiceProvider.h"
+#include "IGameServicesModule.h"
 #include "User/IGameUserService.h"
 #include "User/GameUserProxy.h"
 
@@ -42,9 +44,16 @@ public:
 		// 	return nullptr;
 		// }
 
-		if (ServiceName == TEXT("GameUserProxy"))
+		// UserService Only
+		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+		if (!ServiceEngine)
 		{
-			return FGameUserProxyFactory::Create();
+			return nullptr;
+		}
+
+		if (ServiceName == TEXT("UserProxy"))
+		{
+			ServiceEngine->CreateRPCProxy<FGameUserProxy>(TEXT("UserProxy"));
 		}
 
 		//Add additional supported proxy services here

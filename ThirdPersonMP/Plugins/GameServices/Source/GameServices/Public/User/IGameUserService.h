@@ -32,6 +32,22 @@ struct FGameUserDetails
 	bool IsSignedIn = false;
 };
 
+/**
+ * Interface for the Game application's user services.
+ */
+class IGameUserInterface
+{
+public:
+	virtual ~IGameUserInterface()
+	{
+	}
+
+	/**
+	 * Requests the details of the last or currently signed in user
+	 */
+	virtual TAsyncResult<FGameUserDetails> GetUserDetails() = 0;
+};
+
 
 /**
  * Interface for the Game application's user services.

@@ -12,8 +12,6 @@
 #include "IMessageRpcClient.h"
 #include "DebugingMessages.h"
 #include "IMessageTransport.h"
-#include "IMyRpcLocator.h"
-#include "IMyRpcResponder.h"
 #include "NatsClient.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 #include "MessageDebugActor.generated.h"

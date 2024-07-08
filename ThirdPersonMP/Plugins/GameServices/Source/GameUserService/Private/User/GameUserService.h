@@ -2,11 +2,35 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameUserMessages.h"
 #include "IGameService.h"
-#include "IMessageBus.h"
+#include "GameRpcServer.h"
+#include "User/IGameUserService.h"
 
-class FGameUserServiceFactory
+class FGameUserService : public IGameService, public IGameUserInterface
 {
 public:
-	static TSharedRef<IGameService> Create(const TSharedPtr<IMessageBus, ESPMode::ThreadSafe>& ServiceBus);
-}; 
+	using IGameService::IGameService;
+	
+	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetUserDetails@Service -----"));
+		FGameUserDetails UserDetails;
+		UserDetails.DisplayName = FText::FromString(TEXT("David"));
+		return TAsyncResult<FGameUserDetails>(UserDetails);
+	}
+
+public:
+	virtual void OnCreate() override
+	{
+		if (RpcServer)
+		{
+			RpcServer->RegisterHandler<FGameUserGetUserDetails>(this, &FGameUserService::HandleGetUserDetails);
+		}
+	}
+
+	TAsyncResult<FGameUserDetails> HandleGetUserDetails(const FGameUserGetUserDetailsRequest& Request)
+	{
+		return GetUserDetails();
+	}
+};

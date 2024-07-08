@@ -14,6 +14,7 @@ public class GameServices : ModuleRules
 				"Core",
 				"CoreUObject", 
 				"Messaging",
+				"GameMessaging"
 			}
 		);
 
@@ -21,7 +22,13 @@ public class GameServices : ModuleRules
 		{
 			"Messaging",
 			"MessagingRpc", 
-			"GameServiceRpc"
+			"GameServiceRpc", 
+			"Json",
+			"JsonUtilities", 
+			"Networking", 
+			"GameTcpMessaging", 
+			"GameNatsMessaging", 
+			"MessagingCommon", 
 		});
 
 		PublicDefinitions.Add("WITH_GAME_SERVICES=1");

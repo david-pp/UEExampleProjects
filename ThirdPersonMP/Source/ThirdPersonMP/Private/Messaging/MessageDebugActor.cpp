@@ -6,9 +6,6 @@
 #include "GameNatsMessageTransport.h"
 #include "GameNatsMessageTransport.h"
 #include "GameUserMessages.h"
-#include "IGameServiceRpcClient.h"
-#include "IGameServiceRpcLocator.h"
-#include "IGameServiceRpcModule.h"
 #include "IGameServicesModule.h"
 #include "IMessagingModule.h"
 #include "IMessagingRpcModule.h"
@@ -134,34 +131,6 @@ void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPla
 
 void AMessageDebugPingClientCharacter::CreateUserRpcClient()
 {
-	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
-	IGameServiceRpcModule* ServiceRpcModule = IGameServiceRpcModule::Get();
-	IMessagingRpcModule* MessagingRpcModule = static_cast<IMessagingRpcModule*>(FModuleManager::Get().LoadModule("MessagingRpc"));
-
-	if (MessagingRpcModule && ServiceRpcModule && ServiceEngine && ServiceEngine->GetServiceBus())
-	{
-		UserServiceRpcClient = ServiceRpcModule->CreateClient(TEXT("UserRpcClient"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
-		// UserRpcClient = MessagingRpcModule->CreateRpcClient(TEXT("UserRpcClient"), ServiceEngine->GetServiceBus().ToSharedRef());
-		// if (UserRpcClient)
-		// {
-		// 	// create a locator to find rpc server
-		// 	UserRpcLocator = ServiceRpcModule->CreateLocator(TEXT("UserServiceLocator"), TEXT("UserService"), ServiceEngine->GetServiceBus().ToSharedRef());
-		// 	if (UserRpcLocator)
-		// 	{
-		// 		UserRpcLocator->OnServerLocated().BindLambda([=]()
-		// 		{
-		// 			UE_LOG(LogTemp, Warning, TEXT("OnServerLocated ... %s"), *UserRpcLocator->GetServerAddress().ToString());
-		// 			UserRpcClient->Connect(UserRpcLocator->GetServerAddress());
-		// 		});
-		//
-		// 		UserRpcLocator->OnServerLost().BindLambda([=]()
-		// 		{
-		// 			UE_LOG(LogTemp, Warning, TEXT("OnServerLost ... %s"), *UserRpcLocator->GetServerAddress().ToString());
-		// 			UserRpcClient->Disconnect();
-		// 		});
-		// 	}
-		// }
-	}
 }
 
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails()

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IMessageContext.h"
+#include "IMessageRpcClient.h"
 #include "Async/AsyncResult.h"
 
 class IMessageBus;

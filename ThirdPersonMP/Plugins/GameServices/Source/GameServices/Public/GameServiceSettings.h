@@ -61,6 +61,10 @@ struct FGameServiceSettings
 	/** Service/Proxy module */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FName ServiceModule;
+
+	/** Load module & create service on start ?  */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bCreateServiceOnStart = false;
 };
 
 

@@ -38,6 +38,7 @@ public:
 		if (GameServiceEngine)
 		{
 			GameServiceEngine->Init();
+			GameServiceEngine->Start();
 		}
 	}
 

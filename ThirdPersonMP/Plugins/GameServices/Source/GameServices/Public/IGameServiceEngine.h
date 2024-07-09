@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameRpcClient.h"
 #include "GameRpcServer.h"
+#include "GameRpcServerResponder.h"
 #include "IGameServiceLocator.h"
 
 class IGameService;
@@ -47,12 +48,20 @@ public:
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> ServiceBus = GetServiceBus();
 		if (ServiceBus)
 		{
+			// Rpc server
 			TSharedPtr<FGameRpcServer> RpcServer = MakeShared<FGameRpcServer>(ServiceName, ServiceBus.ToSharedRef());
 			if (RpcServer)
 			{
 				TSharedPtr<ServiceType> Service = MakeShared<ServiceType>(RpcServer);
 				if (Service)
 				{
+					// Add Rpc Server to service discovery
+					TSharedPtr<IGameRpcServerResponder> RpcServerResponder = GetRpcServerResponder();
+					if (RpcServerResponder)
+					{
+						RpcServerResponder->AddRpcServerToLookup(ServiceName, RpcServer);
+					}
+
 					Service->OnCreate();
 					return Service;
 				}
@@ -62,12 +71,12 @@ public:
 	}
 
 	template <typename ServiceType>
-	TSharedPtr<ServiceType> CreateRPCProxy(const FString& ServiceName)
+	TSharedPtr<ServiceType> CreateRPCProxy(const FString& ProxyName, const FString& ServiceName)
 	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> ServiceBus = GetServiceBus();
 		if (ServiceBus)
 		{
-			TSharedPtr<FGameRpcClient> RpcClient = MakeShared<FGameRpcClient>(ServiceName, ServiceName, ServiceBus.ToSharedRef());
+			TSharedPtr<FGameRpcClient> RpcClient = MakeShared<FGameRpcClient>(ProxyName, ServiceName, ServiceBus.ToSharedRef());
 			if (RpcClient)
 			{
 				TSharedPtr<ServiceType> Proxy = MakeShared<ServiceType>(RpcClient);
@@ -82,8 +91,11 @@ public:
 	}
 
 public:
+	/** Init Engine : Config & Service */
 	virtual bool Init() = 0;
+	/** Load Services/Proxies Modules */
 	virtual void Start() = 0;
+	/** Tick for transport */
 	virtual void Tick() = 0;
 	virtual void Stop() = 0;
 

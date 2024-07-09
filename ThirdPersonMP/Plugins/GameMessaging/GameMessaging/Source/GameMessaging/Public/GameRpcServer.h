@@ -14,6 +14,8 @@ public:
 	{
 	}
 
+	FName GetDebugName() const;
+
 public:
 	// Send Rpc server's address to Recipient
 	virtual void SendRpcServerLocationTo(const FMessageAddress& Recipient) const;

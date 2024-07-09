@@ -10,14 +10,16 @@
 		{
 			"ServiceName" :  "UserService",
 			"ServiceWildcard" : "",
-			"ServiceModule" : "GameUserService"
+			"ServiceModule" : "GameUserService",
+			"bCreateServiceOnStart" : true
 		}
 	],
 	"gameProxies": [
 		{
 			"ServiceName" :  "UserProxy",
 			"ServiceWildcard" : "",
-			"ServiceModule" : "GameServiceProxies"
+			"ServiceModule" : "GameServiceProxies",
+			"bCreateServiceOnStart" : true
 		}
 	]
 }

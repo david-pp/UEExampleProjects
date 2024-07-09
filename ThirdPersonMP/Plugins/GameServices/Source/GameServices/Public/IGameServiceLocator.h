@@ -71,9 +71,22 @@ public:
 	 */
 	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName, const FString& ProductId) = 0;
 
+
+	/**
+	 * Called on start
+	 */
+	virtual void CreateServicesOnStart()
+	{
+	}
+
 public:
 	/** Virtual destructor. */
 	virtual ~IGameServiceLocator()
+	{
+	}
+
+	/** For debug */
+	virtual void DumpServices()
 	{
 	}
 };

@@ -3,14 +3,10 @@
 #include "CoreMinimal.h"
 #include "IGameServiceEngine.h"
 #include "Modules/ModuleManager.h"
-#include "IMessageRpcClient.h"
 #include "Misc/TypeContainer.h"
 #include "IGameServiceProvider.h"
 #include "IGameServicesModule.h"
-#include "IMessageBus.h"
-#include "../../../../GameMessaging/GameMessaging/Source/GameMessaging/Public/GameRpcServerResponder.h"
 #include "User/GameUserService.h"
-#include "User/IGameUserService.h"
 
 /**
  * Implements the GameUserService module.
@@ -41,7 +37,7 @@ public:
 		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
 		if (ServiceEngine)
 		{
-			ServiceEngine->CreateRPCService<FGameUserService>(TEXT("UserService"));
+			return ServiceEngine->CreateRPCService<FGameUserService>(TEXT("UserService"));
 		}
 		return nullptr;
 	}

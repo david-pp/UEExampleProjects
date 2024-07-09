@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameRpcServer.h"
+#include "GameRpcClient.h"
 
 class FGameRpcServer;
 class FGameRpcClient;
@@ -12,11 +14,11 @@ class FGameRpcClient;
 GAMESERVICES_API class IGameService
 {
 public:
-	IGameService(TSharedPtr<FGameRpcServer> InRpcServer) : RpcServer(InRpcServer)
+	IGameService(const TSharedPtr<FGameRpcServer>& InRpcServer) : RpcServer(InRpcServer)
 	{
 	}
 
-	IGameService(TSharedPtr<FGameRpcClient> InRpcClient) : RpcClient(InRpcClient)
+	IGameService(const TSharedPtr<FGameRpcClient>& InRpcClient) : RpcClient(InRpcClient)
 	{
 	}
 
@@ -64,37 +66,15 @@ public:
 		return RpcClient;
 	}
 
+	FName GetDebugName() const
+	{
+		if (RpcServer) return RpcServer->GetDebugName();
+		if (RpcClient) return RpcClient->GetDebugName();
+		return NAME_None;
+	}
+
 protected:
 	TSharedPtr<FGameRpcServer> RpcServer;
 	TSharedPtr<FGameRpcClient> RpcClient;
 };
 
-/**
- * Base class for game service's proxy
- */
-GAMESERVICES_API class IGameServiceProxy
-{
-public:
-	/** Virtual destructor. */
-	virtual ~IGameServiceProxy()
-	{
-	}
-
-	virtual void OnCreate()
-	{
-	}
-
-	virtual void OnDestroy()
-	{
-	}
-
-	virtual bool IsAvailable() const
-	{
-		return true;
-	}
-
-public:
-
-
-protected:
-};

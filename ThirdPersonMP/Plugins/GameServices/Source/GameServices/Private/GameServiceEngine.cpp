@@ -7,6 +7,7 @@
 #include "IMessagingModule.h"
 #include "JsonObjectConverter.h"
 #include "MessageBridgeBuilder.h"
+#include "Containers/Ticker.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
@@ -51,22 +52,62 @@ bool FGameServicesEngine::Init()
 	}
 
 	UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Init - success"));
-
-	// dump engine services/proxies
-	DumpServices();
 	return true;
 }
 
 void FGameServicesEngine::Start()
 {
-	TSharedPtr<IGameUserService> UserService = ServiceLocator->GetService<IGameUserService>();
-	if (UserService)
+	// Start tick 
+	UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Start - Tick"));
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("GameServiceEngine"), 0.0f, [this](float DeltaTime)
 	{
+		this->Tick();
+		return true;
+	});
+
+	UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Start - Services/Proxies"));
+
+	// Services
+	for (const FGameServiceSettings& ServiceSettings : EngineSettings.GameServices)
+	{
+		if (ServiceLocator && ServiceSettings.bCreateServiceOnStart)
+		{
+			auto GameService = ServiceLocator->GetServiceByName<IGameService>(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard);
+			if (GameService)
+			{
+				UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Start - GameService : %s, sucess"), *GameService->GetDebugName().ToString());
+			}
+			else
+			{
+				UE_LOG(LogGameServices, Warning, TEXT("FGameServicesEngine::Start - GameService : %s, failed"), *ServiceSettings.ServiceName.ToString());
+			}
+		}
 	}
+
+	// Proxies
+	for (const FGameServiceSettings& ServiceSettings : EngineSettings.GameProxies)
+	{
+		if (ProxyLocator && ServiceSettings.bCreateServiceOnStart)
+		{
+			auto GameProxy = ProxyLocator->GetServiceByName<IGameService>(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard);
+			if (GameProxy)
+			{
+				UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Start - GameProxy : %s, sucess"), *GameProxy->GetDebugName().ToString());
+			}
+			else
+			{
+				UE_LOG(LogGameServices, Warning, TEXT("FGameServicesEngine::Start - GameProxy : %s, failed"), *ServiceSettings.ServiceName.ToString());
+			}
+		}
+	}
+
+	// dump engine services/proxies
+	DumpServices();
 }
 
 void FGameServicesEngine::Tick()
 {
+	// Process nats transport
 	if (NatsTransport)
 	{
 		NatsTransport->DispatchMessageCallbacks();
@@ -75,6 +116,11 @@ void FGameServicesEngine::Tick()
 
 void FGameServicesEngine::Stop()
 {
+	if (TickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	}
+
 	if (ServiceBus)
 	{
 		ServiceBus.Reset();
@@ -249,15 +295,14 @@ bool FGameServicesEngine::InitServices()
 
 		// Proxies
 		ProxyLocator = ServiceModule->CreateLocator(ServiceDependencies.ToSharedRef());
-		if (ServiceLocator)
+		if (ProxyLocator)
 		{
 			for (const FGameServiceSettings& ServiceSettings : EngineSettings.GameProxies)
 			{
-				ServiceLocator->Configure(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard, ServiceSettings.ServiceModule);
+				ProxyLocator->Configure(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard, ServiceSettings.ServiceModule);
 			}
 		}
 	}
-
 
 	return true;
 }
@@ -298,4 +343,13 @@ bool FGameServicesEngine::InitRpcServerResponder()
 
 void FGameServicesEngine::DumpServices()
 {
+	if (ServiceLocator)
+	{
+		ServiceLocator->DumpServices();
+	}
+
+	if (ProxyLocator)
+	{
+		ProxyLocator->DumpServices();
+	}
 }

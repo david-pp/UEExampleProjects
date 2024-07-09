@@ -84,4 +84,7 @@ protected:
 	TSharedPtr<FGameNatsMessageTransport, ESPMode::ThreadSafe> NatsTransport;
 
 	TSharedPtr<IGameServiceRpcResponder> RpcResponder;
+
+	/** Handle to the registered ticker. */
+	FDelegateHandle TickerHandle;
 };

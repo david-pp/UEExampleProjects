@@ -7,10 +7,10 @@
 #include "GameRpcServer.h"
 #include "User/IGameUserService.h"
 
-class FGameUserService : public IGameService, public IGameUserInterface
+class FGameUserService : public IGameUserService
 {
 public:
-	using IGameService::IGameService;
+	using IGameUserService::IGameUserService;
 	
 	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
 	{

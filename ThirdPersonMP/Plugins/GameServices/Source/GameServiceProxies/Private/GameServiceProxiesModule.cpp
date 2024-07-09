@@ -53,11 +53,11 @@ public:
 
 		if (ServiceName == TEXT("UserProxy"))
 		{
-			ServiceEngine->CreateRPCProxy<FGameUserProxy>(TEXT("UserProxy"));
+			// UserProxy -> UserService
+			return ServiceEngine->CreateRPCProxy<FGameUserProxy>(TEXT("UserProxy"), TEXT("UserService"));
 		}
 
 		//Add additional supported proxy services here
-
 		return nullptr;
 	}
 

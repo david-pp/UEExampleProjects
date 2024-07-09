@@ -3,18 +3,19 @@
 #include "GameServiceLocator.h"
 #include "Misc/WildcardString.h"
 #include "Modules/ModuleManager.h"
+#include "IGameService.h"
 #include "IGameServiceLocator.h"
 #include "IGameServiceProvider.h"
+#include "IGameServicesModule.h"
 
-class FGameServiceLocatorImpl
-	: public IGameServiceLocator
+class FGameServiceLocatorImpl : public IGameServiceLocator
 {
 public:
-
-	~FGameServiceLocatorImpl() { }
+	~FGameServiceLocatorImpl()
+	{
+	}
 
 public:
-
 	// IGameServiceLocator interface
 
 	virtual void Configure(const FString& ServiceName, const FWildcardString& ProductId, const FName& ServiceModule) override
@@ -63,8 +64,16 @@ public:
 		return nullptr;
 	}
 
+	virtual void DumpServices() override
+	{
+		for (auto& KV : Configuration)
+		{
+			FString EntriesString = FString::JoinBy(KV.Value, TEXT("|"), &FConfigEntry::ToDebugString);
+			UE_LOG(LogGameServices, Warning, TEXT("ServiceLocator - %s -> %s"), *KV.Key, *EntriesString);
+		}
+	}
+
 private:
-	
 	/**
 	 * Create and initialize a new instance.
 	 *
@@ -72,16 +81,20 @@ private:
 	 */
 	FGameServiceLocatorImpl(const TSharedRef<FTypeContainer>& InServiceDependencies)
 		: ServiceDependencies(InServiceDependencies)
-	{ }
-
+	{
+	}
 
 private:
-
 	struct FConfigEntry
 	{
 		FWildcardString ProductId;
 		TSharedPtr<IGameService> ServiceInstance;
 		FName ServiceModule;
+
+		FString ToDebugString() const
+		{
+			return FString::Printf(TEXT("Wildcard:%s, Module:%s, ServiceInstance:%s"), *ProductId, *ServiceModule.ToString(), ServiceInstance ? *ServiceInstance->GetDebugName().ToString() : TEXT("nullptr"));
+		}
 	};
 
 	/** Holds the service configuration entries. */

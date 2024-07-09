@@ -37,6 +37,11 @@ public:
 		return TAsyncResult<typename RpcType::FResult>();
 	}
 
+	FName GetDebugName() const
+	{
+		return FName(ClientName);
+	}
+
 protected:
 	FString ClientName;
 	TSharedPtr<IMessageRpcClient> RpcClient;

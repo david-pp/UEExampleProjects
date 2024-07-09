@@ -7,15 +7,14 @@
 #include "GameRpcClient.h"
 #include "User/IGameUserService.h"
 
-class FGameUserProxy : public IGameService, public IGameUserInterface
+class FGameUserProxy : public IGameUserService
 {
 public:
-	using IGameService::IGameService;
+	using IGameUserService::IGameUserService;
+
 	virtual TAsyncResult<FGameUserDetails> GetUserDetails() override
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GetUserDetails@Proxy -----"));
 		return RpcClient->Call<FGameUserGetUserDetails>();
 	}
 };
-
-

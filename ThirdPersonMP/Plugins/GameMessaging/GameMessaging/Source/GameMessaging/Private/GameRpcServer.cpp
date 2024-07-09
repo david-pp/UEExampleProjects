@@ -5,6 +5,15 @@
 #include "GameMessages.h"
 #include "MessageEndpoint.h"
 
+FName FGameRpcServer::GetDebugName() const
+{
+	if (MessageEndpoint)
+	{
+		return MessageEndpoint->GetDebugName();
+	}
+	return NAME_None;
+}
+
 void FGameRpcServer::SendRpcServerLocationTo(const FMessageAddress& Recipient) const
 {
 	if (MessageEndpoint)

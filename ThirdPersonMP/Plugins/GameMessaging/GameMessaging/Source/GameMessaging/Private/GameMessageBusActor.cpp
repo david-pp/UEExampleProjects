@@ -66,7 +66,7 @@ void AGameMessageBusActor::BeginPlay()
 		}
 
 		// Create Bridge with Transport
-		TcpTransport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
+		TcpTransport = MakeShareable(new FGameTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, 2.0));
 		TcpBridge = FMessageBridgeBuilder(MessageBus.ToSharedRef()).UsingTransport(TcpTransport.ToSharedRef());
 		if (TcpBridge)
 		{

@@ -8,7 +8,7 @@
 
 class IMessageBus;
 class IMessageBridge;
-class FTcpMessageTransport;
+class FGameTcpMessageTransport;
 class FGameNatsMessageTransport;
 
 UCLASS()
@@ -51,7 +51,7 @@ protected:
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> MessageBus;
 
 	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> TcpBridge;
-	TSharedPtr<FTcpMessageTransport, ESPMode::ThreadSafe> TcpTransport;
+	TSharedPtr<FGameTcpMessageTransport, ESPMode::ThreadSafe> TcpTransport;
 
 	TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> NatsBridge;
 	TSharedPtr<FGameNatsMessageTransport, ESPMode::ThreadSafe> NatsTransport;

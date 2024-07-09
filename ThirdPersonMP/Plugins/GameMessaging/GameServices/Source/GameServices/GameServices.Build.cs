@@ -14,20 +14,19 @@ public class GameServices : ModuleRules
 				"Core",
 				"CoreUObject", 
 				"Messaging",
-				"GameMessaging"
+				"MessagingRpc",
+				"MessagingCommon",
+				"GameMessaging",
+				"Json",
+				"JsonUtilities", 
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"Messaging",
-			"MessagingRpc", 
-			"Json",
-			"JsonUtilities", 
 			"Networking", 
 			"GameTcpMessaging", 
 			"GameNatsMessaging", 
-			"MessagingCommon", 
 		});
 
 		PublicDefinitions.Add("WITH_GAME_SERVICES=1");

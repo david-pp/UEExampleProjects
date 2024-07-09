@@ -15,14 +15,12 @@ public class GameNatsMessaging : ModuleRules
 			}
 		);
 
-
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
 				// ... add other private include paths required here ...
 			}
 		);
-
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -34,7 +32,6 @@ public class GameNatsMessaging : ModuleRules
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
-
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -55,7 +52,7 @@ public class GameNatsMessaging : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 		);
-		
+
 		PublicDefinitions.Add("WITH_GAME_NATS_MESSAGING=1");
 	}
 }

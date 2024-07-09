@@ -1,9 +1,7 @@
 #include "GameServiceEngine.h"
-
 #include "GameMessaging.h"
 #include "IGameServiceLocator.h"
 #include "IGameServicesModule.h"
-#include "IMessageRpcClient.h"
 #include "IMessagingModule.h"
 #include "JsonObjectConverter.h"
 #include "MessageBridgeBuilder.h"
@@ -13,6 +11,9 @@
 #include "Misc/FileHelper.h"
 #include "Misc/TypeContainer.h"
 #include "User/IGameUserService.h"
+
+#include "GameNatsMessageTransport.h"
+#include "GameTcpMessageTransport.h"
 
 bool FGameServicesEngine::Init()
 {

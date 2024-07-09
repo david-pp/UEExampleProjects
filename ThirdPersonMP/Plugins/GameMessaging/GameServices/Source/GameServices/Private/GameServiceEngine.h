@@ -1,19 +1,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameNatsMessageTransport.h"
+
 #include "GameRpcServerResponder.h"
 #include "GameServiceSettings.h"
 #include "IGameServiceEngine.h"
 #include "IGameServiceLocator.h"
 #include "IMessageBridge.h"
-#include "GameTcpMessageTransport.h"
 #include "Misc/TypeContainer.h"
 
 class IMessageRpcClient;
 class IGameServiceRpcLocator;
 class IGameServiceLocator;
 class IGameRpcServerResponder;
+
+class FGameTcpMessageTransport;
+class FGameNatsMessageTransport;
 
 class FGameServicesEngine : public IGameServiceEngine
 {

@@ -73,7 +73,9 @@ void AGameMessageBusActor::BeginPlay()
 			// TODO: ...
 		}
 	}
-
+	
+#ifdef WITH_GAME_NATS_MESSAGING
+#endif
 	// Create a message bridge with nats transport layer
 	if (bEnableNatsBridge)
 	{
@@ -87,6 +89,7 @@ void AGameMessageBusActor::BeginPlay()
 			NatsBridge->Enable();
 		}
 	}
+
 }
 
 void AGameMessageBusActor::EndPlay(const EEndPlayReason::Type EndPlayReason)

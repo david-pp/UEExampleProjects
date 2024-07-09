@@ -2,9 +2,10 @@
 	"serviceBus":
 	{
 		"messageBusName": "ServiceBus",
-		"bEnableTcpBridge": false,
-		"bEnableNatsBridge": true,
-		"natsServerURL": "nats://127.0.0.1:4222"
+		"bEnableTcpBridge": true,
+		"bEnableNatsBridge": false,
+		"natsServerURL": "nats://127.0.0.1:4222",
+		"TcpListenEndpoint" : "127.0.0.1:5000"
 	},
 	"gameServices": [
 		{

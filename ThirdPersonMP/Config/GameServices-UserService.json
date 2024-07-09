@@ -1,0 +1,19 @@
+{
+	"serviceBus":
+	{
+		"messageBusName": "ServiceBus",
+		"bEnableTcpBridge": false,
+		"bEnableNatsBridge": true,
+		"natsServerURL": "nats://127.0.0.1:4222"
+	},
+	"gameServices": [
+		{
+			"ServiceName" :  "UserService",
+			"ServiceWildcard" : "",
+			"ServiceModule" : "GameUserService",
+			"bCreateServiceOnStart" : true
+		}
+	],
+	"gameProxies": [
+	]
+}

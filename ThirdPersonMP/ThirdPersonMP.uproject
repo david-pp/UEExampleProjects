@@ -53,23 +53,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "NatsClient",
-			"Enabled": true
-		},
-		{
 			"Name": "GameServices",
 			"Enabled": true
 		},
 		{
 			"Name": "MessagingDebugger",
-			"Enabled": true
-		},
-		{
-			"Name": "GameTcpMessaging",
-			"Enabled": true
-		},
-		{
-			"Name": "GameNatsMessaging",
 			"Enabled": true
 		}
 	]

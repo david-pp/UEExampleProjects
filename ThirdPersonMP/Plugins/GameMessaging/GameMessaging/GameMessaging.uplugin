@@ -1,10 +1,10 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "GameMessaging",
-	"Description": "",
-	"Category": "Other",
+	"Description": "Game messaging utilities",
+	"Category": "GameMessaging",
 	"CreatedBy": "",
 	"CreatedByURL": "",
 	"DocsURL": "",
@@ -19,5 +19,16 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
-	]
+	],
+	"Plugins": [
+		{
+			"Name": "GameTcpMessaging",
+			"Enabled": true
+		},
+		{
+			"Name": "GameNatsMessaging",
+			"Enabled": true
+		}
+	],
+	"SupportURL": ""
 }

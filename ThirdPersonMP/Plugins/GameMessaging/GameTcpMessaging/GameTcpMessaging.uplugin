@@ -1,10 +1,10 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "GameTcpMessaging",
-	"Description": "",
-	"Category": "Other",
+	"Description": "Tcp message transport layer",
+	"Category": "GameMessaging",
 	"CreatedBy": "David++",
 	"CreatedByURL": "",
 	"DocsURL": "",
@@ -19,5 +19,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
-	]
+	],
+	"SupportURL": ""
 }

@@ -1,10 +1,10 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "GameNatsMessaging",
-	"Description": "",
-	"Category": "Other",
+	"Description": "Nats message transport layer",
+	"Category": "GameMessaging",
 	"CreatedBy": "David++",
 	"CreatedByURL": "",
 	"DocsURL": "",
@@ -19,5 +19,12 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
-	]
+	],
+	"Plugins": [
+		{
+			"Name": "NatsClient",
+			"Enabled": true
+		}
+	],
+	"SupportURL": ""
 }

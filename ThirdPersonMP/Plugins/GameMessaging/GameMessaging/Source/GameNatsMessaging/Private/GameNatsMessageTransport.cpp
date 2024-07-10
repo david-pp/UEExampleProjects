@@ -48,7 +48,7 @@ bool FGameNatsMessageTransport::StartTransport(IMessageTransportHandler& Handler
 			this->HandleGameMessage(DataPtr, DataLength);
 		});
 
-		NatsClient->Subscribe(GetClientStatusChannel(), [this](const char* DataPtr, int32 DataLength)
+		NatsClient->Subscribe(GetNodeStatusChannel(), [this](const char* DataPtr, int32 DataLength)
 		{
 			this->HandleClientStatusMessage(DataPtr, DataLength);
 		});
@@ -56,7 +56,7 @@ bool FGameNatsMessageTransport::StartTransport(IMessageTransportHandler& Handler
 		NatsNodeStatusTicker = FTicker::GetCoreTicker().AddTicker(TEXT("NatsClientStatusTicker"), NatsNodeStatusBroadcastInterval, [this](float DeltaTime) -> bool
 		{
 			this->UpdateRemoteClientStatus();
-			this->PublishClientStatus();
+			this->PublishNodeStatus();
 			return true;
 		});
 
@@ -101,7 +101,7 @@ bool FGameNatsMessageTransport::TransportMessage(const TSharedRef<IMessageContex
 			FGameNatsNodeStatus* RemoteNatsNode = RemoteNatsNodes.Find(NodeId);
 			if (RemoteNatsNode)
 			{
-				Channels.Add(FString::Printf(TEXT("%s.%s"), NATS_CLIENT_PRIVATE_CHANNEL, *RemoteNatsNode->NodeName));
+				Channels.Add(FString::Printf(TEXT("%s.%s"), NATS_NODE_PRIVATE_CHANNEL, *RemoteNatsNode->NodeName));
 			}
 		}
 
@@ -148,7 +148,7 @@ void FGameNatsMessageTransport::HandleGameMessage(const char* DataPtr, int32 Dat
 	}
 }
 
-void FGameNatsMessageTransport::PublishClientStatus()
+void FGameNatsMessageTransport::PublishNodeStatus()
 {
 	// current client status
 	FGameNatsNodeStatus ClientStatus(NatsNodeId);
@@ -160,7 +160,7 @@ void FGameNatsMessageTransport::PublishClientStatus()
 
 	if (NatsClient)
 	{
-		NatsClient->Publish(GetClientStatusChannel(), (char*)MessageData.GetData(), sizeof(FGameNatsNodeStatus));
+		NatsClient->Publish(GetNodeStatusChannel(), (char*)MessageData.GetData(), sizeof(FGameNatsNodeStatus));
 	}
 }
 
@@ -212,14 +212,14 @@ void FGameNatsMessageTransport::UpdateRemoteClientStatus()
 
 	for (auto& NodeId : TimeoutClients)
 	{
-		FGameNatsNodeStatus* ClientStatus = RemoteNatsNodes.Find(NodeId);
-		if (ClientStatus)
+		FGameNatsNodeStatus* NodeStatus = RemoteNatsNodes.Find(NodeId);
+		if (NodeStatus)
 		{
 			if (TransportHandler)
 			{
-				TransportHandler->ForgetTransportNode(ClientStatus->NodeId);
+				TransportHandler->ForgetTransportNode(NodeStatus->NodeId);
 			}
-			UE_LOG(LogTemp, Log, TEXT("GameNatsMessaging - Forget nats node,  status : %s"), *ClientStatus->ToDebugString());
+			UE_LOG(LogTemp, Log, TEXT("GameNatsMessaging - Forget nats node,  status : %s"), *NodeStatus->ToDebugString());
 			RemoteNatsNodes.Remove(NodeId);
 		}
 	}

@@ -7,8 +7,8 @@
 // #include "GameNatsMessages.generated.h"
 
 #define NATS_PUBLIC_CHANNEL TEXT("GameNatsPublic")
-#define NATS_CLIENT_PRIVATE_CHANNEL TEXT("GameNatsPrivate")
-#define NATS_CLIENT_STATUS_CHANNEL TEXT("GameNatsNodeStatus")
+#define NATS_NODE_PRIVATE_CHANNEL TEXT("GameNatsPrivate")
+#define NATS_NODE_STATUS_CHANNEL TEXT("GameNatsNodeStatus")
 
 /** Defines the protocol version of the Nats message transport. */
 namespace ENatsMessagingVersion

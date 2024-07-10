@@ -17,9 +17,9 @@ public:
 
 	void DispatchMessageCallbacks();
 
-	FString GetClientStatusChannel() const
+	FString GetNodeStatusChannel() const
 	{
-		return NATS_CLIENT_STATUS_CHANNEL;
+		return NATS_NODE_STATUS_CHANNEL;
 	}
 
 	FString GetPublicMessageChannel() const
@@ -29,10 +29,10 @@ public:
 
 	FString GetPrivateMessageChannel() const
 	{
-		return FString::Printf(TEXT("%s.%s"), NATS_CLIENT_PRIVATE_CHANNEL, *NatsNodeName);
+		return FString::Printf(TEXT("%s.%s"), NATS_NODE_PRIVATE_CHANNEL, *NatsNodeName);
 	}
 
-	void PublishClientStatus();
+	void PublishNodeStatus();
 
 public:
 	//~ IMessageTransport interface

@@ -37,11 +37,10 @@ public:
 		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
 		if (ServiceEngine)
 		{
-			return ServiceEngine->CreateRPCService<FGameUserService>(TEXT("UserService"));
+			return ServiceEngine->CreateRpcService<FGameUserService>(TEXT("UserService"));
 		}
 		return nullptr;
 	}
 };
-
 
 IMPLEMENT_MODULE(FGameUserServiceModule, GameUserService);

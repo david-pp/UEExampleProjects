@@ -122,6 +122,10 @@ void FGameServicesEngine::Stop()
 		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
+	ServiceLocator = nullptr;
+	ProxyLocator = nullptr;
+	RpcServerResponder = nullptr;
+
 	if (ServiceBus)
 	{
 		ServiceBus.Reset();

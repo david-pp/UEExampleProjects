@@ -32,18 +32,18 @@ public:
 	}
 
 	template <typename ServiceType>
-	TSharedPtr<ServiceType> GetProxyByName(const FString& ServiceName)
+	TSharedPtr<ServiceType> GetProxyByName(const FString& ProxyName)
 	{
 		TSharedPtr<IGameServiceLocator> ProxyLocator = GetProxyLocator();
 		if (ProxyLocator)
 		{
-			return StaticCastSharedPtr<ServiceType>(ProxyLocator->GetService(ServiceName, TEXT("")));
+			return StaticCastSharedPtr<ServiceType>(ProxyLocator->GetService(ProxyName, TEXT("")));
 		}
 		return nullptr;
 	}
 
 	template <typename ServiceType>
-	TSharedPtr<ServiceType> CreateRPCService(const FString& ServiceName)
+	TSharedPtr<ServiceType> CreateRpcService(const FString& ServiceName)
 	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> ServiceBus = GetServiceBus();
 		if (ServiceBus)
@@ -71,7 +71,7 @@ public:
 	}
 
 	template <typename ServiceType>
-	TSharedPtr<ServiceType> CreateRPCProxy(const FString& ProxyName, const FString& ServiceName)
+	TSharedPtr<ServiceType> CreateRpcProxy(const FString& ProxyName, const FString& ServiceName)
 	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> ServiceBus = GetServiceBus();
 		if (ServiceBus)

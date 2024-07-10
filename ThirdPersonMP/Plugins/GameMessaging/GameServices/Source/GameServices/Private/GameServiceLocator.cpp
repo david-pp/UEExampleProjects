@@ -47,14 +47,12 @@ public:
 			}
 
 			auto ServiceProvider = FModuleManager::LoadModulePtr<IGameServiceProvider>(Entry.ServiceModule);
-
 			if (ServiceProvider == nullptr)
 			{
 				continue;
 			}
 
 			Entry.ServiceInstance = ServiceProvider->GetService(ServiceName, ServiceDependencies.ToSharedRef());
-
 			if (Entry.ServiceInstance.IsValid())
 			{
 				return Entry.ServiceInstance;

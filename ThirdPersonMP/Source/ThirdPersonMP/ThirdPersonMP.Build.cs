@@ -29,7 +29,8 @@ public class ThirdPersonMP : ModuleRules
 				"MessagingRpc",
 				"Networking", 
 				"Serialization",
-				"Sockets", "NatsClient"
+				"Sockets", "NatsClient", 
+				"GameServices"
 			});
 	}
 }

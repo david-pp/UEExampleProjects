@@ -18,17 +18,20 @@
 bool FGameServicesEngine::Init()
 {
 	// Load config
-	const FString ServiceConfigFile = GetSettingFileName();
-	const FString FilePath = FPaths::ProjectConfigDir() / ServiceConfigFile;
-	if (!FPaths::FileExists(FilePath)) // not exist then create the config file
+	if (bLoadSettingFromConfigFile)
 	{
-		SaveSettingToJsonFile(ServiceConfigFile);
-	}
+		const FString ServiceConfigFile = GetSettingFileName();
+		const FString FilePath = FPaths::ProjectConfigDir() / ServiceConfigFile;
+		if (!FPaths::FileExists(FilePath)) // not exist then create the config file
+		{
+			SaveSettingToJsonFile(ServiceConfigFile);
+		}
 
-	if (!LoadSettingFromJsonFile(ServiceConfigFile))
-	{
-		UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - load config file failed : %s"), *FilePath);
-		return false;
+		if (!LoadSettingFromJsonFile(ServiceConfigFile))
+		{
+			UE_LOG(LogGameServices, Error, TEXT("FGameServicesEngine::Init - load config file failed : %s"), *FilePath);
+			return false;
+		}
 	}
 
 	// Create service bus

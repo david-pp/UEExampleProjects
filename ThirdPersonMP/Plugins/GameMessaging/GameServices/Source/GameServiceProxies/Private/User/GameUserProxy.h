@@ -7,7 +7,7 @@
 #include "GameRpcClient.h"
 #include "User/IGameUserService.h"
 
-class FGameUserProxy : public IGameUserService
+class GAMESERVICEPROXIES_API FGameUserProxy : public IGameUserService
 {
 public:
 	using IGameUserService::IGameUserService;

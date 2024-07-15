@@ -2,7 +2,7 @@
 	"serviceBus":
 	{
 		"messageBusName": "ServiceBus",
-		"bEnableTcpBridge": false,
+		"bEnableTcpBridge": true,
 		"bEnableNatsBridge": true,
 		"natsServerURL": "nats://127.0.0.1:4222",
 		"TcpListenEndpoint" : "127.0.0.1:5000"

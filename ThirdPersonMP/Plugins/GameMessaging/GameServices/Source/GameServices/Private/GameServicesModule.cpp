@@ -27,9 +27,20 @@ public:
 		return FGameServiceLocatorFactory::Create(ServiceDependencies);
 	}
 
-	virtual IGameServiceEngine* GetEngine() const override
+	virtual IGameServiceEnginePtr GetEngine() const override
 	{
-		return GameServiceEngine.Get();
+		return GameServiceEngine;
+	}
+
+	IGameServiceEnginePtr CreateEngine(const FGameServiceEngineSettings& Settings) const override
+	{
+		IGameServiceEnginePtr NewEngine = MakeShared<FGameServicesEngine>(Settings);
+		if (NewEngine)
+		{
+			NewEngine->Init();
+			NewEngine->Start();
+		}
+		return NewEngine;
 	}
 
 	void InitServiceEngine()

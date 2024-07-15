@@ -90,3 +90,5 @@ public:
 	{
 	}
 };
+
+typedef TSharedPtr<IGameServiceLocator> IGameServiceLocatorPtr;

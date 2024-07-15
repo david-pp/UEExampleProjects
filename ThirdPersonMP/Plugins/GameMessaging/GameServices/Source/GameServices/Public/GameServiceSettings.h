@@ -71,20 +71,20 @@ struct FGameServiceSettings
 /**
  * Game service settings for service engine
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FGameServiceEngineSettings
 {
 	GENERATED_BODY()
 
 	/** Service bus settings */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FGameServiceMessageBusSettings ServiceBus;
 
 	/** Game services register to engine */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TArray<FGameServiceSettings> GameServices;
 
 	/** Game service proxy register to engine */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TArray<FGameServiceSettings> GameProxies;
 };

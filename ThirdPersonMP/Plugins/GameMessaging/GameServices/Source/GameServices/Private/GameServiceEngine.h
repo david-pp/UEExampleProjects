@@ -20,6 +20,17 @@ class FGameNatsMessageTransport;
 class FGameServicesEngine : public IGameServiceEngine
 {
 public:
+	FGameServicesEngine()
+	{
+		bLoadSettingFromConfigFile = true;
+	}
+
+	FGameServicesEngine(const FGameServiceEngineSettings& Settings)
+	{
+		bLoadSettingFromConfigFile = false;
+		EngineSettings = Settings;
+	}
+	
 	/** Virtual destructor. */
 	virtual ~FGameServicesEngine()
 	{
@@ -60,6 +71,8 @@ protected:
 	static FString GetSettingFileName();
 	bool LoadSettingFromJsonFile(const FString& JsonFileName);
 	bool SaveSettingToJsonFile(const FString& JsonFileName);
+
+	bool bLoadSettingFromConfigFile = true;
 
 	/** Service settings */
 	FGameServiceEngineSettings EngineSettings;

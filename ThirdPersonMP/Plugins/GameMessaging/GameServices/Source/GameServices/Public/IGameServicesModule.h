@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameServiceSettings.h"
 #include "IGameServiceEngine.h"
 #include "Modules/ModuleInterface.h"
 
@@ -20,10 +21,18 @@ public:
 		return static_cast<IGameServicesModule*>(FModuleManager::Get().LoadModule("GameServices"));
 	}
 
-	static IGameServiceEngine* GetServiceEngine()
+	// Get default Service Engine
+	static IGameServiceEnginePtr GetServiceEngine()
 	{
 		IGameServicesModule* Module = Get();
 		return Module ? Module->GetEngine() : nullptr;
+	}
+
+	// Create a new Service Engine
+	static IGameServiceEnginePtr CreateServiceEngine(const FGameServiceEngineSettings& Settings)
+	{
+		IGameServicesModule* Module = Get();
+		return Module ? Module->CreateEngine(Settings) : nullptr;
 	}
 
 	/**
@@ -37,7 +46,12 @@ public:
 	/*
 	 * Get service engine
 	 */
-	virtual IGameServiceEngine* GetEngine() const = 0;
+	virtual IGameServiceEnginePtr GetEngine() const = 0;
+
+	/**
+	 * Create a new service engine
+	 */
+	virtual IGameServiceEnginePtr CreateEngine(const FGameServiceEngineSettings& Settings) const = 0;
 
 public:
 	/** Virtual destructor. */

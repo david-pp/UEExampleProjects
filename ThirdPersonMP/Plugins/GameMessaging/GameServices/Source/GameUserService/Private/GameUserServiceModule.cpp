@@ -34,7 +34,7 @@ public:
 	virtual TSharedPtr<IGameService> GetService(const FString& ServiceName, const TSharedRef<FTypeContainer>& Dependencies) override
 	{
 		// UserService Only
-		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+		IGameServiceEnginePtr ServiceEngine = IGameServicesModule::GetServiceEngine();
 		if (ServiceEngine)
 		{
 			return ServiceEngine->CreateRpcService<FGameUserService>(TEXT("UserService"));

@@ -11,6 +11,8 @@
 #include "IMessageRpcServer.h"
 #include "IMessageRpcClient.h"
 #include "DebugingMessages.h"
+#include "GameServiceSettings.h"
+#include "IGameServiceEngine.h"
 #include "IMessageTransport.h"
 #include "NatsClient.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
@@ -52,15 +54,6 @@ public:
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 };
 
-UCLASS()
-class AMessageDebugBusActor : public AActor
-{
-	GENERATED_BODY()
-
-public:
-	virtual void BeginPlay() override;
-};
-
 class FBusEndpoint
 {
 public:
@@ -68,6 +61,33 @@ public:
 	void HandleHeartBeatMessage(const FDebugServiceHeartBeat& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandlePingMessage(const FDebugServicePing& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandlePongMessage(const FDebugServicePong& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+};
+
+UCLASS()
+class ADebugServiceEngineActor : public AActor
+{
+	GENERATED_BODY()
+
+protected:
+	// ~AActor Interface
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UFUNCTION(BlueprintCallable)
+	void CreateUserProxy();
+
+	UFUNCTION(BlueprintCallable)
+	void GetUserDetails();
+
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
+	FString ServiceEngineDebugName;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ExposeOnSpawn=true), Category=GameMessaging)
+	FGameServiceEngineSettings Settings;
+
+	IGameServiceEnginePtr ServiceEngine; 
 };
 
 UCLASS()
@@ -86,17 +106,14 @@ public:
 	// User Service Demo
 	//
 	UFUNCTION(BlueprintCallable)
-	void CreateUserRpcClient();
-	UFUNCTION(BlueprintCallable)
 	void AsyncGetUserDetails();
 	UFUNCTION(BlueprintCallable)
 	void AsyncGetUserDetails2();
 
-	TSharedPtr<IGameServiceRpcClient> UserServiceRpcClient;
-	TSharedPtr<IMessageRpcClient> UserRpcClient;
-	TSharedPtr<IGameServiceRpcLocator> UserRpcLocator;
-
-
+	/** Create a debug Service Engine */
+	UFUNCTION(BlueprintCallable)
+	ADebugServiceEngineActor* CreateNewServiceEngine(const FString& DebugName, const FGameServiceEngineSettings& Settings);
+	
 	//
 	// NATs Demo
 	//

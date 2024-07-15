@@ -109,3 +109,5 @@ public:
 	/** Rpc server responder for RPC server discover */
 	virtual TSharedPtr<IGameRpcServerResponder> GetRpcServerResponder() const = 0;
 };
+
+typedef TSharedPtr<IGameServiceEngine> IGameServiceEnginePtr;

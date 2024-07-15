@@ -45,7 +45,7 @@ public:
 		// }
 
 		// UserService Only
-		IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+		IGameServiceEnginePtr ServiceEngine = IGameServicesModule::GetServiceEngine();
 		if (!ServiceEngine)
 		{
 			return nullptr;

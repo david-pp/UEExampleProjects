@@ -91,11 +91,72 @@ void AMessageDebugPingServiceActor::HandleHeartBeatMessage(const FDebugServiceHe
 
 // --------------------------------------
 
-void AMessageDebugBusActor::BeginPlay()
+
+void ADebugServiceEngineActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ServiceEngine = IGameServicesModule::CreateServiceEngine(Settings);
 }
 
+void ADebugServiceEngineActor::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
+void ADebugServiceEngineActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+}
+
+void ADebugServiceEngineActor::CreateUserProxy()
+{
+	// if (ServiceEngine)
+	// {
+	// 	// ServiceEngine->CreateRpcProxy<>()
+	// 	IGameServiceLocatorPtr ProxyLocator = ServiceEngine->GetProxyLocator();
+	// 	if (ProxyLocator)
+	// 	{
+	// 		auto GameProxy = ProxyLocator->GetServiceByName<IGameService>(ServiceSettings.ServiceName.ToString(), ServiceSettings.ServiceWildcard);
+	// 		if (GameProxy)
+	// 		{
+	// 			UE_LOG(LogGameServices, Log, TEXT("FGameServicesEngine::Start - GameProxy : %s, sucess"), *GameProxy->GetDebugName().ToString());
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogGameServices, Warning, TEXT("FGameServicesEngine::Start - GameProxy : %s, failed"), *ServiceSettings.ServiceName.ToString());
+	// 		}
+	// 	}
+	// }
+}
+
+void ADebugServiceEngineActor::GetUserDetails()
+{
+	if (ServiceEngine)
+	{
+		auto UserProxy = ServiceEngine->GetProxyByName<IGameUserService>(TEXT("UserProxy"));
+		if (UserProxy)
+		{
+			TAsyncResult<FGameUserDetails> AsyncResult = UserProxy->GetUserDetails();
+			TFuture<FGameUserDetails>& Future = const_cast<TFuture<FGameUserDetails>&>(AsyncResult.GetFuture());
+
+			Future.Then([this](TFuture<FGameUserDetails> InFuture)
+			{
+				if (InFuture.IsReady())
+				{
+					FGameUserDetails Result = InFuture.Get();
+					UE_LOG(LogGameServices, Log, TEXT("GetUserDetails@%s - Complete : %s"), *ServiceEngineDebugName, *Result.DisplayName.ToString());
+				}
+			});
+		}
+		else
+		{
+			UE_LOG(LogGameServices, Warning, TEXT("GetUserDetails@%s - Invalid User Proxy"), *ServiceEngineDebugName);
+		}
+	}
+}
+
+// ----------------
 
 AMessageDebugPingClientCharacter::AMessageDebugPingClientCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -129,13 +190,9 @@ void AMessageDebugPingClientCharacter::EndPlay(const EEndPlayReason::Type EndPla
 	}
 }
 
-void AMessageDebugPingClientCharacter::CreateUserRpcClient()
-{
-}
-
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 {
-	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+	auto ServiceEngine = IGameServicesModule::GetServiceEngine();
 	if (!ServiceEngine) return;
 
 	auto UserProxy = ServiceEngine->GetProxyByName<IGameUserService>(TEXT("UserProxy"));
@@ -161,7 +218,7 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails()
 
 void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
 {
-	IGameServiceEngine* ServiceEngine = IGameServicesModule::GetServiceEngine();
+	auto ServiceEngine = IGameServicesModule::GetServiceEngine();
 	if (!ServiceEngine) return;
 
 	auto UserService = ServiceEngine->GetServiceByName<IGameUserService>(TEXT("UserService"));
@@ -183,6 +240,22 @@ void AMessageDebugPingClientCharacter::AsyncGetUserDetails2()
 	{
 		UE_LOG(LogGameServices, Warning, TEXT("AsyncGetUserDetails2 - Invalid User Service"));
 	}
+}
+
+ADebugServiceEngineActor* AMessageDebugPingClientCharacter::CreateNewServiceEngine(const FString& DebugName, const FGameServiceEngineSettings& Settings)
+{
+	auto ServiceEngine = IGameServicesModule::GetServiceEngine();
+
+	FTransform Transform;
+	ADebugServiceEngineActor* ServiceEngineActor = GetWorld()->SpawnActorDeferred<ADebugServiceEngineActor>(ADebugServiceEngineActor::StaticClass(), Transform);
+	if (ServiceEngineActor)
+	{
+		ServiceEngineActor->ServiceEngineDebugName = DebugName;
+		ServiceEngineActor->Settings = Settings;
+		ServiceEngineActor->FinishSpawning(Transform);
+	}
+
+	return ServiceEngineActor;
 }
 
 void AMessageDebugPingClientCharacter::CreateNatsClient(FString InName, FString NatsURL, FString DefaultSubject)

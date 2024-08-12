@@ -59,6 +59,10 @@
 		{
 			"Name": "MessagingDebugger",
 			"Enabled": true
+		},
+		{
+			"Name": "RedisClient",
+			"Enabled": true
 		}
 	]
 }

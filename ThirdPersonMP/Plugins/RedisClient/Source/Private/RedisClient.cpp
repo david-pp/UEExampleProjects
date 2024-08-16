@@ -1,5 +1,5 @@
 #include "RedisClient.h"
-#include "RedisClientPrivate.h"
+#include "RedisClientModule.h"
 
 //  -------------------------------------------------------
 #if PLATFORM_WINDOWS
@@ -133,6 +133,7 @@ bool FRedisClient::ConnectToRedis(const FString& InHost, int32 InPort, const FSt
 		}
 	}
 
+	bIsConnected = true;
 	UE_LOG(LogRedis, Display, TEXT("%s Done Host=%s Port=%d"), ANSI_TO_TCHAR(__FUNCTION__), *Host, Port);
 	return true;
 }
@@ -150,6 +151,7 @@ void FRedisClient::DisconnectRedis()
 		redisFree(RedisContextPtr);
 		RedisContextPtr = nullptr;
 	}
+	bIsConnected = false;
 }
 
 void FRedisClient::Quit()
@@ -1615,4 +1617,140 @@ bool FRedisClient::RPush(const FString& InKey, const TArray<FString>& InFieldLis
 	RedisReplyPtr = nullptr;
 
 	return bResult;
+}
+
+// ------------------------ Interfaces for Async -----------------------
+
+bool FRedisClient::IsConnected() const
+{
+	return bIsConnected && RedisContextPtr;
+}
+
+bool FRedisClient::IsServerClosed() const
+{
+	return RedisContextPtr && RedisContextPtr->err == REDIS_ERR_EOF;
+}
+
+bool FRedisClient::GetError(FString& Err, redisReply* Reply) const
+{
+	if (RedisContextPtr == nullptr)
+	{
+		Err = FString(TEXT("invalid connection"));
+		return true;
+	}
+
+	if (IsServerClosed())
+	{
+		Err = FString(TEXT("redis server is closed"));
+		return true;
+	}
+
+	// redis connection error
+	if (RedisContextPtr->err != 0)
+	{
+		Err = FString(ANSI_TO_TCHAR(RedisContextPtr->errstr));
+		return true;
+	}
+
+	// redis command reply error
+	if (Reply && Reply->type == REDIS_REPLY_ERROR)
+	{
+		Err = FString(ANSI_TO_TCHAR(Reply->str));
+		return true;
+	}
+
+	Err = FString("");
+	return false;
+}
+
+
+bool FRedisClient::ExecCommandEx(const FString& Command, FRedisReply& Value, FString& Err)
+{
+	if (!IsConnected())
+	{
+		Err = FString(TEXT("redis client not connected"));
+		return false;
+	}
+
+	redisReply* Reply = static_cast<redisReply*>(redisCommand(RedisContextPtr, TCHAR_TO_ANSI(*Command)));
+
+	// Server error
+	if (IsServerClosed())
+	{
+		GetError(Err, Reply);
+		freeReplyObject(Reply);
+		// TODO: disconnect & reconnect
+		// DisconnectRedis();
+		return false;
+	}
+
+	// Command has error
+	if (GetError(Err, Reply))
+	{
+		freeReplyObject(Reply);
+		return false;
+	}
+
+	Value.ParserReply(Reply);
+	freeReplyObject(Reply);
+	return true;
+}
+
+bool FRedisClient::ExecPipelineCommandsEx(const TArray<FString>& PipelineCommands, TArray<FRedisReply>& Values, FString& Err)
+{
+	if (!IsConnected())
+	{
+		Err = FString(TEXT("redis client not connected"));
+		return false;
+	}
+
+	int PipelineCommandNum = 0;
+	for (const FString& Command : PipelineCommands)
+	{
+		redisAppendCommand(RedisContextPtr, TCHAR_TO_ANSI(*Command));
+		PipelineCommandNum++;
+	}
+
+	for (int i = 0; i < PipelineCommandNum; i++)
+	{
+		redisReply* Reply;
+		FRedisReply Value;
+		redisGetReply(RedisContextPtr, reinterpret_cast<void**>(&Reply));
+
+		// Server error
+		if (IsServerClosed())
+		{
+			GetError(Err, Reply);
+			freeReplyObject(Reply);
+			// TODO: disconnect & reconnect
+			// DisconnectRedis();
+			return false;
+		}
+
+		// Command has error
+		if (GetError(Err, Reply))
+		{
+			freeReplyObject(Reply);
+			return false;
+		}
+
+		Value.ParserReply(Reply);
+		Values.Add(MoveTemp(Value));
+		freeReplyObject(Reply);
+	}
+
+	return true;
+}
+
+bool FRedisClient::Ping(FString& Err)
+{
+	FRedisReply Reply;
+
+	if (RedisContextPtr)
+	{
+		// ping timeout
+		redisSetTimeout(RedisContextPtr, timeval{1, 0});
+	}
+
+	return ExecCommandEx("PING", Reply, Err);
 }

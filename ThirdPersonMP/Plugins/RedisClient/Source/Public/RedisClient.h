@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include <string>
 
+#include "RedisTypes.h"
+
 struct redisContext;
 struct redisReply;
 
@@ -83,7 +85,22 @@ public:
 	bool RPop(const FString& InKey, FString& OutValue);
 	bool RPush(const FString& InKey, const TArray<FString>& InFieldList);
 
+public:
+	// Interfaces for Async Usage
+	bool ExecCommandEx(const FString& Command, FRedisReply& Value, FString& Err);
+	bool ExecPipelineCommandsEx(const TArray<FString>& PipelineCommands, TArray<FRedisReply>& Values, FString& Err);
+
+	bool IsConnected() const;
+	bool IsServerClosed() const;
+	bool GetError(FString& Err, redisReply* Reply = nullptr) const;
+
+	// ping
+	bool Ping(FString& Err);
+
 private:
 	redisContext* RedisContextPtr = nullptr;
 	redisReply* RedisReplyPtr = nullptr;
+	bool bIsConnected = false;
 };
+
+typedef TSharedPtr<FRedisClient> FRedisClientPtr;

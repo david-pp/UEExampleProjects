@@ -56,19 +56,19 @@ FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand)
 {
 	FRedisReply Reply;
 
-	TFuture<FRedisReply> Future = AsyncExecCommand(InCommand);
-	if (Future.WaitFor(FTimespan::FromSeconds(0.1)))
+	// Acquire a connection and execute the command
+	FRedisClientPtr RedisConnection = AcquireRedisConnection();
+	if (RedisConnection)
 	{
-		if (Future.IsReady())
-		{
-			return Future.Get();
-		}
+		RedisConnection->ExecCommandEx(InCommand, Reply, Reply.Error);
 	}
 	else
 	{
-		Reply.Error = TEXT("exec command timeout");
+		Reply.Error = TEXT("can't acquire an invalid redis connection");
 	}
 
+	// put the connection back to the pool
+	ReleaseRedisConnection(RedisConnection);
 	return Reply;
 }
 

@@ -37,6 +37,8 @@ struct REDISCLIENT_API FRedisReply
 
 	void ParserReply(const struct redisReply* Reply);
 
+	FString ToDebugString() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ERedisReplyType Type;
 

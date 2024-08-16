@@ -44,3 +44,42 @@ void FRedisReply::ParserReply(const redisReply* Reply)
 		}
 	}
 }
+
+FString FRedisReply::ToDebugString() const
+{
+	if (HasError())
+	{
+		return FString::Printf(TEXT("Error:%s"), *Error);
+	}
+
+	switch (Type)
+	{
+	case ERedisReplyType::Integer:
+		{
+			return FString::Printf(TEXT("Integer:%d"), Integer);
+		}
+		break;
+	case ERedisReplyType::String:
+		{
+			return FString::Printf(TEXT("String:%s"), *String);
+		}
+		break;
+	case ERedisReplyType::Array:
+		{
+			return FString::Printf(TEXT("Array:[%s]"), *FString::Join(Elements, TEXT(",")));
+		}
+		break;
+	case ERedisReplyType::Status:
+		{
+			return FString::Printf(TEXT("Status:%s"), *Status);
+		}
+		break;
+	case ERedisReplyType::Nil:
+		{
+			return TEXT("Nil");
+		}
+		break;
+	}
+
+	return FString::Printf(TEXT("Invaid"));
+}

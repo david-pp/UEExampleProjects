@@ -19,9 +19,9 @@ FAsyncRedis::~FAsyncRedis()
 	}
 }
 
-FRedisClientPtr FAsyncRedis::AcquireRedisConnection()
+FRedisConnectionPtr FAsyncRedis::AcquireRedisConnection()
 {
-	FRedisClientPtr RedisClient;
+	FRedisConnectionPtr RedisClient;
 	// find a reusable connection
 	{
 		FScopeLock ScopeLock(&Mutex);
@@ -33,7 +33,7 @@ FRedisClientPtr FAsyncRedis::AcquireRedisConnection()
 	}
 
 	// or create a new one
-	RedisClient = MakeShared<FRedisClient>();
+	RedisClient = MakeShared<FRedisConnection>();
 	if (RedisClient)
 	{
 		if (RedisClient->ConnectToRedis(IP, Port, Password))
@@ -45,7 +45,7 @@ FRedisClientPtr FAsyncRedis::AcquireRedisConnection()
 	return nullptr;
 }
 
-void FAsyncRedis::ReleaseRedisConnection(FRedisClientPtr RedisClient)
+void FAsyncRedis::ReleaseRedisConnection(FRedisConnectionPtr RedisClient)
 {
 	// put back the connection
 	FScopeLock ScopeLock(&Mutex);
@@ -57,7 +57,7 @@ FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand)
 	FRedisReply Reply;
 
 	// Acquire a connection and execute the command
-	FRedisClientPtr RedisConnection = AcquireRedisConnection();
+	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
 	if (RedisConnection)
 	{
 		RedisConnection->ExecCommandEx(InCommand, Reply, Reply.Error);

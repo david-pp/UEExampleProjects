@@ -1,7 +1,7 @@
 ﻿#include "AsyncRedisCommand.h"
 
 #include "AsyncRedis.h"
-#include "RedisClient.h"
+#include "RedisConnection.h"
 
 FAsyncRedisCommand::FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, const FNativeOnRedisReplyDelegate& InReplyDelegate)
 	: AsyncRedis(InAsyncRedis), Command(InCommand), OnReply(InReplyDelegate)
@@ -29,7 +29,7 @@ void FAsyncRedisCommand::DoThreadedWork()
 
 	FRedisReply Reply;
 	// Acquire a connection and execute the command
-	FRedisClientPtr RedisConnection = AsyncRedis->AcquireRedisConnection();
+	FRedisConnectionPtr RedisConnection = AsyncRedis->AcquireRedisConnection();
 	if (RedisConnection)
 	{
 		RedisConnection->ExecCommandEx(Command, Reply, Reply.Error);

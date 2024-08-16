@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RedisClient.h"
+#include "RedisConnection.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "ThirdPersonMP/ThirdPersonMPCharacter.h"
 #include "DataClientDebugCharacter.generated.h"
@@ -90,7 +90,7 @@ public:
 	void AsyncDemoAPI(FString Param1, const FOnAsyncDemoCompleteDelegate& OnComplete);
 
 protected:
-	TSharedPtr<FRedisClient> RedisClient;
+	TSharedPtr<FRedisConnection> RedisClient;
 	FString RedisServerIP;
 	int32 RedisServerPort;
 	FString RedisServerPassword;

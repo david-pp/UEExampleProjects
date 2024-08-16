@@ -82,7 +82,7 @@ bool ADataClientDebugCharacter::NewRedisClient(const FString& InIP, int32 InPort
 	RedisServerPort = InPort;
 	RedisServerPassword = InPassword;
 
-	RedisClient = MakeShared<FRedisClient>();
+	RedisClient = MakeShared<FRedisConnection>();
 	if (!RedisClient->ConnectToRedis(InIP, InPort, InPassword))
 	{
 		RedisClient = nullptr;

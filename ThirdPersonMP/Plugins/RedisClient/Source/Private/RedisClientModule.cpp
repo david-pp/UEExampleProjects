@@ -26,6 +26,11 @@ public:
 		return Redis;
 	}
 
+	virtual IRedisInterfacePtr CreateRedisInterface(const FString& InIP, int InPort, const FString& InPassword, int InPoolSize) const override
+	{
+		return MakeShared<FAsyncRedis, ESPMode::ThreadSafe>(InIP, InPort, InPassword, InPoolSize);
+	}
+
 protected:
 	IRedisInterfacePtr Redis;
 };

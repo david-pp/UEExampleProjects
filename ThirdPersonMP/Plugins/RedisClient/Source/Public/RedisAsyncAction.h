@@ -3,23 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RedisInterface.h"
 #include "RedisTypes.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "RedisAsyncAction.generated.h"
-
-UCLASS()
-class URedisClientDemo : public UObject, public IRedisInterface
-{
-	GENERATED_BODY()
-
-public:
-	UFUNCTION(BlueprintCallable)
-	static URedisClientDemo* CreateRedisClient(int MaxNum = 3, const FString& InIP = FString(TEXT("127.0.0.1")), int InPort = 6379, const FString& InPassword = FString(TEXT("")));
-
-	virtual FRedisReply ExecCommand(const FString& InCommand) override;
-	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand) override;
-};
 
 /**
  * Redis blueprint async action

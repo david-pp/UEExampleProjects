@@ -25,4 +25,9 @@ public:
      * Get default redis interface
      */
 	virtual IRedisInterfacePtr GetRedisInterface() const = 0;
+
+	/**
+	 * Create a new redis client impl
+	 */
+	virtual IRedisInterfacePtr CreateRedisInterface(const FString& InIP, int InPort, const FString& InPassword, int InPoolSize) const = 0;
 };

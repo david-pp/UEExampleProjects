@@ -3,36 +3,6 @@
 #include "RedisAsyncAction.h"
 #include "RedisClientModule.h"
 
-URedisClientDemo* URedisClientDemo::CreateRedisClient(int MaxNum, const FString& InIP, int InPort, const FString& InPassword)
-{
-	URedisClientDemo* NewClient = NewObject<URedisClientDemo>();
-	return NewClient;
-}
-
-FRedisReply URedisClientDemo::ExecCommand(const FString& InCommand)
-{
-	FRedisReply Reply;
-	IRedisInterfacePtr Redis = IRedisClientModule::GetRedis();
-	if (Redis)
-	{
-		Reply = Redis->ExecCommand(InCommand);
-	}
-	return Reply;
-}
-
-TFuture<FRedisReply> URedisClientDemo::AsyncExecCommand(const FString& InCommand)
-{
-	IRedisInterfacePtr Redis = IRedisClientModule::GetRedis();
-	if (Redis)
-	{
-		return Redis->AsyncExecCommand(InCommand);
-	}
-
-	TPromise<FRedisReply> Promise;
-	TFuture<FRedisReply> Future = Promise.GetFuture();
-	return MoveTemp(Future);
-}
-
 URedisAsyncAction* URedisAsyncAction::AsyncRedisCommand(UObject* WorldContextObject, const FString& Command)
 {
 	URedisAsyncAction* Action = NewObject<URedisAsyncAction>();

@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "RedisClient.h"
+#include "RedisConnection.h"
 #include "RedisInterface.h"
 
 class FAsyncRedis : public IRedisInterface
@@ -17,8 +17,8 @@ public:
 	virtual ~FAsyncRedis() override;
 
 	// Acquire/Release reusable redis connection
-	FRedisClientPtr AcquireRedisConnection();
-	void ReleaseRedisConnection(FRedisClientPtr RedisClient);
+	FRedisConnectionPtr AcquireRedisConnection();
+	void ReleaseRedisConnection(FRedisConnectionPtr RedisClient);
 
 public:
 	virtual FRedisReply ExecCommand(const FString& InCommand) override;
@@ -35,5 +35,5 @@ protected:
 
 	/** Redis connection */
 	FCriticalSection Mutex;
-	TArray<FRedisClientPtr> RedisConnections;
+	TArray<FRedisConnectionPtr> RedisConnections;
 };

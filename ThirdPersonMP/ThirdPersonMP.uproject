@@ -61,7 +61,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "RedisClient",
+			"Name": "TinyRedis",
 			"Enabled": true
 		}
 	]

@@ -40,7 +40,7 @@ public class ThirdPersonMP : ModuleRules
 			"Serialization",
 			"Sockets",
 			"NatsClient",
-			"RedisClient",
+			"TinyRedis",
 			"GameServices"
 		});
 	}

@@ -21,8 +21,10 @@ public:
 	void ReleaseRedisConnection(FRedisConnectionPtr RedisClient);
 
 public:
-	virtual FRedisReply ExecCommand(const FString& InCommand) override;
-	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand) override;
+	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
+	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
+
+	virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
 
 protected:
 	// Redis server info

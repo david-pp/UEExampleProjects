@@ -1695,7 +1695,44 @@ bool FRedisConnection::ExecCommandEx(const FString& Command, FRedisReply& Value,
 		return false;
 	}
 
-	Value.ParserReply(Reply);
+	Value.ParseReply(Reply);
+	freeReplyObject(Reply);
+	return true;
+}
+
+bool FRedisConnection::ExecCommandEx(FRedisReply& Value, FString& Err, const char* format, ...)
+{
+	if (!IsConnected())
+	{
+		Err = FString(TEXT("redis client not connected"));
+		TryReconnectToRedis(Host, Port, Password, 0.0f);
+		return false;
+	}
+
+	va_list ap;
+	va_start(ap, format);
+	redisReply* Reply = static_cast<redisReply*>(redisvCommand(RedisContextPtr, format, ap));
+	va_end(ap);
+
+	// Server error
+	if (RedisContextPtr->err)
+	{
+		GetError(Err, Reply);
+		freeReplyObject(Reply);
+		// disconnect & reconnect
+		DisconnectRedis();
+		TryReconnectToRedis(Host, Port, Password, 0.0f);
+		return false;
+	}
+
+	// Command has error
+	if (GetError(Err, Reply))
+	{
+		freeReplyObject(Reply);
+		return false;
+	}
+
+	Value.ParseReply(Reply);
 	freeReplyObject(Reply);
 	return true;
 }
@@ -1739,7 +1776,7 @@ bool FRedisConnection::ExecPipelineCommandsEx(const TArray<FString>& PipelineCom
 			return false;
 		}
 
-		Value.ParserReply(Reply);
+		Value.ParseReply(Reply);
 		Values.Add(MoveTemp(Value));
 		freeReplyObject(Reply);
 	}

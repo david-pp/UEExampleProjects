@@ -3,28 +3,6 @@
 #include "TinyRedisClient.h"
 #include "TinyRedisModule.h"
 
-FRedisReply UTinyRedisClient::ExecCommand(const FString& InCommand)
-{
-	FRedisReply Reply;
-	if (Redis)
-	{
-		Reply = Redis->ExecCommand(InCommand);
-	}
-	return Reply;
-}
-
-TFuture<FRedisReply> UTinyRedisClient::AsyncExecCommand(const FString& InCommand)
-{
-	if (Redis)
-	{
-		return Redis->AsyncExecCommand(InCommand);
-	}
-
-	TPromise<FRedisReply> Promise;
-	TFuture<FRedisReply> Future = Promise.GetFuture();
-	return MoveTemp(Future);
-}
-
 UTinyRedisClient* UTinyRedisClient::CreateRedisClient(const FString& InIP, int InPort, const FString& InPassword, int PoolSize)
 {
 	ITinyRedisModule* Module = ITinyRedisModule::Get();
@@ -42,6 +20,28 @@ UTinyRedisClient* UTinyRedisClient::CreateRedisClient(const FString& InIP, int I
 	UTinyRedisClient* NewClient = NewObject<UTinyRedisClient>();
 	NewClient->Redis = Redis;
 	return NewClient;
+}
+
+FRedisReply UTinyRedisClient::ExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp)
+{
+	FRedisReply Reply;
+	if (Redis)
+	{
+		Reply = Redis->ExecCommand(InCommand, InCommandTyp);
+	}
+	return Reply;
+}
+
+TFuture<FRedisReply> UTinyRedisClient::AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp)
+{
+	if (Redis)
+	{
+		return Redis->AsyncExecCommand(InCommand, InCommandTyp);
+	}
+
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+	return MoveTemp(Future);
 }
 
 void UTinyRedisClient::DumpRedisReply(const FRedisReply& Reply)

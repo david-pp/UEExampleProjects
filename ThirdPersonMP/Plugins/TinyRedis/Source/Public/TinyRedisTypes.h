@@ -17,6 +17,20 @@ enum class ERedisReplyType : uint8
 };
 
 /**
+ * Redis Command Type (for parsing result)
+ */
+UENUM(BlueprintType)
+enum class ERedisCommandType : uint8
+{
+	UNKNOWN,
+	SET,
+	GET,
+	HGETALL,
+	HMGET,
+	HMSET,
+};
+
+/**
  * Redis Command's Replay 
  */
 USTRUCT(BlueprintType)
@@ -27,6 +41,7 @@ struct TINYREDIS_API FRedisReply
 	FRedisReply()
 	{
 		Type = ERedisReplyType::Nil;
+		CommandType = ERedisCommandType::UNKNOWN;
 		Integer = 0;
 	}
 
@@ -35,9 +50,13 @@ struct TINYREDIS_API FRedisReply
 		return Type == ERedisReplyType::Nil || Error.Len() > 0;
 	}
 
-	void ParserReply(const struct redisReply* Reply);
+	void ParseReply(const struct redisReply* Reply);
+	void ParseReplyByCommand(ERedisCommandType InCommandType);
 
 	FString ToDebugString() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ERedisCommandType CommandType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ERedisReplyType Type;
@@ -56,6 +75,10 @@ struct TINYREDIS_API FRedisReply
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Error;
+
+	// ---------------As Hash Query Reply -----------
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TMap<FString, FString> FieldValues;
 };
 
 /**

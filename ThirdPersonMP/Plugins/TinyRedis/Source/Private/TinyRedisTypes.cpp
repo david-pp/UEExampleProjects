@@ -2,7 +2,7 @@
 
 #include <hiredis.h>
 
-void FRedisReply::ParserReply(const redisReply* Reply)
+void FRedisReply::ParseReply(const redisReply* Reply)
 {
 	switch (Reply->type)
 	{
@@ -40,6 +40,24 @@ void FRedisReply::ParserReply(const redisReply* Reply)
 	default:
 		{
 			Type = ERedisReplyType::Nil;
+			break;
+		}
+	}
+}
+
+void FRedisReply::ParseReplyByCommand(ERedisCommandType InCommandType)
+{
+	CommandType = InCommandType;
+
+	switch (CommandType)
+	{
+	case ERedisCommandType::HMGET:
+	case ERedisCommandType::HGETALL:
+		{
+			for (auto i = 0; i < Elements.Num(); i += 2)
+			{
+				FieldValues.Add(Elements[i], Elements[i + 1]);
+			}
 			break;
 		}
 	}

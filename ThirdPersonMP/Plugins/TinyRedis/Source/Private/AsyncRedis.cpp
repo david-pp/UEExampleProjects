@@ -52,7 +52,7 @@ void FAsyncRedis::ReleaseRedisConnection(FRedisConnectionPtr RedisClient)
 	RedisConnections.Add(RedisClient);
 }
 
-FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand)
+FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand, ERedisCommandType InCommandType)
 {
 	FRedisReply Reply;
 
@@ -61,6 +61,7 @@ FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand)
 	if (RedisConnection)
 	{
 		RedisConnection->ExecCommandEx(InCommand, Reply, Reply.Error);
+		Reply.ParseReplyByCommand(InCommandType);
 	}
 	else
 	{
@@ -72,13 +73,34 @@ FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand)
 	return Reply;
 }
 
-TFuture<FRedisReply> FAsyncRedis::AsyncExecCommand(const FString& InCommand)
+TFuture<FRedisReply> FAsyncRedis::AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType)
 {
 	TPromise<FRedisReply> Promise;
 	TFuture<FRedisReply> Future = Promise.GetFuture();
 
-	FAsyncRedisCommand* RedisCommand = new FAsyncRedisCommand(this, InCommand, MoveTemp(Promise));
+	FAsyncRedisCommand* RedisCommand = new FAsyncRedisCommand(this, InCommand, InCommandType, MoveTemp(Promise));
 	ThreadPool->AddQueuedWork(RedisCommand);
 
 	return MoveTemp(Future);
+}
+
+FRedisReply FAsyncRedis::SetStr(const FString& Key, const FString& Value)
+{
+	FRedisReply Reply;
+
+	// Acquire a connection and execute the command
+	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
+	if (RedisConnection)
+	{
+		RedisConnection->ExecCommandEx(Reply, Reply.Error, "SET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Value));
+		Reply.ParseReplyByCommand(ERedisCommandType::SET);
+	}
+	else
+	{
+		Reply.Error = TEXT("can't acquire an invalid redis connection");
+	}
+
+	// put the connection back to the pool
+	ReleaseRedisConnection(RedisConnection);
+	return Reply;
 }

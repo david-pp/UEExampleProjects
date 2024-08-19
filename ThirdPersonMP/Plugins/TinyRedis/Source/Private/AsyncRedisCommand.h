@@ -12,9 +12,9 @@ class FAsyncRedis;
 class FAsyncRedisCommand : public IQueuedWork
 {
 public:
-	FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, const FNativeOnRedisReplyDelegate& InReplyDelegate = FNativeOnRedisReplyDelegate());
+	FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, ERedisCommandType InCommandType, const FNativeOnRedisReplyDelegate& InReplyDelegate = FNativeOnRedisReplyDelegate());
 
-	FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, TPromise<FRedisReply>&& Promise);
+	FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, ERedisCommandType InCommandType, TPromise<FRedisReply>&& Promise);
 
 	// ~Begin interface IQueuedWork
 	virtual void DoThreadedWork() override;
@@ -26,6 +26,8 @@ public:
 protected:
 	FAsyncRedis* AsyncRedis;
 	FString Command;
+	ERedisCommandType CommandType = ERedisCommandType::UNKNOWN;
 	FNativeOnRedisReplyDelegate OnReply;
 	TPromise<FRedisReply> Promise;
+	bool bDebugReply = true;
 };

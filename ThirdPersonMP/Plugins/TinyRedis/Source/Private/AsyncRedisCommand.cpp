@@ -2,14 +2,15 @@
 
 #include "AsyncRedis.h"
 #include "RedisConnection.h"
+#include "TinyRedisModule.h"
 
-FAsyncRedisCommand::FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, const FNativeOnRedisReplyDelegate& InReplyDelegate)
-	: AsyncRedis(InAsyncRedis), Command(InCommand), OnReply(InReplyDelegate)
+FAsyncRedisCommand::FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, ERedisCommandType InCommandType, const FNativeOnRedisReplyDelegate& InReplyDelegate)
+	: AsyncRedis(InAsyncRedis), Command(InCommand), CommandType(InCommandType), OnReply(InReplyDelegate)
 {
 }
 
-FAsyncRedisCommand::FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, TPromise<FRedisReply>&& Promise)
-	: AsyncRedis(InAsyncRedis), Command(InCommand), Promise(MoveTemp(Promise))
+FAsyncRedisCommand::FAsyncRedisCommand(FAsyncRedis* InAsyncRedis, const FString& InCommand, ERedisCommandType InCommandType, TPromise<FRedisReply>&& Promise)
+	: AsyncRedis(InAsyncRedis), Command(InCommand), CommandType(InCommandType), Promise(MoveTemp(Promise))
 {
 }
 
@@ -33,6 +34,7 @@ void FAsyncRedisCommand::DoThreadedWork()
 	if (RedisConnection)
 	{
 		RedisConnection->ExecCommandEx(Command, Reply, Reply.Error);
+		Reply.ParseReplyByCommand(CommandType);
 	}
 	else
 	{
@@ -42,6 +44,11 @@ void FAsyncRedisCommand::DoThreadedWork()
 	// dispatch the reply to the game thread's callback
 	AsyncTask(ENamedThreads::GameThread, [this, Reply]
 	{
+		if (bDebugReply)
+		{
+			UE_LOG(LogRedis, Verbose, TEXT("%s -> %s"), *Command, *Reply.ToDebugString());
+		}
+
 		OnReply.ExecuteIfBound(Reply);
 		Promise.SetValue(Reply);
 		delete this;

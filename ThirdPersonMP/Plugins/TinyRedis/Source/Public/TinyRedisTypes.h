@@ -23,9 +23,37 @@ UENUM(BlueprintType)
 enum class ERedisCommandType : uint8
 {
 	UNKNOWN,
+
+	//
+	// String commands
+	//
+
+	/** String - GET */
 	SET,
+	/** Set utf8 string as value */
+	SET_UTF8,
+	/** Binary array as value */
+	SET_BIN,
+
+	/** String - SET */
 	GET,
+	/** Get utf8 string */
+	GET_UTF8,
+	/** Get binary value */
+	GET_BIN,
+
+	//
+	// Hashes commands
+	// 
 	HGETALL,
+
+	HSET,
+	HSET_UTF8,
+	HSET_BIN,
+	HGET,
+	HGET_UTF8,
+	HGET_BIN,
+
 	HMGET,
 	HMSET,
 };
@@ -45,13 +73,20 @@ struct TINYREDIS_API FRedisReply
 		Integer = 0;
 	}
 
+	FRedisReply(const ERedisReplyType InType, const FString& InErrorMsg)
+		: Type(InType), Error(InErrorMsg)
+	{
+		CommandType = ERedisCommandType::UNKNOWN;
+		Integer = 0;
+	}
+
 	bool HasError() const
 	{
 		return Type == ERedisReplyType::Nil || Error.Len() > 0;
 	}
 
-	void ParseReply(const struct redisReply* Reply);
-	void ParseReplyByCommand(ERedisCommandType InCommandType);
+	/** Parse reply from redis server */
+	void ParseReply(const struct redisReply* Reply, ERedisCommandType InCommandType /*= ERedisCommandType::UNKNOWN*/);
 
 	FString ToDebugString() const;
 
@@ -66,6 +101,8 @@ struct TINYREDIS_API FRedisReply
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString String;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<uint8> BinArray;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Status;

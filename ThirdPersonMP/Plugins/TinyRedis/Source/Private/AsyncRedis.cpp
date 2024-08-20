@@ -60,16 +60,15 @@ FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand, ERedisCommandType
 	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
 	if (RedisConnection)
 	{
-		RedisConnection->ExecCommandEx(InCommand, Reply, Reply.Error);
-		Reply.ParseReplyByCommand(InCommandType);
+		RedisConnection->ExecCommand(InCommand, Reply, Reply.Error, InCommandType);
+		// put the connection back to the pool
+		ReleaseRedisConnection(RedisConnection);
 	}
 	else
 	{
 		Reply.Error = TEXT("can't acquire an invalid redis connection");
 	}
 
-	// put the connection back to the pool
-	ReleaseRedisConnection(RedisConnection);
 	return Reply;
 }
 
@@ -87,20 +86,31 @@ TFuture<FRedisReply> FAsyncRedis::AsyncExecCommand(const FString& InCommand, ERe
 FRedisReply FAsyncRedis::SetStr(const FString& Key, const FString& Value)
 {
 	FRedisReply Reply;
-
-	// Acquire a connection and execute the command
 	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
 	if (RedisConnection)
 	{
-		RedisConnection->ExecCommandEx(Reply, Reply.Error, "SET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Value));
-		Reply.ParseReplyByCommand(ERedisCommandType::SET);
+		RedisConnection->ExecCommandEx(Reply, Reply.Error, ERedisCommandType::SET_UTF8, "SET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_UTF8(*Value));
+		ReleaseRedisConnection(RedisConnection);
 	}
 	else
 	{
 		Reply.Error = TEXT("can't acquire an invalid redis connection");
 	}
+	return Reply;
+}
 
-	// put the connection back to the pool
-	ReleaseRedisConnection(RedisConnection);
+FRedisReply FAsyncRedis::SetBin(const FString& Key, TArrayView<const uint8> Array)
+{
+	FRedisReply Reply;
+	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
+	if (RedisConnection)
+	{
+		RedisConnection->ExecCommandEx(Reply, Reply.Error, ERedisCommandType::SET_BIN, "SET %s %b", TCHAR_TO_ANSI(*Key), (char*)Array.GetData(), (size_t)Array.Num());
+		ReleaseRedisConnection(RedisConnection);
+	}
+	else
+	{
+		Reply.Error = TEXT("can't acquire an invalid redis connection");
+	}
 	return Reply;
 }

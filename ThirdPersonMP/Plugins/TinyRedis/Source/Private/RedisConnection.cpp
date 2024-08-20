@@ -1666,7 +1666,7 @@ bool FRedisConnection::GetError(FString& Err, redisReply* Reply) const
 }
 
 
-bool FRedisConnection::ExecCommandEx(const FString& Command, FRedisReply& Value, FString& Err)
+bool FRedisConnection::ExecCommand(const FString& Command, FRedisReply& Value, FString& Err, ERedisCommandType CommandType)
 {
 	if (!IsConnected())
 	{
@@ -1695,12 +1695,12 @@ bool FRedisConnection::ExecCommandEx(const FString& Command, FRedisReply& Value,
 		return false;
 	}
 
-	Value.ParseReply(Reply);
+	Value.ParseReply(Reply, CommandType);
 	freeReplyObject(Reply);
 	return true;
 }
 
-bool FRedisConnection::ExecCommandEx(FRedisReply& Value, FString& Err, const char* format, ...)
+bool FRedisConnection::ExecCommandEx(FRedisReply& Value, FString& Err, ERedisCommandType CommandType, const char* format, ...)
 {
 	if (!IsConnected())
 	{
@@ -1732,7 +1732,7 @@ bool FRedisConnection::ExecCommandEx(FRedisReply& Value, FString& Err, const cha
 		return false;
 	}
 
-	Value.ParseReply(Reply);
+	Value.ParseReply(Reply, CommandType);
 	freeReplyObject(Reply);
 	return true;
 }
@@ -1776,7 +1776,7 @@ bool FRedisConnection::ExecPipelineCommandsEx(const TArray<FString>& PipelineCom
 			return false;
 		}
 
-		Value.ParseReply(Reply);
+		Value.ParseReply(Reply, ERedisCommandType::UNKNOWN);
 		Values.Add(MoveTemp(Value));
 		freeReplyObject(Reply);
 	}
@@ -1794,7 +1794,7 @@ bool FRedisConnection::Ping(FString& Err)
 		redisSetTimeout(RedisContextPtr, timeval{1, 0});
 	}
 
-	return ExecCommandEx("PING", Reply, Err);
+	return ExecCommand("PING", Reply, Err);
 }
 
 bool FRedisConnection::TryReconnectToRedis(const FString& InHost, int32 InPort, const FString& InPassword, float IntervalSeconds)

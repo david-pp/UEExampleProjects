@@ -2,15 +2,28 @@
 
 #include <hiredis.h>
 
-void FRedisReply::ParseReply(const redisReply* Reply)
+void FRedisReply::ParseReply(const redisReply* Reply, ERedisCommandType InCommandType)
 {
+	CommandType = InCommandType;
+
 	switch (Reply->type)
 	{
 	case REDIS_REPLY_STRING:
 		{
 			Type = ERedisReplyType::String;
-			String = Reply->str; // string or binary
-			// String = FString(ANSI_TO_TCHAR(Reply->str));
+			if (ERedisCommandType::GET_UTF8 == CommandType || ERedisCommandType::HGET_UTF8 == CommandType) // as UTF8 string
+			{
+				String = UTF8_TO_TCHAR(Reply->str);
+			}
+			else if (ERedisCommandType::GET_BIN == CommandType || ERedisCommandType::HGET_BIN == CommandType) // as binary
+			{
+				BinArray.Append((uint8*)(Reply->str), Reply->len);
+			}
+			else // as string
+			{
+				// String = Reply->str;
+				String = ANSI_TO_TCHAR(Reply->str);
+			}
 			break;
 		}
 	case REDIS_REPLY_INTEGER:
@@ -43,11 +56,6 @@ void FRedisReply::ParseReply(const redisReply* Reply)
 			break;
 		}
 	}
-}
-
-void FRedisReply::ParseReplyByCommand(ERedisCommandType InCommandType)
-{
-	CommandType = InCommandType;
 
 	switch (CommandType)
 	{
@@ -60,6 +68,8 @@ void FRedisReply::ParseReplyByCommand(ERedisCommandType InCommandType)
 			}
 			break;
 		}
+	default:
+		break;
 	}
 }
 

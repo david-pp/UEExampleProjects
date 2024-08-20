@@ -29,12 +29,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category=TinyRedis)
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
+	//
+	// String Get/Set
+	// - Get/Set       - general get/set short string,integer,float,...
+	// - GetStr/SetStr - get/set UTF8 string (override to implement it)
+	// - GetBin/SetBin - get/set Binary Data (override to implement it)
+	//
+	template <typename ValueType>
+	ValueType Get(const FString& Key, FString* ErrorMsg = nullptr);
+	template <typename ValueType>
+	FRedisReply Set(const FString& Key, const ValueType& Value);
 
-	virtual FRedisReply SetStr(const FString& Key, const FString& Value)
-	{
-		FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
-		return ExecCommand(Command, ERedisCommandType::SET);
-	}
+	virtual FRedisReply GetStr(const FString& Key);
+	virtual FRedisReply SetStr(const FString& Key, const FString& Value);
+
+	virtual FRedisReply GetBin(const FString& Key);
+	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array);
 
 public:
 	// ~ String APIs
@@ -72,3 +82,28 @@ public:
 };
 
 typedef TSharedPtr<ITinyRedisInterface, ESPMode::ThreadSafe> IRedisInterfacePtr;
+
+
+template <typename ValueType>
+ValueType ITinyRedisInterface::Get(const FString& Key, FString* ErrorMsg)
+{
+	ValueType Value;
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	FRedisReply Reply = ExecCommand(Command, ERedisCommandType::GET);
+	if (!Reply.HasError())
+	{
+		LexFromString(Value, *Reply.String);
+	}
+	else
+	{
+		if (ErrorMsg) *ErrorMsg = Reply.Error;
+	}
+	return Value;
+}
+
+template <typename ValueType>
+FRedisReply ITinyRedisInterface::Set(const FString& Key, const ValueType& Value)
+{
+	FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
+	return ExecCommand(Command, ERedisCommandType::SET);
+}

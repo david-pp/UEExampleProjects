@@ -1,5 +1,8 @@
 #include "CoreMinimal.h"
+#include "RedisTestObject.h"
 #include "TinyRedis.h"
+#include "Serialization/BufferArchive.h"
+#include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_Async, "Redis.Async", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -48,7 +51,77 @@ bool FRedisTest_API::RunTest(const FString& Param)
 			UE_LOG(LogRedis, Warning, TEXT("prices : %s"), *Future.Get().String);
 		});
 
-		Future.WaitFor(FTimespan::FromMilliseconds(500));
+		// Future.WaitFor(FTimespan::FromMilliseconds(500));
+
+		// Set/Get General
+		{
+			Redis->Set(TEXT("redis:test1:k1"), 1024);
+			Redis->Set(TEXT("redis:test1:k2"), TEXT("a-simple-text"));
+			Redis->Set(TEXT("redis:test1:k3"), 3.1415926);
+
+			int32 V1 = Redis->Get<int32>(TEXT("redis:test1:k1"));
+			FString V2 = Redis->Get<FString>(TEXT("redis:test1:k2"));
+			float V3 = Redis->Get<float>(TEXT("redis:test1:k3"));
+
+			UE_LOG(LogRedis, Log, TEXT("Test1 - Key1=%d"), V1);
+			UE_LOG(LogRedis, Log, TEXT("Test1 - Key2=%s"), *V2);
+			UE_LOG(LogRedis, Log, TEXT("Test1 - Key3=%f"), V3);
+		}
+
+		// Set/Get UTF8 String
+		{
+			Redis->SetStr(TEXT("redis:test2:key1"), TEXT("a simple long text"));
+			Redis->SetStr(TEXT("redis:test2:key2"), TEXT("我是一段中文  间隔  再来一段"));
+
+			FString V1 = Redis->GetStr(TEXT("redis:test2:key1")).String;
+			FString V2 = Redis->GetStr(TEXT("redis:test2:key2")).String;
+
+			UE_LOG(LogRedis, Log, TEXT("Test2 - Key1=%s"), *V1);
+			UE_LOG(LogRedis, Log, TEXT("Test2 - Key2=%s"), *V2);
+		}
+
+		// Set/Get Binary
+		{
+			// binary array
+			Redis->SetBin(TEXT("redis:test3:k1"), {0x01, 0x02, 0x03, 0x04});
+
+			// UObject
+			{
+				URedisTestObject* Obj = NewObject<URedisTestObject>();
+				Obj->Health = 120.0f;
+				Obj->Ammo = 100;
+				Obj->Location = FVector(20, 30, 40);
+
+				FBufferArchive BinAr;
+				// BinAr << *Obj;         // Customize
+				Obj->Serialize(BinAr); // UObject 
+				Redis->SetBin(TEXT("redis:test3:k2"), BinAr);
+			}
+
+			// get binary array
+			{
+				TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:test3:k1")).BinArray;
+				for (auto& Bin : BinArray)
+				{
+					UE_LOG(LogRedis, Log, TEXT("Test3 - K1:%x"), Bin);
+				}
+			}
+
+			// get TestObject
+			{
+				TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:test3:k2")).BinArray;
+				FMemoryReader BinAr(BinArray, true);
+
+				URedisTestObject* Obj = NewObject<URedisTestObject>();
+				BinAr.Seek(0);
+				// BinAr << *Obj;            // Customize
+				Obj->Serialize(BinAr);    // UObject 
+
+				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Health=%.f"), Obj->Health);
+				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Ammo=%d"), Obj->Ammo);
+				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Location=%s"), *Obj->Location.ToString());
+			}
+		}
 	}
 
 	return true;

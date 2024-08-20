@@ -25,6 +25,7 @@ public:
 	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
 
 	virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
+	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array) override;
 
 protected:
 	// Redis server info

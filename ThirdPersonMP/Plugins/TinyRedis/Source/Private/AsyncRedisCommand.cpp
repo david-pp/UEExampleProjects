@@ -33,8 +33,7 @@ void FAsyncRedisCommand::DoThreadedWork()
 	FRedisConnectionPtr RedisConnection = AsyncRedis->AcquireRedisConnection();
 	if (RedisConnection)
 	{
-		RedisConnection->ExecCommandEx(Command, Reply, Reply.Error);
-		Reply.ParseReplyByCommand(CommandType);
+		RedisConnection->ExecCommand(Command, Reply, Reply.Error, CommandType);
 	}
 	else
 	{

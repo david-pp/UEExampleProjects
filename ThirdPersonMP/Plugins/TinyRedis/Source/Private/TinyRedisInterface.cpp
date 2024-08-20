@@ -13,6 +13,28 @@ bool ITinyRedisInterface::AsyncExecCommand(const FString& InCommand, const FOnRe
 	return true;
 }
 
+FRedisReply ITinyRedisInterface::GetStr(const FString& Key)
+{
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	return ExecCommand(Command, ERedisCommandType::GET_UTF8);
+}
+
+FRedisReply ITinyRedisInterface::GetBin(const FString& Key)
+{
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	return ExecCommand(Command, ERedisCommandType::GET_BIN);
+}
+
+FRedisReply ITinyRedisInterface::SetStr(const FString& Key, const FString& Value)
+{
+	return FRedisReply(ERedisReplyType::Nil, TEXT("not implement"));
+}
+
+FRedisReply ITinyRedisInterface::SetBin(const FString& Key, TArrayView<const uint8> Array)
+{
+	return FRedisReply(ERedisReplyType::Nil, TEXT("not implement"));
+}
+
 TFuture<FRedisReply> ITinyRedisInterface::AsyncHashGetAll(const FString& InKey)
 {
 	FString Command = FString::Printf(TEXT("HGETALL %s"), *InKey);

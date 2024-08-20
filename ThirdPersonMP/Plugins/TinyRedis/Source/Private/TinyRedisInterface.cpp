@@ -35,6 +35,40 @@ FRedisReply ITinyRedisInterface::SetBin(const FString& Key, TArrayView<const uin
 	return FRedisReply(ERedisReplyType::Nil, TEXT("not implement"));
 }
 
+TFuture<FRedisReply> ITinyRedisInterface::AsyncGet(const FString& Key)
+{
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	return AsyncExecCommand(Command, ERedisCommandType::GET);
+}
+
+TFuture<FRedisReply> ITinyRedisInterface::AsyncGetStr(const FString& Key)
+{
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	return AsyncExecCommand(Command, ERedisCommandType::GET_UTF8);
+}
+
+TFuture<FRedisReply> ITinyRedisInterface::AsyncSetStr(const FString& Key, const FString& Value)
+{
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+	Promise.SetValue(FRedisReply(ERedisReplyType::Nil, TEXT("not implement")));
+	return MoveTemp(Future);
+}
+
+TFuture<FRedisReply> ITinyRedisInterface::AsyncGetBin(const FString& Key)
+{
+	FString Command = FString::Printf(TEXT("GET %s"), *Key);
+	return AsyncExecCommand(Command, ERedisCommandType::GET_BIN);
+}
+
+TFuture<FRedisReply> ITinyRedisInterface::AsyncSetBin(const FString& Key, const TArray<uint8>& Array)
+{
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+	Promise.SetValue(FRedisReply(ERedisReplyType::Nil, TEXT("not implement")));
+	return MoveTemp(Future);
+}
+
 TFuture<FRedisReply> ITinyRedisInterface::AsyncHashGetAll(const FString& InKey)
 {
 	FString Command = FString::Printf(TEXT("HGETALL %s"), *InKey);

@@ -26,6 +26,8 @@ public:
 
 	virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
 	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array) override;
+	virtual TFuture<FRedisReply> AsyncSetStr(const FString& Key, const FString& Value) override;
+	virtual TFuture<FRedisReply> AsyncSetBin(const FString& Key, const TArray<uint8>& Array) override;
 
 protected:
 	// Redis server info

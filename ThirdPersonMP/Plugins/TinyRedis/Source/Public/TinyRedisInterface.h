@@ -29,12 +29,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category=TinyRedis)
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
+public:
 	//
 	// String Get/Set
-	// - Get/Set       - general get/set short string,integer,float,...
-	// - GetStr/SetStr - get/set UTF8 string (override to implement it)
-	// - GetBin/SetBin - get/set Binary Data (override to implement it)
-	//
+	//  [Sync API]
+	//     - Get/Set       - general get/set short string,integer,float,...
+	//     - GetStr/SetStr - get/set UTF8 string (override to implement it)
+	//     - GetBin/SetBin - get/set Binary Data (override to implement it)
+
+	// ~ Sync APIs
 	template <typename ValueType>
 	ValueType Get(const FString& Key, FString* ErrorMsg = nullptr);
 	template <typename ValueType>
@@ -46,28 +49,18 @@ public:
 	virtual FRedisReply GetBin(const FString& Key);
 	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array);
 
-public:
-	// ~ String APIs
-	// template <typename ValueType>
-	// FRedisReply Set(const FString& Key, const ValueType& Value)
-	// {
-	// 	
-	// }
-
-	TFuture<FRedisReply> AsyncGet(const FString& Key)
-	{
-		FString Command = FString::Printf(TEXT("GET %s"), *Key);
-		return AsyncExecCommand(Command, ERedisCommandType::GET);
-	}
-
+	// ~ Async APIs
+	TFuture<FRedisReply> AsyncGet(const FString& Key);
 	template <typename ValueType>
-	TFuture<FRedisReply> AsyncSet(const FString& Key, const ValueType& Value)
-	{
-		FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
-		return AsyncExecCommand(Command, ERedisCommandType::SET);
-	}
+	TFuture<FRedisReply> AsyncSet(const FString& Key, const ValueType& Value);
 
+	virtual TFuture<FRedisReply> AsyncGetStr(const FString& Key);
+	virtual TFuture<FRedisReply> AsyncSetStr(const FString& Key, const FString& Value);
 
+	virtual TFuture<FRedisReply> AsyncGetBin(const FString& Key);
+	virtual TFuture<FRedisReply> AsyncSetBin(const FString& Key, const TArray<uint8>& Array);
+
+public:
 	// ~ Hash APIs
 	TFuture<FRedisReply> AsyncHashGetAll(const FString& InKey);
 	TFuture<FRedisReply> AsyncHashMultiSet(const FString& InKey, const TMap<FString, FString>& FieldValuePairs);
@@ -106,4 +99,11 @@ FRedisReply ITinyRedisInterface::Set(const FString& Key, const ValueType& Value)
 {
 	FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
 	return ExecCommand(Command, ERedisCommandType::SET);
+}
+
+template <typename ValueType>
+TFuture<FRedisReply> ITinyRedisInterface::AsyncSet(const FString& Key, const ValueType& Value)
+{
+	FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
+	return AsyncExecCommand(Command, ERedisCommandType::SET);
 }

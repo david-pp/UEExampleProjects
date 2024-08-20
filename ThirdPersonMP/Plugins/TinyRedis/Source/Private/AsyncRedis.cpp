@@ -114,3 +114,25 @@ FRedisReply FAsyncRedis::SetBin(const FString& Key, TArrayView<const uint8> Arra
 	}
 	return Reply;
 }
+
+TFuture<FRedisReply> FAsyncRedis::AsyncSetStr(const FString& Key, const FString& Value)
+{
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+
+	FAsyncRedisCommand* RedisCommand = new FAsyncRedisCommand_SetStr(this, Key, Value, MoveTemp(Promise));
+	ThreadPool->AddQueuedWork(RedisCommand);
+
+	return MoveTemp(Future);
+}
+
+TFuture<FRedisReply> FAsyncRedis::AsyncSetBin(const FString& Key, const TArray<uint8>& Array)
+{
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+
+	FAsyncRedisCommand* RedisCommand = new FAsyncRedisCommand_SetBin(this, Key, Array, MoveTemp(Promise));
+	ThreadPool->AddQueuedWork(RedisCommand);
+
+	return MoveTemp(Future);
+}

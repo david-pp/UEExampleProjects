@@ -19,21 +19,25 @@ bool FAsyncRedisCommand::IsValid() const
 	return AsyncRedis && Command.Len() > 0;
 }
 
+
 void FAsyncRedisCommand::DoThreadedWork()
 {
+	FRedisReply Reply;
+
 	if (!IsValid())
 	{
-		// todo: error reply
+		Reply.Error = TEXT("Invalid AsyncRedisCommand");
+		Promise.SetValue(Reply);
 		delete this;
 		return;
 	}
 
-	FRedisReply Reply;
 	// Acquire a connection and execute the command
 	FRedisConnectionPtr RedisConnection = AsyncRedis->AcquireRedisConnection();
 	if (RedisConnection)
 	{
-		RedisConnection->ExecCommand(Command, Reply, Reply.Error, CommandType);
+		ExecRedisCommand(RedisConnection, Reply);
+		// RedisConnection->ExecCommand(Command, Reply, Reply.Error, CommandType);
 	}
 	else
 	{
@@ -63,4 +67,32 @@ void FAsyncRedisCommand::DoThreadedWork()
 void FAsyncRedisCommand::Abandon()
 {
 	delete this;
+}
+
+void FAsyncRedisCommand::ExecRedisCommand(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply)
+{
+	if (Connection)
+	{
+		Connection->ExecCommand(Command, Reply, Reply.Error, CommandType);
+	}
+}
+
+// ---------------------
+
+
+void FAsyncRedisCommand_SetStr::ExecRedisCommand(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply)
+{
+	if (Connection)
+	{
+		Connection->ExecCommandEx(Reply, Reply.Error, ERedisCommandType::SET_UTF8, "SET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_UTF8(*Value));
+	}
+}
+
+
+void FAsyncRedisCommand_SetBin::ExecRedisCommand(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply)
+{
+	if (Connection)
+	{
+		Connection->ExecCommandEx(Reply, Reply.Error, ERedisCommandType::SET_BIN, "SET %s %b", TCHAR_TO_ANSI(*Key), (char*)Array.GetData(), (size_t)Array.Num());
+	}
 }

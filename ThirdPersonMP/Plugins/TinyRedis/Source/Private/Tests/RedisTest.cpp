@@ -30,29 +30,6 @@ bool FRedisTest_API::RunTest(const FString& Param)
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (Redis)
 	{
-		Redis->AsyncSet(TEXT("game:title"), TEXT("tinyredis"));
-		Redis->AsyncSet(TEXT("game:price"), 200);
-		// Redis->AsyncSet(TEXT("game:tinyredis:desc"), TEXT("a simple async redis client wrapper"));
-		Redis->SetStr(TEXT("game:tinyredis:desc"), TEXT("a simple async redis client wrapper"));
-
-		FPlatformProcess::Sleep(1.0); // wait for async api is done
-
-		Redis->AsyncGet(TEXT("game:title")).Then([Redis](TFuture<FRedisReply> Future)
-		{
-			FString Value = Future.Get().String;
-			Redis->AsyncGet(FString::Printf(TEXT("game:%s:desc"), *Value)).Then([](TFuture<FRedisReply> Future)
-			{
-				UE_LOG(LogRedis, Warning, TEXT("desc : %s"), *Future.Get().String);
-			});
-		});
-
-		auto Future = Redis->AsyncGet(TEXT("game:price")).Then([](TFuture<FRedisReply> Future)
-		{
-			UE_LOG(LogRedis, Warning, TEXT("prices : %s"), *Future.Get().String);
-		});
-
-		// Future.WaitFor(FTimespan::FromMilliseconds(500));
-
 		// Set/Get General
 		{
 			Redis->Set(TEXT("redis:test1:k1"), 1024);
@@ -115,7 +92,7 @@ bool FRedisTest_API::RunTest(const FString& Param)
 				URedisTestObject* Obj = NewObject<URedisTestObject>();
 				BinAr.Seek(0);
 				// BinAr << *Obj;            // Customize
-				Obj->Serialize(BinAr);    // UObject 
+				Obj->Serialize(BinAr); // UObject 
 
 				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Health=%.f"), Obj->Health);
 				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Ammo=%d"), Obj->Ammo);
@@ -124,5 +101,47 @@ bool FRedisTest_API::RunTest(const FString& Param)
 		}
 	}
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_AsyncAPI, "Redis.AsyncAPI", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FRedisTest_AsyncAPI::RunTest(const FString& Param)
+{
+	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	if (Redis)
+	{
+		Redis->AsyncSet(TEXT("game:title"), TEXT("tinyredis"));
+		Redis->AsyncSet(TEXT("game:price"), 200);
+		Redis->AsyncSetStr(TEXT("game:tinyredis:desc"), TEXT("a simple async redis client wrapper"));
+		Redis->AsyncSetBin(TEXT("game:tinyredis:binary"), {0x01, 0x02, 0x03, 0x04});
+
+		FPlatformProcess::Sleep(0.2); // wait for async api is done
+
+		Redis->AsyncGet(TEXT("game:title")).Then([Redis](TFuture<FRedisReply> Future)
+		{
+			FString Value = Future.Get().String;
+			Redis->AsyncGetStr(FString::Printf(TEXT("game:%s:desc"), *Value)).Then([](TFuture<FRedisReply> Future)
+			{
+				UE_LOG(LogRedis, Warning, TEXT("desc : %s"), *Future.Get().String);
+			});
+		});
+
+		auto Future = Redis->AsyncGet(TEXT("game:price")).Then([](TFuture<FRedisReply> Future)
+		{
+			UE_LOG(LogRedis, Warning, TEXT("prices : %d"), Future.Get().GetStringAs<int32>());
+		});
+
+		Redis->AsyncGetBin(TEXT("game:tinyredis:binary")).Then([](TFuture<FRedisReply> Future)
+		{
+			TArray<uint8> BinArray = Future.Get().BinArray;
+			for (auto& Bin : BinArray)
+			{
+				UE_LOG(LogRedis, Log, TEXT("binary : %x"), Bin);
+			}
+		});
+
+		FPlatformProcess::Sleep(0.2); // wait for async api is done
+	}
 	return true;
 }

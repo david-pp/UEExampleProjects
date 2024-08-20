@@ -88,6 +88,14 @@ struct TINYREDIS_API FRedisReply
 	/** Parse reply from redis server */
 	void ParseReply(const struct redisReply* Reply, ERedisCommandType InCommandType /*= ERedisCommandType::UNKNOWN*/);
 
+	template <typename ValueType>
+	ValueType GetStringAs()
+	{
+		ValueType Value;
+		LexFromString(Value, *String);
+		return Value;
+	}
+
 	FString ToDebugString() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

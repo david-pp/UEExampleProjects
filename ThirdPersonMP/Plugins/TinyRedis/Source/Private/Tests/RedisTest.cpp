@@ -2,6 +2,7 @@
 #include "RedisTestObject.h"
 #include "TinyRedis.h"
 #include "Serialization/BufferArchive.h"
+#include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_Async, "Redis.Async", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -97,6 +98,179 @@ bool FRedisTest_API::RunTest(const FString& Param)
 				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Health=%.f"), Obj->Health);
 				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Ammo=%d"), Obj->Ammo);
 				UE_LOG(LogRedis, Log, TEXT("Test3 - K2.Location=%s"), *Obj->Location.ToString());
+			}
+		}
+
+		// Set/Get UObject
+		{
+			// Save
+			{
+				URedisTestObject* Obj = NewObject<URedisTestObject>();
+				Obj->Health = 120.0f;
+				Obj->Ammo = 100;
+				Obj->Location = FVector(20, 30, 40);
+
+				// Object
+				{
+					FBufferArchive BinAr;
+					Obj->Serialize(BinAr);
+					Redis->SetBin(TEXT("redis:obj:k1"), BinAr);
+				}
+
+				// Archive
+				{
+					FBufferArchive BinAr;
+					BinAr << *Obj;
+					Redis->SetBin(TEXT("redis:obj:k2"), BinAr);
+				}
+
+				// Json - default
+				{
+					FBufferArchive BinAr;
+					FJsonArchiveOutputFormatter Formatter(BinAr);
+					FStructuredArchive StructuredArchive(Formatter);
+					FStructuredArchiveRecord RootRecord = StructuredArchive.Open().EnterRecord();
+					Obj->Serialize(RootRecord);
+					StructuredArchive.Close();
+
+					Redis->SetBin(TEXT("redis:obj:k3"), BinAr);
+				}
+
+				// Json - customize
+				{
+					FBufferArchive BinAr;
+					FJsonArchiveOutputFormatter Formatter(BinAr);
+					FStructuredArchive StructuredArchive(Formatter);
+					Obj->SerializeJson(StructuredArchive);
+
+					Redis->SetBin(TEXT("redis:obj:k4"), BinAr);
+				}
+			}
+			// Load
+			{
+				// Object
+				{
+					TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k1")).BinArray;
+					FMemoryReader BinAr(BinArray, true);
+
+					URedisTestObject* Obj = NewObject<URedisTestObject>();
+					BinAr.Seek(0);
+					Obj->Serialize(BinAr);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Object.Health=%.f"), Obj->Health);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Object.Ammo=%d"), Obj->Ammo);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Object.Location=%s"), *Obj->Location.ToString());
+				}
+
+				// Archive
+				{
+					TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k2")).BinArray;
+					FMemoryReader BinAr(BinArray, true);
+
+					URedisTestObject* Obj = NewObject<URedisTestObject>();
+					BinAr.Seek(0);
+					BinAr << *Obj;
+
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Archive.Health=%.f"), Obj->Health);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Archive.Ammo=%d"), Obj->Ammo);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Archive.Location=%s"), *Obj->Location.ToString());
+				}
+
+				// Json - default
+				{
+					TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k3")).BinArray;
+					FMemoryReader BinAr(BinArray, true);
+
+					URedisTestObject* Obj = NewObject<URedisTestObject>();
+					FJsonArchiveInputFormatter Formatter(BinAr);
+					FStructuredArchive StructuredArchive(Formatter);
+					Obj->Serialize(StructuredArchive.Open().EnterRecord());
+					StructuredArchive.Close();
+
+
+					FString JsonBody = FString(BinArray.Num(), ANSI_TO_TCHAR((char*)BinArray.GetData()));
+
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json : %s"), *JsonBody);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Health=%.f"), Obj->Health);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Ammo=%d"), Obj->Ammo);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Location=%s"), *Obj->Location.ToString());
+				}
+
+				// Json - customize
+				{
+					TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k4")).BinArray;
+					FMemoryReader BinAr(BinArray, true);
+
+					URedisTestObject* Obj = NewObject<URedisTestObject>();
+					FJsonArchiveInputFormatter Formatter(BinAr);
+					FStructuredArchive StructuredArchive(Formatter);
+					Obj->SerializeJson(StructuredArchive);
+
+					FString JsonBody = FString(BinArray.Num(), ANSI_TO_TCHAR((char*)BinArray.GetData()));
+
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json : %s"), *JsonBody);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Health=%.f"), Obj->Health);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Ammo=%d"), Obj->Ammo);
+					UE_LOG(LogRedis, Log, TEXT("Test4 - Json.Location=%s"), *Obj->Location.ToString());
+				}
+
+				// Object Modified
+				{
+					// Object
+					{
+						TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k1")).BinArray;
+						FMemoryReader BinAr(BinArray, true);
+						{
+							BinAr.Seek(0);
+
+							URedisTestObject_ModifyAdd* Obj = NewObject<URedisTestObject_ModifyAdd>();
+							Obj->Serialize(BinAr);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Health=%.f"), Obj->Health);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Ammo=%d"), Obj->Ammo);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Mana=%d"), Obj->Mana);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Location=%s"), *Obj->Location.ToString());
+						}
+						{
+							BinAr.Seek(0);
+							URedisTestObject_ModifyRemove* Obj = NewObject<URedisTestObject_ModifyRemove>();
+							Obj->Serialize(BinAr);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Remove.Health=%.f"), Obj->Health);
+							UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Remove.Location=%s"), *Obj->Location.ToString());
+						}
+					}
+				}
+
+				// Json
+				{
+					TArray<uint8> BinArray = Redis->GetBin(TEXT("redis:obj:k3")).BinArray;
+					FMemoryReader BinAr(BinArray, true);
+					FString JsonBody = FString(BinArray.Num(), ANSI_TO_TCHAR((char*)BinArray.GetData()));
+					{
+						BinAr.Seek(0);
+						URedisTestObject_ModifyAdd* Obj = NewObject<URedisTestObject_ModifyAdd>();
+						FJsonArchiveInputFormatter Formatter(BinAr);
+						FStructuredArchive StructuredArchive(Formatter);
+						Obj->Serialize(StructuredArchive.Open().EnterRecord());
+						StructuredArchive.Close();
+
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Json : %s"), *JsonBody);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Health=%.f"), Obj->Health);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Ammo=%d"), Obj->Ammo);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Mana=%d"), Obj->Mana);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Add.Location=%s"), *Obj->Location.ToString());
+					}
+					{
+						BinAr.Seek(0);
+						URedisTestObject_ModifyRemove* Obj = NewObject<URedisTestObject_ModifyRemove>();
+						FJsonArchiveInputFormatter Formatter(BinAr);
+						FStructuredArchive StructuredArchive(Formatter);
+						Obj->Serialize(StructuredArchive.Open().EnterRecord());
+						StructuredArchive.Close();
+
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Json : %s"), *JsonBody);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Remove.Health=%.f"), Obj->Health);
+						UE_LOG(LogRedis, Log, TEXT("Test4 - Object_Remove.Location=%s"), *Obj->Location.ToString());
+					}
+				}
 			}
 		}
 	}

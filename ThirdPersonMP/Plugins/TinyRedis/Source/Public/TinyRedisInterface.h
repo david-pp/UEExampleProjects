@@ -61,6 +61,12 @@ public:
 	virtual TFuture<FRedisReply> AsyncSetBin(const FString& Key, const TArray<uint8>& Array);
 
 public:
+	//
+	// Hash APIs (TODO: add by requirements)
+	// 
+
+	// ~ Sync APIs
+
 	// ~ Hash APIs
 	TFuture<FRedisReply> AsyncHashGetAll(const FString& InKey);
 	TFuture<FRedisReply> AsyncHashMultiSet(const FString& InKey, const TMap<FString, FString>& FieldValuePairs);

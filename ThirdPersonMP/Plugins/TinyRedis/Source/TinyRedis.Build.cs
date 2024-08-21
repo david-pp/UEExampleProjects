@@ -38,7 +38,9 @@ public class TinyRedis : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
+				"CoreUObject", 
+				"Json",
+				"JsonUtilities",
 			}
 		);
 

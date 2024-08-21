@@ -1,5 +1,6 @@
 #include "CoreMinimal.h"
 #include "AsyncRedisCommand.h"
+#include "JsonObjectConverter.h"
 #include "RedisTestObject.h"
 #include "TinyRedis.h"
 #include "Serialization/BufferArchive.h"
@@ -324,6 +325,12 @@ bool FRedisTest_AsyncAPI::RunTest(const FString& Param)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_PipelineAPI, "Redis.Pipeline", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+typedef TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriterFactory;
+typedef TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriter;
+
+typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriterFactory;
+typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriter;
+
 bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 {
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
@@ -358,6 +365,32 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 		{
 			UE_LOG(LogRedis, Log, TEXT("Pipeline - Async : %s"), *Future.Get().ToDebugString());
 		});
+	}
+
+	// Object Properties
+	{
+		URedisTestObject* Obj = NewObject<URedisTestObject>();
+		Obj->TypeName = TEXT("david");
+		Obj->Health = 120.0f;
+		Obj->Ammo = 100;
+		Obj->Location = FVector(20, 30, 40);
+
+		for (TFieldIterator<FProperty> It(URedisTestObject::StaticClass()); It; ++It)
+		{
+			FProperty* Property = *It;
+			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Obj);
+
+			TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, PropertyValue);
+
+
+			FString JsonString;
+			FString JsonIdentifier = TEXT("");// Property->GetName();
+			FJsonSerializer::Serialize(JsonValue, JsonIdentifier, FCondensedJsonStringWriterFactory::Create(&JsonString));
+
+			UE_LOG(LogRedis, Log, TEXT("URedisTestObject.%s -> Json:%s"), *Property->GetName(), *JsonString);
+
+			// Write it to Redis
+		}
 	}
 
 	return true;

@@ -55,7 +55,7 @@ public:
 	{
 		return nullptr;
 	}
-	
+
 public:
 	//
 	// String Get/Set
@@ -93,6 +93,11 @@ public:
 	// 
 
 	// ~ Sync APIs
+	template <typename ValueType>
+	ValueType HashGet(const FString& Key, const FString& Field, FString* ErrorMsg = nullptr);
+	template <typename ValueType>
+	FRedisReply HashSet(const FString& Key, const FString& Field, const ValueType& Value);
+
 
 	// ~ Hash APIs
 	TFuture<FRedisReply> AsyncHashGetAll(const FString& InKey);
@@ -139,4 +144,28 @@ TFuture<FRedisReply> ITinyRedisInterface::AsyncSet(const FString& Key, const Val
 {
 	FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
 	return AsyncExecCommand(Command, ERedisCommandType::SET);
+}
+
+template <typename ValueType>
+ValueType ITinyRedisInterface::HashGet(const FString& Key, const FString& Field, FString* ErrorMsg)
+{
+	ValueType Value;
+	FString Command = FString::Printf(TEXT("HGET %s %s"), *Key, *Field);
+	FRedisReply Reply = ExecCommand(Command, ERedisCommandType::GET);
+	if (!Reply.HasError())
+	{
+		LexFromString(Value, *Reply.String);
+	}
+	else
+	{
+		if (ErrorMsg) *ErrorMsg = Reply.Error;
+	}
+	return Value;
+}
+
+template <typename ValueType>
+FRedisReply ITinyRedisInterface::HashSet(const FString& Key, const FString& Field, const ValueType& Value)
+{
+	FString Command = FString::Printf(TEXT("HSET %s %s %s"), *Key, *Field, *LexToString(Value));
+	return ExecCommand(Command, ERedisCommandType::SET);
 }

@@ -111,3 +111,14 @@ FString FRedisReply::ToDebugString() const
 
 	return FString::Printf(TEXT("Invaid"));
 }
+
+FString FRedisPipelineReply::ToDebugString() const
+{
+	FString Result;
+	for (auto& Reply : Replies)
+	{
+		Result += Reply.ToDebugString();
+		Result += TEXT("\n");
+	}
+	return Result;
+}

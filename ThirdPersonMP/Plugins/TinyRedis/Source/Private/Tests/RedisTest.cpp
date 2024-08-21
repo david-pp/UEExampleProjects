@@ -1,4 +1,5 @@
 #include "CoreMinimal.h"
+#include "AsyncRedisCommand.h"
 #include "RedisTestObject.h"
 #include "TinyRedis.h"
 #include "Serialization/BufferArchive.h"
@@ -317,5 +318,47 @@ bool FRedisTest_AsyncAPI::RunTest(const FString& Param)
 
 		FPlatformProcess::Sleep(0.2); // wait for async api is done
 	}
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_PipelineAPI, "Redis.Pipeline", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
+{
+	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	if (!Redis) return false;
+
+	auto Pipeline = Redis->CreatePipeline();
+
+	// Sync Pipeline
+	if (Pipeline)
+	{
+		Pipeline->Start();
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		FRedisPipelineReply PipelineReply = Pipeline->Commit();
+
+		UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+	}
+
+	// Async Pipeline
+	if (Pipeline)
+	{
+		Pipeline->Start();
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+		Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
+		{
+			UE_LOG(LogRedis, Log, TEXT("Pipeline - Async : %s"), *Future.Get().ToDebugString());
+		});
+	}
+
 	return true;
 }

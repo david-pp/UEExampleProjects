@@ -6,6 +6,27 @@
 #include "Async/Future.h"
 #include "TinyRedisInterface.generated.h"
 
+class TINYREDIS_API ITinyRedisConnection
+{
+public:
+};
+
+class TINYREDIS_API ITinyRedisCommand
+{
+public:
+	virtual void ExecCommand(TSharedPtr<ITinyRedisConnection> Connection, FRedisReply& Reply) = 0;
+	virtual void ExecAppendCommand(TSharedPtr<ITinyRedisConnection> Connection) = 0;
+};
+
+class TINYREDIS_API ITinyRedisPipeline
+{
+public:
+	virtual void Start() = 0;
+	virtual void AppendCommand(ITinyRedisCommand* Command) = 0;
+	virtual FRedisPipelineReply Commit() = 0;
+	virtual TFuture<FRedisPipelineReply> AsyncCommit() = 0;
+};
+
 // This class does not need to be modified.
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
 class UTinyRedisInterface : public UInterface
@@ -29,6 +50,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category=TinyRedis)
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
+	// TODO: ....
+	virtual TSharedPtr<ITinyRedisPipeline> CreatePipeline()
+	{
+		return nullptr;
+	}
+	
 public:
 	//
 	// String Get/Set

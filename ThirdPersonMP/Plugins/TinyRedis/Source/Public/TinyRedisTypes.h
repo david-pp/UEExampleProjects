@@ -138,3 +138,18 @@ typedef FNativeOnRedisReply::FDelegate FNativeOnRedisReplyDelegate;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRedisReply, const FRedisReply&, Reply);
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRedisReplyDelegate, const FRedisReply&, Reply);
+
+
+/**
+ * Redis Pipeline Command's replies 
+ */
+USTRUCT(BlueprintType)
+struct TINYREDIS_API FRedisPipelineReply
+{
+	GENERATED_BODY()
+
+	FString ToDebugString() const;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FRedisReply> Replies;
+};

@@ -1,11 +1,29 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "TinyRedisInterface.h"
 #include "TinyRedisTypes.h"
 #include "Misc/IQueuedWork.h"
 
 class FRedisConnection;
 class FAsyncRedis;
+
+class FTinyRedisCommand_HSet : public ITinyRedisCommand
+{
+public:
+	virtual void ExecCommand(TSharedPtr<ITinyRedisConnection> Connection, FRedisReply& Reply) override
+	{
+		// Set Binary : SET %s %b 
+		// Set UTF8 : SET %s %s
+		// Set String : SET %s %s
+	}
+	virtual void ExecAppendCommand(TSharedPtr<ITinyRedisConnection> Connection) override
+	{
+		// Set Binary : SET %s %b 
+		// Set UTF8 : SET %s %s
+		// Set String : SET %s %s
+	}
+};
 
 /**
  * Redis Command as ThreadPool's Task 

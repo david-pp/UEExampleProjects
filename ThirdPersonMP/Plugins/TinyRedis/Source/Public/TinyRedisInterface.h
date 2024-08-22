@@ -23,9 +23,15 @@ public:
 		return ERedisCommandType::UNKNOWN;
 	}
 
+	virtual FString ToDebugString() const { return TEXT("RedisCommand"); }
+
+	// Execute redis command by connection
 	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) = 0;
+
+	// Append the command to the pipeline
 	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) = 0;
 
+	// Callback when command replied from redis server
 	FNativeOnRedisReplyDelegate OnReply;
 };
 
@@ -80,6 +86,24 @@ public:
 	// Async API for Blueprint
 	UFUNCTION(BlueprintCallable, Category=TinyRedis)
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
+
+	virtual FRedisReply ExecCommand(ITinyRedisCommandPtr Command) = 0;
+	virtual TFuture<FRedisReply> AsyncExecCommand(ITinyRedisCommandPtr Command) = 0;
+
+
+	template <typename CommandType, typename... InArgTypes>
+	FRedisReply Command(InArgTypes&&... Args)
+	{
+		auto Cmd = MakeShared<CommandType>(Args...);
+		return ExecCommand(Cmd);
+	}
+
+	template <typename CommandType, typename... InArgTypes>
+	TFuture<FRedisReply> AsyncCommand(InArgTypes&&... Args)
+	{
+		auto Cmd = MakeShared<CommandType>(Args...);
+		return AsyncExecCommand(Cmd);
+	}
 
 	// Redis pipelining
 	virtual ITinyRedisPipelinePtr CreatePipeline();

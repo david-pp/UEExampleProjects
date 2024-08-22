@@ -48,3 +48,13 @@ void UTinyRedisClient::DumpRedisReply(const FRedisReply& Reply)
 {
 	UE_LOG(LogRedis, Warning, TEXT("%s"), *Reply.ToDebugString());
 }
+
+FRedisReply UTinyRedisClient::ExecCommand(ITinyRedisCommandPtr Command)
+{
+	return Redis->ExecCommand(Command);
+}
+
+TFuture<FRedisReply> UTinyRedisClient::AsyncExecCommand(ITinyRedisCommandPtr Command)
+{
+	return Redis->AsyncExecCommand(Command);
+}

@@ -10,6 +10,9 @@
 class FRedisConnection;
 class FAsyncRedis;
 
+/**
+ * Redis General Command
+ */
 class FTinyRedisCommand : public ITinyRedisCommand
 {
 public:
@@ -17,20 +20,18 @@ public:
 	{
 	}
 
+	virtual FString ToDebugString() const override
+	{
+		return Command;
+	}
+
 	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) override
 	{
-		// Set Binary : SET %s %b 
-		// Set UTF8 : SET %s %s
-		// Set String : SET %s %s
 		return Connection->ExecCommandEx(Reply, Reply.Error, GetCommandType(), TCHAR_TO_ANSI(*Command));
 	}
 
 	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) override
 	{
-		// Set Binary : SET %s %b 
-		// Set UTF8 : SET %s %s
-		// Set String : SET %s %s
-
 		return Connection->AppendPipelineCommand(GetCommandType(), TCHAR_TO_ANSI(*Command));
 	}
 
@@ -111,8 +112,26 @@ protected:
 	bool bDebugReply = true;
 };
 
+/**
+ * Redis Command Task 
+ */
+class FRedisCommandAsyncTask : public IQueuedWork
+{
+public:
+	FRedisCommandAsyncTask(FAsyncRedis* InAsyncRedis, ITinyRedisCommandPtr InCommand, TPromise<FRedisReply>&& InPromise);
 
+	bool IsValid() const;
 
+	// ~Begin interface IQueuedWork
+	virtual void DoThreadedWork() override;
+	virtual void Abandon() override;
+	// ~End Interface IQueuedWork
+
+protected:
+	FAsyncRedis* AsyncRedis = nullptr;
+	ITinyRedisCommandPtr Command;
+	TPromise<FRedisReply> Promise;
+};
 
 
 /**

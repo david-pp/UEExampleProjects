@@ -7,19 +7,29 @@
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_Async, "Redis.Async", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_Basic, "Redis.Basic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FRedisTest_Async::RunTest(const FString& Param)
+bool FRedisTest_Basic::RunTest(const FString& Param)
 {
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
-	if (Redis)
-	{
-		FRedisReply Reply = Redis->ExecCommand("hmset user:xxx name david sex male age 30");
-		UE_LOG(LogRedis, Warning, TEXT("hmset - %s"), *Reply.ToDebugString());
+	if (!Redis) return false;
 
-		Redis->AsyncExecCommand("hgetall user:xxx").Then([](TFuture<FRedisReply> Future)
+	FRedisReply Reply = Redis->ExecCommand("hmset user:xxx name david sex male age 30");
+	UE_LOG(LogRedis, Warning, TEXT("hmset - %s"), *Reply.ToDebugString());
+
+	Redis->AsyncExecCommand("hgetall user:xxx").Then([](TFuture<FRedisReply> Future)
+	{
+		UE_LOG(LogRedis, Warning, TEXT("hgetall -  %s"), *Future.Get().ToDebugString());
+	});
+
+	// General Command
+	{
+		Reply = Redis->Command<FTinyRedisCommand>(TEXT("hmset user:basic2 name david sex male age 30"));
+		UE_LOG(LogRedis, Warning, TEXT("Basic - mmset: %s"), *Reply.ToDebugString());
+
+		Redis->AsyncCommand<FTinyRedisCommand>(TEXT("hgetall user:basic2")).Then([](TFuture<FRedisReply> Future)
 		{
-			UE_LOG(LogRedis, Warning, TEXT("hgetall -  %s"), *Future.Get().ToDebugString());
+			UE_LOG(LogRedis, Warning, TEXT("Basic - Hgetall: %s"), *Future.Get().ToDebugString());
 		});
 	}
 

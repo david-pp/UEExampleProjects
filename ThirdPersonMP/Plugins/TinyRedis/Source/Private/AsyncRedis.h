@@ -23,6 +23,10 @@ public:
 	void DispatchCommandTask(IQueuedWork* CommandTask);
 
 public:
+	virtual FRedisReply ExecCommand(ITinyRedisCommandPtr Command) override;
+	virtual TFuture<FRedisReply> AsyncExecCommand(ITinyRedisCommandPtr Command) override;
+
+	// TODO: delete
 	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
 	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
 

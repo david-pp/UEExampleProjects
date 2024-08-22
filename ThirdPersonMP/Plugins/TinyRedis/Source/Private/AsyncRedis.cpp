@@ -61,6 +61,39 @@ void FAsyncRedis::DispatchCommandTask(IQueuedWork* CommandTask)
 	}
 }
 
+FRedisReply FAsyncRedis::ExecCommand(ITinyRedisCommandPtr Command)
+{
+	FRedisReply Reply;
+
+	// Acquire a connection and execute the command
+	FRedisConnectionPtr RedisConnection = AcquireRedisConnection();
+	if (RedisConnection)
+	{
+		if (Command)
+		{
+			Command->Exec(RedisConnection, Reply);
+			Command->OnReply.ExecuteIfBound(Reply);
+		}
+
+		// put the connection back to the pool
+		ReleaseRedisConnection(RedisConnection);
+	}
+	else
+	{
+		Reply.Error = TEXT("can't acquire an invalid redis connection");
+	}
+
+	return Reply;
+}
+
+TFuture<FRedisReply> FAsyncRedis::AsyncExecCommand(ITinyRedisCommandPtr Command)
+{
+	TPromise<FRedisReply> Promise;
+	TFuture<FRedisReply> Future = Promise.GetFuture();
+	ThreadPool->AddQueuedWork(new FRedisCommandAsyncTask(this, Command, MoveTemp(Promise)));
+	return MoveTemp(Future);
+}
+
 FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand, ERedisCommandType InCommandType)
 {
 	FRedisReply Reply;

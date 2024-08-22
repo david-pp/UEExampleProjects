@@ -6,26 +6,57 @@
 #include "Async/Future.h"
 #include "TinyRedisInterface.generated.h"
 
-class TINYREDIS_API ITinyRedisConnection
-{
-public:
-};
+class FRedisConnection;
 
+/**
+ * Redis Command
+ */
 class TINYREDIS_API ITinyRedisCommand
 {
 public:
-	virtual void ExecCommand(TSharedPtr<ITinyRedisConnection> Connection, FRedisReply& Reply) = 0;
-	virtual void ExecAppendCommand(TSharedPtr<ITinyRedisConnection> Connection) = 0;
+	virtual ~ITinyRedisCommand()
+	{
+	}
+
+	virtual ERedisCommandType GetCommandType() const
+	{
+		return ERedisCommandType::UNKNOWN;
+	}
+
+	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) = 0;
+	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) = 0;
+
+	FNativeOnRedisReplyDelegate OnReply;
 };
 
+typedef TSharedPtr<ITinyRedisCommand> ITinyRedisCommandPtr;
+
+/**
+ * Redis Pipeline :
+ * - Redis pipelining is a technique for improving performance by issuing multiple commands at once
+ *   without waiting for the response to each individual command. 
+ * - Read More: https://redis.io/docs/latest/develop/use/pipelining/
+ */
 class TINYREDIS_API ITinyRedisPipeline
 {
 public:
+	virtual ~ITinyRedisPipeline() = default;
+
 	virtual void Start() = 0;
-	virtual void AppendCommand(ITinyRedisCommand* Command) = 0;
+	virtual void AppendCommand(ITinyRedisCommandPtr Command, const FNativeOnRedisReplyDelegate& OnReply = FNativeOnRedisReplyDelegate()) = 0;
 	virtual FRedisPipelineReply Commit() = 0;
 	virtual TFuture<FRedisPipelineReply> AsyncCommit() = 0;
+
+	template <typename CommandType, typename... InArgTypes>
+	TSharedPtr<CommandType> Command(InArgTypes&&... Args)
+	{
+		auto Cmd = MakeShared<CommandType>(Args...);
+		AppendCommand(Cmd);
+		return Cmd;
+	}
 };
+
+typedef TSharedPtr<ITinyRedisPipeline, ESPMode::ThreadSafe> ITinyRedisPipelinePtr;
 
 // This class does not need to be modified.
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
@@ -50,11 +81,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category=TinyRedis)
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
-	// TODO: ....
-	virtual TSharedPtr<ITinyRedisPipeline> CreatePipeline()
-	{
-		return nullptr;
-	}
+	// Redis pipelining
+	virtual ITinyRedisPipelinePtr CreatePipeline();
 
 public:
 	//

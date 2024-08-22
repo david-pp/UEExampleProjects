@@ -1,5 +1,7 @@
 ﻿#include "TinyRedisInterface.h"
 
+#include "TinyRedisModule.h"
+
 bool ITinyRedisInterface::AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply)
 {
 	AsyncExecCommand(InCommand).Then([OnReply](TFuture<FRedisReply> Future)
@@ -11,6 +13,12 @@ bool ITinyRedisInterface::AsyncExecCommand(const FString& InCommand, const FOnRe
 	});
 
 	return true;
+}
+
+ITinyRedisPipelinePtr ITinyRedisInterface::CreatePipeline()
+{
+	UE_LOG(LogRedis, Warning, TEXT("Pipelining is not supported"))
+	return nullptr;
 }
 
 FRedisReply ITinyRedisInterface::GetStr(const FString& Key)

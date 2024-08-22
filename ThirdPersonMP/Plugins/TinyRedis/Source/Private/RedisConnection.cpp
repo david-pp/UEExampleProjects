@@ -1784,6 +1784,34 @@ bool FRedisConnection::ExecPipelineCommandsEx(const TArray<FString>& PipelineCom
 	return true;
 }
 
+bool FRedisConnection::AppendPipelineCommand(ERedisCommandType CommandType, const char* CommandFormat, ...)
+{
+	va_list ap;
+	va_start(ap, CommandFormat);
+	int Ret = redisvAppendCommand(RedisContextPtr, CommandFormat, ap);
+	va_end(ap);
+	return Ret == REDIS_OK;
+}
+
+bool FRedisConnection::GetPipelineCommandReply(ERedisCommandType CommandType, FRedisReply& Value)
+{
+	redisReply* Reply = nullptr;
+	if (redisGetReply(RedisContextPtr, reinterpret_cast<void**>(&Reply)) == REDIS_OK)
+	{
+		Value.ParseReply(Reply, CommandType);
+		freeReplyObject(Reply);
+		return true;
+	}
+
+	if (Reply)
+	{
+		GetError(Value.Error, Reply);
+		freeReplyObject(Reply);
+	}
+
+	return false;
+}
+
 bool FRedisConnection::Ping(FString& Err)
 {
 	FRedisReply Reply;

@@ -20,9 +20,13 @@ public:
 	FRedisConnectionPtr AcquireRedisConnection();
 	void ReleaseRedisConnection(FRedisConnectionPtr RedisClient);
 
+	void DispatchCommandTask(IQueuedWork* CommandTask);
+
 public:
 	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
 	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
+
+	virtual ITinyRedisPipelinePtr CreatePipeline() override;
 
 	virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
 	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array) override;

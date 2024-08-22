@@ -89,6 +89,10 @@ public:
 	bool ExecCommandEx(FRedisReply& Value, FString& Err, ERedisCommandType CommandType, const char* CommandFormat, ...);
 	bool ExecPipelineCommandsEx(const TArray<FString>& PipelineCommands, TArray<FRedisReply>& Values, FString& Err);
 
+	// Pipeline support
+	bool AppendPipelineCommand(ERedisCommandType CommandType, const char* CommandFormat, ...);
+	bool GetPipelineCommandReply(ERedisCommandType CommandType, FRedisReply& Value);
+
 	bool IsConnected() const;
 	bool IsServerClosed() const;
 	bool GetError(FString& Err, redisReply* Reply = nullptr) const;

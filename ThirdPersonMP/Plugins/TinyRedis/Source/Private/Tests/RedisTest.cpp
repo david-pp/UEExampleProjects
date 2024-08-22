@@ -341,30 +341,83 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 	// Sync Pipeline
 	if (Pipeline)
 	{
-		Pipeline->Start();
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		FRedisPipelineReply PipelineReply = Pipeline->Commit();
+		// Save
+		{
+			Pipeline->Start();
+			Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HSet>(TEXT("user:test1"), TEXT("name"), TEXT("dddd")));
+			Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HSet>(TEXT("user:test1"), TEXT("age"), TEXT("100")));
+			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+			FRedisPipelineReply PipelineReply = Pipeline->Commit();
+			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+		}
 
-		UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+		// Load
+		{
+			Pipeline->Start();
+			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
+			});
+			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
+			});
+
+			//
+			// Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("name")), FNativeOnRedisReplyDelegate::CreateLambda([](const FRedisReply& Reply)
+			// {
+			// 	UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
+			// }));
+			// Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("aget")), FNativeOnRedisReplyDelegate::CreateLambda([](const FRedisReply& Reply)
+			// {
+			// 	UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
+			// }));
+
+			FRedisPipelineReply PipelineReply = Pipeline->Commit();
+			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+		}
 	}
 
 	// Async Pipeline
 	if (Pipeline)
 	{
-		Pipeline->Start();
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-		Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
+		// Save
 		{
-			UE_LOG(LogRedis, Log, TEXT("Pipeline - Async : %s"), *Future.Get().ToDebugString());
-		});
+			Pipeline->Start();
+			Pipeline->Command<FTinyRedisCommand_HSet>(TEXT("user:test2"), TEXT("name"), TEXT("dddd"));
+			Pipeline->Command<FTinyRedisCommand_HSet>(TEXT("user:test2"), TEXT("age"), TEXT("100"));
+			Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async HSets :\n%s"), *Future.Get().ToDebugString());
+			});
+		}
+
+		FPlatformProcess::Sleep(0.2); // wait for async api is done
+
+		// Load
+		{
+			Pipeline = Redis->CreatePipeline();
+			Pipeline->Start();
+			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test2"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
+			});
+			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test2"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
+			});
+			Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
+			{
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async HGets :\n%s"), *Future.Get().ToDebugString());
+			});
+		}
+
+		FPlatformProcess::Sleep(0.2); // wait for async api is done
+
+		return true;
 	}
 
 	// Object Save
@@ -419,7 +472,8 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 			if (JsonObject)
 			{
 				TSharedPtr<FJsonValue> JsonValue = JsonObject->TryGetField(Property->GetName());
-				if (JsonValue) {
+				if (JsonValue)
+				{
 					FJsonObjectConverter::JsonValueToUProperty(JsonValue, Property, PropertyValue);
 				}
 			}

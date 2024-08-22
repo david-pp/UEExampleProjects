@@ -1,6 +1,7 @@
 ﻿#include "AsyncRedis.h"
 
 #include "AsyncRedisCommand.h"
+#include "RedisPipeline.h"
 
 FAsyncRedis::FAsyncRedis(const FString& InIP, int InPort, const FString& InPassword, int InPoolSize)
 	: IP(InIP), Port(InPort), Password(InPassword)
@@ -52,6 +53,14 @@ void FAsyncRedis::ReleaseRedisConnection(FRedisConnectionPtr RedisClient)
 	RedisConnections.Add(RedisClient);
 }
 
+void FAsyncRedis::DispatchCommandTask(IQueuedWork* CommandTask)
+{
+	if (ThreadPool && CommandTask)
+	{
+		ThreadPool->AddQueuedWork(CommandTask);
+	}
+}
+
 FRedisReply FAsyncRedis::ExecCommand(const FString& InCommand, ERedisCommandType InCommandType)
 {
 	FRedisReply Reply;
@@ -81,6 +90,11 @@ TFuture<FRedisReply> FAsyncRedis::AsyncExecCommand(const FString& InCommand, ERe
 	ThreadPool->AddQueuedWork(RedisCommand);
 
 	return MoveTemp(Future);
+}
+
+ITinyRedisPipelinePtr FAsyncRedis::CreatePipeline()
+{
+	return MakeShared<FRedisPipeline, ESPMode::ThreadSafe>(this);
 }
 
 FRedisReply FAsyncRedis::SetStr(const FString& Key, const FString& Value)

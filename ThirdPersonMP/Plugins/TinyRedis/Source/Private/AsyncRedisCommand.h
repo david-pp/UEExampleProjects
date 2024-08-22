@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "RedisConnection.h"
+#include "RedisPipeline.h"
 #include "TinyRedisInterface.h"
 #include "TinyRedisTypes.h"
 #include "Misc/IQueuedWork.h"
@@ -8,22 +10,78 @@
 class FRedisConnection;
 class FAsyncRedis;
 
+class FTinyRedisCommand : public ITinyRedisCommand
+{
+public:
+	FTinyRedisCommand(const FString& InCommand = TEXT("")) : Command(InCommand)
+	{
+	}
+
+	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) override
+	{
+		// Set Binary : SET %s %b 
+		// Set UTF8 : SET %s %s
+		// Set String : SET %s %s
+		return Connection->ExecCommandEx(Reply, Reply.Error, GetCommandType(), TCHAR_TO_ANSI(*Command));
+	}
+
+	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) override
+	{
+		// Set Binary : SET %s %b 
+		// Set UTF8 : SET %s %s
+		// Set String : SET %s %s
+
+		return Connection->AppendPipelineCommand(GetCommandType(), TCHAR_TO_ANSI(*Command));
+	}
+
+protected:
+	FString Command;
+};
+
+class FTinyRedisCommand_HGet : public FTinyRedisCommand
+{
+public:
+	FTinyRedisCommand_HGet(const FString& InKey, const FString& InField) : Key(InKey), Field(InField)
+	{
+		Command = FString::Printf(TEXT("HGET %s %s"), *InKey, *InField);
+	}
+
+protected:
+	FString Key;
+	FString Field;
+};
+
+
 class FTinyRedisCommand_HSet : public ITinyRedisCommand
 {
 public:
-	virtual void ExecCommand(TSharedPtr<ITinyRedisConnection> Connection, FRedisReply& Reply) override
+	FTinyRedisCommand_HSet(const FString& InKey, const FString& InField, const FString& InValue) : Key(InKey), Field(InField), Value(InValue)
+	{
+	}
+
+	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) override
 	{
 		// Set Binary : SET %s %b 
 		// Set UTF8 : SET %s %s
 		// Set String : SET %s %s
+		return Connection->ExecCommandEx(Reply, Reply.Error, GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_ANSI(*Value));
 	}
-	virtual void ExecAppendCommand(TSharedPtr<ITinyRedisConnection> Connection) override
+
+	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) override
 	{
 		// Set Binary : SET %s %b 
 		// Set UTF8 : SET %s %s
 		// Set String : SET %s %s
+
+		return Connection->AppendPipelineCommand(GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_ANSI(*Value));
 	}
+
+protected:
+	FString Key;
+	FString Field;
+	FString Value;
 };
+
 
 /**
  * Redis Command as ThreadPool's Task 
@@ -52,6 +110,10 @@ protected:
 	TPromise<FRedisReply> Promise;
 	bool bDebugReply = true;
 };
+
+
+
+
 
 /**
  * Async Set UTF8 String

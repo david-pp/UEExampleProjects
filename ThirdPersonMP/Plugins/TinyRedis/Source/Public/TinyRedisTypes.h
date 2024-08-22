@@ -148,8 +148,25 @@ struct TINYREDIS_API FRedisPipelineReply
 {
 	GENERATED_BODY()
 
+	FRedisPipelineReply()
+	{
+	}
+
+	FRedisPipelineReply(const FString& InErrorMsg)
+		: Error(InErrorMsg)
+	{
+	}
+
+	bool HasError() const
+	{
+		return Error.Len() > 0;
+	}
+
 	FString ToDebugString() const;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FRedisReply> Replies;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString Error;
 };

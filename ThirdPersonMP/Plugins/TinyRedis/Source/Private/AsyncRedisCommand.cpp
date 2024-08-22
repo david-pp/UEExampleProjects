@@ -19,7 +19,6 @@ bool FAsyncRedisCommand::IsValid() const
 	return AsyncRedis && Command.Len() > 0;
 }
 
-
 void FAsyncRedisCommand::DoThreadedWork()
 {
 	FRedisReply Reply;
@@ -79,7 +78,7 @@ void FAsyncRedisCommand::ExecRedisCommand(TSharedPtr<FRedisConnection> Connectio
 
 // ---------------------
 
-
+// ---------------------
 void FAsyncRedisCommand_SetStr::ExecRedisCommand(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply)
 {
 	if (Connection)

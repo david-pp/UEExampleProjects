@@ -3,6 +3,7 @@
 #include "AsyncRedis.h"
 #include "AsyncRedisTask.h"
 #include "RedisConnection.h"
+#include "TinyRedisModule.h"
 
 FRedisPipeline::FRedisPipeline(FAsyncRedis* InRedis) : Redis(InRedis)
 {
@@ -58,6 +59,7 @@ FRedisPipelineReply FRedisPipeline::Commit()
 	{
 		FRedisReply Reply;
 		RedisConnection->GetPipelineCommandReply(Cmd->GetCommandType(), Reply);
+		UE_LOG(LogRedis, Verbose, TEXT("Piped:%s -> %s"), *Cmd->ToDebugString(), *Reply.ToDebugString());
 		Cmd->OnReply.ExecuteIfBound(Reply);
 		PipelineReply.Replies.Add(Reply);
 	}
@@ -129,6 +131,7 @@ void FRedisPipelineAsyncTask::DoThreadedWork()
 				ITinyRedisCommandPtr Cmd = PipedCommands[I];
 				if (PipelineReply.Replies.IsValidIndex(I))
 				{
+					UE_LOG(LogRedis, Verbose, TEXT("Piped:%s -> %s"), *Cmd->ToDebugString(), *PipelineReply.Replies[I].ToDebugString());
 					Cmd->OnReply.ExecuteIfBound(PipelineReply.Replies[I]);
 				}
 			}

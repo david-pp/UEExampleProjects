@@ -349,62 +349,49 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
 
-	auto Pipeline = Redis->CreatePipeline();
-
 	// Sync Pipeline
-	if (Pipeline)
 	{
 		// Save
 		{
+			auto Pipeline = Redis->CreatePipeline();
 			Pipeline->Start();
-			Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HSet>(TEXT("user:test1"), TEXT("name"), TEXT("dddd")));
-			Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HSet>(TEXT("user:test1"), TEXT("age"), TEXT("100")));
-			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
-			// Pipeline->AppendCommand(new FTinyRedisCommand_HSet());
+			Pipeline->Command<TinyRedis::HashSet>(TEXT("user:test1"), TEXT("name"), TEXT("dddd"));
+			Pipeline->Command<TinyRedis::HashSet>(TEXT("user:test1"), TEXT("age"), TEXT("100"));
 			FRedisPipelineReply PipelineReply = Pipeline->Commit();
-			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+
+			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync Sets Results : %s"), *PipelineReply.ToDebugString());
 		}
 
 		// Load
 		{
+			auto Pipeline = Redis->CreatePipeline();
 			Pipeline->Start();
-			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			Pipeline->Command<TinyRedis::HashGet>(TEXT("user:test1"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync Get : Name=%s"), *Reply.String);
 			});
-			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			Pipeline->Command<TinyRedis::HashGet>(TEXT("user:test1"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync Get : Age=%s"), *Reply.String);
 			});
-
-			//
-			// Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("name")), FNativeOnRedisReplyDelegate::CreateLambda([](const FRedisReply& Reply)
-			// {
-			// 	UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
-			// }));
-			// Pipeline->AppendCommand(MakeShared<FTinyRedisCommand_HGet>(TEXT("user:test1"), TEXT("aget")), FNativeOnRedisReplyDelegate::CreateLambda([](const FRedisReply& Reply)
-			// {
-			// 	UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
-			// }));
 
 			FRedisPipelineReply PipelineReply = Pipeline->Commit();
-			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync : %s"), *PipelineReply.ToDebugString());
+			UE_LOG(LogRedis, Log, TEXT("Pipeline - Sync Gets Results : %s"), *PipelineReply.ToDebugString());
 		}
 	}
 
 	// Async Pipeline
-	if (Pipeline)
 	{
 		// Save
 		{
+			auto Pipeline = Redis->CreatePipeline();
 			Pipeline->Start();
-			Pipeline->Command<FTinyRedisCommand_HSet>(TEXT("user:test2"), TEXT("name"), TEXT("dddd"));
-			Pipeline->Command<FTinyRedisCommand_HSet>(TEXT("user:test2"), TEXT("age"), TEXT("100"));
+			Pipeline->Command<TinyRedis::HashSet>(TEXT("user:test2"), TEXT("name"), TEXT("eeeee"));
+			Pipeline->Command<TinyRedis::HashSet>(TEXT("user:test2"), TEXT("age"), TEXT("200"));
+
 			Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async HSets :\n%s"), *Future.Get().ToDebugString());
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async Sets Results :\n%s"), *Future.Get().ToDebugString());
 			});
 		}
 
@@ -412,26 +399,36 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 
 		// Load
 		{
-			Pipeline = Redis->CreatePipeline();
+			auto Pipeline = Redis->CreatePipeline();
 			Pipeline->Start();
-			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test2"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			Pipeline->Command<TinyRedis::HashGet>(TEXT("user:test2"), TEXT("name"))->OnReply.BindLambda([](const FRedisReply& Reply)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Name: %s"), *Reply.String);
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - ASync Get : Name=%s"), *Reply.String);
 			});
-			Pipeline->Command<FTinyRedisCommand_HGet>(TEXT("user:test2"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
+			Pipeline->Command<TinyRedis::HashGet>(TEXT("user:test2"), TEXT("age"))->OnReply.BindLambda([](const FRedisReply& Reply)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Age: %s"), *Reply.String);
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - ASync Get : Age=%s"), *Reply.String);
 			});
+
 			Pipeline->AsyncCommit().Then([](TFuture<FRedisPipelineReply> Future)
 			{
-				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async HGets :\n%s"), *Future.Get().ToDebugString());
+				UE_LOG(LogRedis, Log, TEXT("Pipeline - Async Gets Results :\n%s"), *Future.Get().ToDebugString());
 			});
 		}
 
 		FPlatformProcess::Sleep(0.2); // wait for async api is done
-
-		return true;
 	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_ObjectAPI, "Redis.Object", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+
+bool FRedisTest_ObjectAPI::RunTest(const FString& Param)
+{
+	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	if (!Redis) return false;
 
 	// Object Save
 	{

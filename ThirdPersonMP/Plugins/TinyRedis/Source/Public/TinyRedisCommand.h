@@ -172,51 +172,116 @@ protected:
 };
 
 /**
- * Redis - HGet
+ * Redis : HSET Key Field Value(String/UTF8/Binary)
  */
-class FTinyRedisCommand_HGet : public FTinyRedisCommand
+class FTinyRedisCommand_HashSet : public ITinyRedisCommand
 {
 public:
-	FTinyRedisCommand_HGet(const FString& InKey, const FString& InField) : Key(InKey), Field(InField)
+	FTinyRedisCommand_HashSet(const FString& InKey, const FString& InField, const FString& InValue, ERedisCommandType InCommandType = ERedisCommandType::HSET)
+		: CommandType(InCommandType), Key(InKey), Field(InField), String(InValue)
 	{
-		Command = FString::Printf(TEXT("HGET %s %s"), *InKey, *InField);
 	}
 
-protected:
-	FString Key;
-	FString Field;
-};
-
-
-/**
- * Redis - HSet
- */
-class FTinyRedisCommand_HSet : public ITinyRedisCommand
-{
-public:
-	FTinyRedisCommand_HSet(const FString& InKey, const FString& InField, const FString& InValue) : Key(InKey), Field(InField), Value(InValue)
+	FTinyRedisCommand_HashSet(const FString& InKey, const FString& InField, const TArray<uint8>& InArray)
+		: CommandType(ERedisCommandType::HSET_BIN), Key(InKey), Field(InField), Array(InArray)
 	{
+	}
+
+	virtual ERedisCommandType GetCommandType() const override
+	{
+		return CommandType;
+	}
+
+	virtual FString ToDebugString() const override
+	{
+		return FString::Printf(TEXT("HSET %s %s .."), *Key, *Field);
 	}
 
 	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) override
 	{
-		// Set Binary : SET %s %b 
-		// Set UTF8 : SET %s %s
-		// Set String : SET %s %s
-		return Connection->ExecCommandEx(Reply, Reply.Error, GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_ANSI(*Value));
+		if (ERedisCommandType::HSET == CommandType)
+		{
+			return Connection->ExecCommandEx(GetCommandType(), Reply, "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_ANSI(*String));
+		}
+		if (ERedisCommandType::HSET_UTF8 == CommandType)
+		{
+			return Connection->ExecCommandEx(GetCommandType(), Reply, "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_UTF8(*String));
+		}
+		if (ERedisCommandType::HSET_BIN == CommandType)
+		{
+			return Connection->ExecCommandEx(GetCommandType(), Reply, "HSET %s %s %b", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), (char*)Array.GetData(), (size_t)Array.Num());
+		}
+		return false;
 	}
 
 	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) override
 	{
-		// Set Binary : SET %s %b 
-		// Set UTF8 : SET %s %s
-		// Set String : SET %s %s
-
-		return Connection->AppendPipelineCommand(GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), TCHAR_TO_ANSI(*Value));
+		if (ERedisCommandType::HSET == CommandType)
+		{
+			return Connection->AppendPipelineCommand(GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field),TCHAR_TO_ANSI(*String));
+		}
+		if (ERedisCommandType::HSET_UTF8 == CommandType)
+		{
+			return Connection->AppendPipelineCommand(GetCommandType(), "HSET %s %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field),TCHAR_TO_UTF8(*String));
+		}
+		if (ERedisCommandType::HSET_BIN == CommandType)
+		{
+			return Connection->AppendPipelineCommand(GetCommandType(), "HSET %s %s %b", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field), (char*)Array.GetData(), (size_t)Array.Num());
+		}
+		return false;
 	}
 
 protected:
+	ERedisCommandType CommandType;
 	FString Key;
 	FString Field;
-	FString Value;
+	FString String;
+	TArray<uint8> Array;
 };
+
+/**
+ * Redis : HGET Key Field as String/UTF8/Binary
+ */
+class FTinyRedisCommand_HashGet : public ITinyRedisCommand
+{
+public:
+	FTinyRedisCommand_HashGet(const FString& InKey, const FString& InField, ERedisCommandType InCommandType = ERedisCommandType::HGET)
+		: CommandType(InCommandType), Key(InKey), Field(InField)
+	{
+	}
+
+	virtual ERedisCommandType GetCommandType() const override
+	{
+		return CommandType;
+	}
+
+	virtual FString ToDebugString() const override
+	{
+		return FString::Printf(TEXT("HGET %s %s"), *Key, *Field);
+	}
+
+	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) override
+	{
+		return Connection->ExecCommandEx(GetCommandType(), Reply, "HGET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field));
+	}
+
+	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) override
+	{
+		return Connection->AppendPipelineCommand(GetCommandType(), "HGET %s %s", TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Field));
+	}
+
+protected:
+	ERedisCommandType CommandType;
+	FString Key;
+	FString Field;
+};
+
+
+// Command Shortcuts
+namespace TinyRedis
+{
+	typedef FTinyRedisCommand_Get Get;
+	typedef FTinyRedisCommand_Set Set;
+	typedef FTinyRedisCommand_HashSet HashSet;
+	typedef FTinyRedisCommand_HashGet HashGet;
+}

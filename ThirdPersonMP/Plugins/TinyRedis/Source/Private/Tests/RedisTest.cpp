@@ -335,14 +335,7 @@ bool FRedisTest_AsyncAPI::RunTest(const FString& Param)
 	return true;
 }
 
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_PipelineAPI, "Redis.Pipeline", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-typedef TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriterFactory;
-typedef TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriter;
-
-typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriterFactory;
-typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriter;
 
 bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 {
@@ -422,10 +415,15 @@ bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_ObjectAPI, "Redis.Object", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_ObjectMappingAPI, "Redis.ObjectMapping", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+typedef TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriterFactory;
+typedef TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> FCondensedJsonStringWriter;
 
-bool FRedisTest_ObjectAPI::RunTest(const FString& Param)
+typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriterFactory;
+typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWriter;
+
+bool FRedisTest_ObjectMappingAPI::RunTest(const FString& Param)
 {
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
@@ -443,25 +441,25 @@ bool FRedisTest_ObjectAPI::RunTest(const FString& Param)
 			FProperty* Property = *It;
 			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Obj);
 
-			TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, PropertyValue);
-
-
-			TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-			JsonObject->SetField(Property->GetName(), JsonValue);
-
+			// Property -> Json String
 			FString JsonString;
-			FJsonSerializer::Serialize(JsonObject, FCondensedJsonStringWriterFactory::Create(&JsonString));
-			// FString JsonIdentifier = TEXT("");// Property->GetName();
-			// FJsonSerializer::Serialize(JsonValue, JsonIdentifier, FCondensedJsonStringWriterFactory::Create(&JsonString));
+			{
+				TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+				TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, PropertyValue);
+				JsonObject->SetField(Property->GetName(), JsonValue);
+				FJsonSerializer::Serialize(JsonObject, FCondensedJsonStringWriterFactory::Create(&JsonString));
+				// FString JsonIdentifier = TEXT("");// Property->GetName();
+				// FJsonSerializer::Serialize(JsonValue, JsonIdentifier, FCondensedJsonStringWriterFactory::Create(&JsonString));
+			}
 
-			UE_LOG(LogRedis, Log, TEXT("URedisTestObject.%s -> Json:%s"), *Property->GetName(), *JsonString);
+			UE_LOG(LogRedis, Log, TEXT("Mapping - URedisTestObject.%s -> Json:%s"), *Property->GetName(), *JsonString);
 
 			// Write it to Redis
 			Redis->HashSet(TEXT("user:david"), Property->GetName(), JsonString);
 		}
 	}
 
-	// Object Load
+	// Object Load by Multiple HGET
 	{
 		URedisTestObject* Obj = NewObject<URedisTestObject>();
 
@@ -472,13 +470,11 @@ bool FRedisTest_ObjectAPI::RunTest(const FString& Param)
 
 			// Read from Redis
 			FString JsonString = Redis->HashGet<FString>(TEXT("user:david"), Property->GetName());
-
-			UE_LOG(LogRedis, Log, TEXT("Pipeline - Load Json: %s"), *JsonString);
+			UE_LOG(LogRedis, Log, TEXT("Mapping - Load Json: %s"), *JsonString);
 
 			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
 			TSharedPtr<FJsonObject> JsonObject;
 			FJsonSerializer::Deserialize(JsonReader, JsonObject);
-
 			if (JsonObject)
 			{
 				TSharedPtr<FJsonValue> JsonValue = JsonObject->TryGetField(Property->GetName());
@@ -489,10 +485,49 @@ bool FRedisTest_ObjectAPI::RunTest(const FString& Param)
 			}
 		}
 
-		UE_LOG(LogRedis, Log, TEXT("Pipeline - Object.Health=%.f"), Obj->Health);
-		UE_LOG(LogRedis, Log, TEXT("Pipeline - Object.Ammo=%d"), Obj->Ammo);
-		UE_LOG(LogRedis, Log, TEXT("Pipeline - Object.Location=%s"), *Obj->Location.ToString());
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object.Health=%.f"), Obj->Health);
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object.Ammo=%d"), Obj->Ammo);
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object.Location=%s"), *Obj->Location.ToString());
 	}
 
+	// Object Load by Pipeline
+	{
+		URedisTestObject* Obj = NewObject<URedisTestObject>();
+		auto Pipeline = Redis->CreatePipeline();
+
+		// Pipeline start
+		Pipeline->Start();
+
+		// pipeline the HGET command
+		for (TFieldIterator<FProperty> It(URedisTestObject::StaticClass()); It; ++It)
+		{
+			FProperty* Property = *It;
+			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Obj);
+
+			Pipeline->Command<TinyRedis::HashGet>(TEXT("user:david"), Property->GetName())->OnReply.BindLambda([Property, PropertyValue](const FRedisReply& Reply)
+			{
+				FString JsonString = Reply.String;
+				UE_LOG(LogRedis, Log, TEXT("Mapping - Load by Pipeline Json: %s"), *JsonString);
+				TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
+				TSharedPtr<FJsonObject> JsonObject;
+				FJsonSerializer::Deserialize(JsonReader, JsonObject);
+				if (JsonObject)
+				{
+					TSharedPtr<FJsonValue> JsonValue = JsonObject->TryGetField(Property->GetName());
+					if (JsonValue)
+					{
+						FJsonObjectConverter::JsonValueToUProperty(JsonValue, Property, PropertyValue);
+					}
+				}
+			});
+		}
+
+		// sync commit
+		Pipeline->Commit();
+
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object2.Health=%.f"), Obj->Health);
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object2.Ammo=%d"), Obj->Ammo);
+		UE_LOG(LogRedis, Log, TEXT("Mapping - Object2.Location=%s"), *Obj->Location.ToString());
+	}
 	return true;
 }

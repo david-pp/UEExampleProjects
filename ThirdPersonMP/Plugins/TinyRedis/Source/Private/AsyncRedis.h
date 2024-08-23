@@ -25,17 +25,12 @@ public:
 public:
 	virtual FRedisReply ExecCommand(ITinyRedisCommandPtr Command) override;
 	virtual TFuture<FRedisReply> AsyncExecCommand(ITinyRedisCommandPtr Command) override;
-
-	// TODO: delete
-	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
-	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType) override;
-
 	virtual ITinyRedisPipelinePtr CreatePipeline() override;
-
-	virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
-	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array) override;
-	virtual TFuture<FRedisReply> AsyncSetStr(const FString& Key, const FString& Value) override;
-	virtual TFuture<FRedisReply> AsyncSetBin(const FString& Key, const TArray<uint8>& Array) override;
+	//
+	// virtual FRedisReply SetStr(const FString& Key, const FString& Value) override;
+	// virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array) override;
+	// virtual TFuture<FRedisReply> AsyncSetStr(const FString& Key, const FString& Value) override;
+	// virtual TFuture<FRedisReply> AsyncSetBin(const FString& Key, const TArray<uint8>& Array) override;
 
 protected:
 	// Redis server info

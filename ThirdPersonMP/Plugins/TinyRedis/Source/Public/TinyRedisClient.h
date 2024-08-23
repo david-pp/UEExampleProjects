@@ -26,9 +26,6 @@ public:
 	// ~Interface ITinyRedisInterface
 	virtual FRedisReply ExecCommand(ITinyRedisCommandPtr Command) override;
 	virtual TFuture<FRedisReply> AsyncExecCommand(ITinyRedisCommandPtr Command) override;
-	// TODO:delete
-	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp) override;
-	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp) override;
 	// ~Interface ITinyRedisInterface
 
 protected:

@@ -1,7 +1,7 @@
 ﻿#include "RedisPipeline.h"
 
 #include "AsyncRedis.h"
-#include "AsyncRedisCommand.h"
+#include "AsyncRedisTask.h"
 #include "RedisConnection.h"
 
 FRedisPipeline::FRedisPipeline(FAsyncRedis* InRedis) : Redis(InRedis)

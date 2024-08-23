@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "TinyRedisTypes.generated.h"
 
+class FRedisConnection;
+
 /**
  * Redis Reply Type
  */

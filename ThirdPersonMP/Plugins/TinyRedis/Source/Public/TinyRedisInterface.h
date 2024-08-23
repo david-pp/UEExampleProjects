@@ -3,66 +3,11 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "TinyRedisTypes.h"
+#include "TinyRedisCommand.h"
+#include "TinyRedisPipeline.h"
 #include "Async/Future.h"
 #include "TinyRedisInterface.generated.h"
 
-class FRedisConnection;
-
-/**
- * Redis Command
- */
-class TINYREDIS_API ITinyRedisCommand
-{
-public:
-	virtual ~ITinyRedisCommand()
-	{
-	}
-
-	virtual ERedisCommandType GetCommandType() const
-	{
-		return ERedisCommandType::UNKNOWN;
-	}
-
-	virtual FString ToDebugString() const { return TEXT("RedisCommand"); }
-
-	// Execute redis command by connection
-	virtual bool Exec(TSharedPtr<FRedisConnection> Connection, FRedisReply& Reply) = 0;
-
-	// Append the command to the pipeline
-	virtual bool AppendPipeline(TSharedPtr<FRedisConnection> Connection) = 0;
-
-	// Callback when command replied from redis server
-	FNativeOnRedisReplyDelegate OnReply;
-};
-
-typedef TSharedPtr<ITinyRedisCommand> ITinyRedisCommandPtr;
-
-/**
- * Redis Pipeline :
- * - Redis pipelining is a technique for improving performance by issuing multiple commands at once
- *   without waiting for the response to each individual command. 
- * - Read More: https://redis.io/docs/latest/develop/use/pipelining/
- */
-class TINYREDIS_API ITinyRedisPipeline
-{
-public:
-	virtual ~ITinyRedisPipeline() = default;
-
-	virtual void Start() = 0;
-	virtual void AppendCommand(ITinyRedisCommandPtr Command, const FNativeOnRedisReplyDelegate& OnReply = FNativeOnRedisReplyDelegate()) = 0;
-	virtual FRedisPipelineReply Commit() = 0;
-	virtual TFuture<FRedisPipelineReply> AsyncCommit() = 0;
-
-	template <typename CommandType, typename... InArgTypes>
-	TSharedPtr<CommandType> Command(InArgTypes&&... Args)
-	{
-		auto Cmd = MakeShared<CommandType>(Args...);
-		AppendCommand(Cmd);
-		return Cmd;
-	}
-};
-
-typedef TSharedPtr<ITinyRedisPipeline, ESPMode::ThreadSafe> ITinyRedisPipelinePtr;
 
 // This class does not need to be modified.
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
@@ -79,18 +24,15 @@ class TINYREDIS_API ITinyRedisInterface
 	GENERATED_BODY()
 
 public:
-	// Sync API
-	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN) = 0;
-	// Async API for Native
-	virtual TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN) = 0;
-	// Async API for Blueprint
-	UFUNCTION(BlueprintCallable, Category=TinyRedis)
-	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
-
+	/**
+	 * Override to implement Sync/Async/Pipeline APIs 
+	 */
 	virtual FRedisReply ExecCommand(ITinyRedisCommandPtr Command) = 0;
 	virtual TFuture<FRedisReply> AsyncExecCommand(ITinyRedisCommandPtr Command) = 0;
+	virtual ITinyRedisPipelinePtr CreatePipeline();
 
-
+public:
+	// Execute Redis Command
 	template <typename CommandType, typename... InArgTypes>
 	FRedisReply Command(InArgTypes&&... Args)
 	{
@@ -98,6 +40,7 @@ public:
 		return ExecCommand(Cmd);
 	}
 
+	// Async Execute Redis Command
 	template <typename CommandType, typename... InArgTypes>
 	TFuture<FRedisReply> AsyncCommand(InArgTypes&&... Args)
 	{
@@ -105,8 +48,13 @@ public:
 		return AsyncExecCommand(Cmd);
 	}
 
-	// Redis pipelining
-	virtual ITinyRedisPipelinePtr CreatePipeline();
+	// Simple Command
+	FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN);
+	// Simple Async Command
+	TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN);
+	// Async API for Blueprint
+	UFUNCTION(BlueprintCallable, Category=TinyRedis)
+	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
 public:
 	//
@@ -122,11 +70,11 @@ public:
 	template <typename ValueType>
 	FRedisReply Set(const FString& Key, const ValueType& Value);
 
-	virtual FRedisReply GetStr(const FString& Key);
-	virtual FRedisReply SetStr(const FString& Key, const FString& Value);
+	FRedisReply GetStr(const FString& Key);
+	FRedisReply SetStr(const FString& Key, const FString& Value);
 
-	virtual FRedisReply GetBin(const FString& Key);
-	virtual FRedisReply SetBin(const FString& Key, TArrayView<const uint8> Array);
+	FRedisReply GetBin(const FString& Key);
+	FRedisReply SetBin(const FString& Key, const TArray<uint8>& Array);
 
 	// ~ Async APIs
 	TFuture<FRedisReply> AsyncGet(const FString& Key);
@@ -170,9 +118,8 @@ typedef TSharedPtr<ITinyRedisInterface, ESPMode::ThreadSafe> IRedisInterfacePtr;
 template <typename ValueType>
 ValueType ITinyRedisInterface::Get(const FString& Key, FString* ErrorMsg)
 {
-	ValueType Value;
-	FString Command = FString::Printf(TEXT("GET %s"), *Key);
-	FRedisReply Reply = ExecCommand(Command, ERedisCommandType::GET);
+	ValueType Value = ValueType();
+	FRedisReply Reply = Command<FTinyRedisCommand_Get>(Key, ERedisCommandType::GET);
 	if (!Reply.HasError())
 	{
 		LexFromString(Value, *Reply.String);
@@ -187,8 +134,7 @@ ValueType ITinyRedisInterface::Get(const FString& Key, FString* ErrorMsg)
 template <typename ValueType>
 FRedisReply ITinyRedisInterface::Set(const FString& Key, const ValueType& Value)
 {
-	FString Command = FString::Printf(TEXT("SET %s %s"), *Key, *LexToString(Value));
-	return ExecCommand(Command, ERedisCommandType::SET);
+	return Command<FTinyRedisCommand_Set>(Key, LexToString(Value), ERedisCommandType::SET);
 }
 
 template <typename ValueType>

@@ -22,28 +22,6 @@ UTinyRedisClient* UTinyRedisClient::CreateRedisClient(const FString& InIP, int I
 	return NewClient;
 }
 
-FRedisReply UTinyRedisClient::ExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp)
-{
-	FRedisReply Reply;
-	if (Redis)
-	{
-		Reply = Redis->ExecCommand(InCommand, InCommandTyp);
-	}
-	return Reply;
-}
-
-TFuture<FRedisReply> UTinyRedisClient::AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandTyp)
-{
-	if (Redis)
-	{
-		return Redis->AsyncExecCommand(InCommand, InCommandTyp);
-	}
-
-	TPromise<FRedisReply> Promise;
-	TFuture<FRedisReply> Future = Promise.GetFuture();
-	return MoveTemp(Future);
-}
-
 void UTinyRedisClient::DumpRedisReply(const FRedisReply& Reply)
 {
 	UE_LOG(LogRedis, Warning, TEXT("%s"), *Reply.ToDebugString());

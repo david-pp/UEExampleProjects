@@ -1,5 +1,5 @@
 #include "CoreMinimal.h"
-#include "AsyncRedisCommand.h"
+#include "AsyncRedisTask.h"
 #include "JsonObjectConverter.h"
 #include "RedisTestObject.h"
 #include "TinyRedis.h"
@@ -14,22 +14,25 @@ bool FRedisTest_Basic::RunTest(const FString& Param)
 	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
 
-	FRedisReply Reply = Redis->ExecCommand("hmset user:xxx name david sex male age 30");
-	UE_LOG(LogRedis, Warning, TEXT("hmset - %s"), *Reply.ToDebugString());
-
-	Redis->AsyncExecCommand("hgetall user:xxx").Then([](TFuture<FRedisReply> Future)
-	{
-		UE_LOG(LogRedis, Warning, TEXT("hgetall -  %s"), *Future.Get().ToDebugString());
-	});
-
 	// General Command
 	{
-		Reply = Redis->Command<FTinyRedisCommand>(TEXT("hmset user:basic2 name david sex male age 30"));
-		UE_LOG(LogRedis, Warning, TEXT("Basic - mmset: %s"), *Reply.ToDebugString());
+		FRedisReply Reply = Redis->Command<FTinyRedisCommand>(TEXT("hmset user:basic2 name david sex male age 30"));
+		UE_LOG(LogRedis, Warning, TEXT("Basic - hmset: %s"), *Reply.ToDebugString());
 
 		Redis->AsyncCommand<FTinyRedisCommand>(TEXT("hgetall user:basic2")).Then([](TFuture<FRedisReply> Future)
 		{
 			UE_LOG(LogRedis, Warning, TEXT("Basic - Hgetall: %s"), *Future.Get().ToDebugString());
+		});
+	}
+
+	// Simple Command
+	{
+		FRedisReply Reply = Redis->ExecCommand("hmset user:xxx name david sex male age 30");
+		UE_LOG(LogRedis, Warning, TEXT("hmset - %s"), *Reply.ToDebugString());
+
+		Redis->AsyncExecCommand("hgetall user:xxx").Then([](TFuture<FRedisReply> Future)
+		{
+			UE_LOG(LogRedis, Warning, TEXT("Baic - hgetall: %s"), *Future.Get().ToDebugString());
 		});
 	}
 

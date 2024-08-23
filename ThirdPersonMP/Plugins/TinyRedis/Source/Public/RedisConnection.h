@@ -87,6 +87,7 @@ public:
 	// Interfaces for Async Usage
 	bool ExecCommand(const FString& Command, FRedisReply& Value, FString& Err, ERedisCommandType CommandType = ERedisCommandType::UNKNOWN);
 	bool ExecCommandEx(FRedisReply& Value, FString& Err, ERedisCommandType CommandType, const char* CommandFormat, ...);
+	bool ExecCommandEx(ERedisCommandType CommandType, FRedisReply& Value, const char* CommandFormat, ...);
 	bool ExecPipelineCommandsEx(const TArray<FString>& PipelineCommands, TArray<FRedisReply>& Values, FString& Err);
 
 	// Pipeline support

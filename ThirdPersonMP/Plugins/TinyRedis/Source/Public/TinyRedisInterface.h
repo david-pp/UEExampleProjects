@@ -49,7 +49,8 @@ public:
 	}
 
 	// Simple Command
-	FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN);
+	UFUNCTION(BlueprintCallable, Category=TinyRedis)
+	virtual FRedisReply ExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN);
 	// Simple Async Command
 	TFuture<FRedisReply> AsyncExecCommand(const FString& InCommand, ERedisCommandType InCommandType = ERedisCommandType::UNKNOWN);
 	// Async API for Blueprint

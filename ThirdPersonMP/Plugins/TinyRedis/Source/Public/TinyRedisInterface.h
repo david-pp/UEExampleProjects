@@ -178,7 +178,7 @@ public:
 	virtual void AsyncHashMultiGet(const FString& InKey, const TArray<FString>& Fields, const FOnRedisReplyDelegate& OnReply);
 };
 
-typedef TSharedPtr<ITinyRedisInterface, ESPMode::ThreadSafe> IRedisInterfacePtr;
+typedef TSharedPtr<ITinyRedisInterface, ESPMode::ThreadSafe> ITinyRedisPtr;
 
 
 template <typename ValueType>

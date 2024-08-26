@@ -11,7 +11,7 @@ UTinyRedisClient* UTinyRedisClient::CreateRedisClient(const FString& InIP, int I
 		return nullptr;
 	}
 
-	IRedisInterfacePtr Redis = Module->CreateRedisInterface(InIP, InPort, InPassword, PoolSize);
+	ITinyRedisPtr Redis = Module->CreateRedisInterface(InIP, InPort, InPassword, PoolSize);
 	if (!Redis)
 	{
 		return nullptr;

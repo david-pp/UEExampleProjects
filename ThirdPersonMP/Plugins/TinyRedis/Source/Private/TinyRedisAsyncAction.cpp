@@ -25,7 +25,7 @@ UTinyRedisAsyncAction* UTinyRedisAsyncAction::RedisCommand(UObject* WorldContext
 
 void UTinyRedisAsyncAction::Activate()
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (Redis)
 	{
 		if (bAsyncMode)

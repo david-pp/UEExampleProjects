@@ -29,5 +29,5 @@ public:
 	// ~Interface ITinyRedisInterface
 
 protected:
-	IRedisInterfacePtr Redis;
+	ITinyRedisPtr Redis;
 };

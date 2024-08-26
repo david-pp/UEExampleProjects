@@ -11,7 +11,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_Basic, "Redis.Basic", EAutomationTes
 
 bool FRedisTest_Basic::RunTest(const FString& Param)
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
 
 	// General Command
@@ -43,7 +43,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_API, "Redis.API", EAutomationTestFla
 
 bool FRedisTest_API::RunTest(const FString& Param)
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (Redis)
 	{
 		// Set/Get General
@@ -297,7 +297,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_AsyncAPI, "Redis.AsyncAPI", EAutomat
 
 bool FRedisTest_AsyncAPI::RunTest(const FString& Param)
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (Redis)
 	{
 		Redis->AsyncSet(TEXT("game:title"), TEXT("tinyredis"));
@@ -339,7 +339,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRedisTest_PipelineAPI, "Redis.Pipeline", EAuto
 
 bool FRedisTest_PipelineAPI::RunTest(const FString& Param)
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
 
 	// Sync Pipeline
@@ -425,7 +425,7 @@ typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FPrettyJsonStringWrite
 
 bool FRedisTest_ObjectMappingAPI::RunTest(const FString& Param)
 {
-	IRedisInterfacePtr Redis = ITinyRedisModule::GetTinyRedis();
+	ITinyRedisPtr Redis = ITinyRedisModule::GetTinyRedis();
 	if (!Redis) return false;
 
 	// Object Save

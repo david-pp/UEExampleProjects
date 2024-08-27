@@ -82,9 +82,24 @@ struct TINYREDIS_API FRedisReply
 		Integer = 0;
 	}
 
+	bool IsValid() const
+	{
+		return Error.IsEmpty() && Type != ERedisReplyType::Nil;
+	}
+
 	bool HasError() const
 	{
-		return Type == ERedisReplyType::Nil || Error.Len() > 0;
+		return Error.Len() > 0;
+	}
+
+	bool IsNil() const
+	{
+		return Type == ERedisReplyType::Nil;
+	}
+
+	bool IsStatusOK() const
+	{
+		return Type == ERedisReplyType::Status && String == TEXT("OK");
 	}
 
 	/** Parse reply from redis server */

@@ -18,11 +18,18 @@ public:
 	bool Startup();
 	void Shutdown();
 
+	FString MakeRedisEntityKey(const FGameEntityStorageKey& EntityKey) const;
+
 public:
-	virtual bool SaveEntity(UObject* Entity, const FGameStorageEntityKey& EntityKey) override;
-	virtual bool LoadEntity(UObject* Entity, const FGameStorageEntityKey& EntityKey) override;
-	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType) override;
-	virtual bool DeleteEntity(const FGameStorageEntityKey& EntityKey) override;
+	virtual FString GetNamespace() const override
+	{
+		return Settings.Namespace;
+	}
+
+	virtual bool SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) override;
+	virtual bool LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) override;
+	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer) override;
+	virtual bool DeleteEntity(const FGameEntityStorageKey& EntityKey) override;
 
 	virtual bool AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave) override;
 	virtual bool AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad) override;

@@ -27,6 +27,35 @@ bool ITinyRedisInterface::AsyncExecCommand(const FString& InCommand, const FOnRe
 	return true;
 }
 
+int32 ITinyRedisInterface::DeleteKey(const FString& Key)
+{
+	if (Key.IsEmpty()) return 0;
+	FString Command = FString::Printf(TEXT("DEL %s"), *Key);
+	FRedisReply Reply = ExecCommand(Command);
+	return Reply.Integer;
+}
+
+int32 ITinyRedisInterface::DeleteKeys(const TArray<FString>& Keys)
+{
+	if (Keys.Num() == 0) return 0;
+	FString Command = FString::Printf(TEXT("DEL %s"), *FString::Join(Keys, TEXT(" ")));
+	FRedisReply Reply = ExecCommand(Command);
+	return Reply.Integer;
+}
+
+TArray<FString> ITinyRedisInterface::GetKeys(const FString& Pattern)
+{
+	if (Pattern.IsEmpty())
+	{
+		TArray<FString> Empty;
+		return MoveTemp(Empty);
+	}
+
+	FString Command = FString::Printf(TEXT("KEYS %s"), *Pattern);
+	FRedisReply Reply = ExecCommand(Command);
+	return MoveTemp(Reply.Elements);
+}
+
 ITinyRedisPipelinePtr ITinyRedisInterface::CreatePipeline()
 {
 	UE_LOG(LogRedis, Warning, TEXT("Pipelining is not supported"))

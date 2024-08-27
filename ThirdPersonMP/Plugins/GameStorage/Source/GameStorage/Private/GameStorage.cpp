@@ -15,6 +15,7 @@ void FGameStorageModule::StartupModule()
 	StorageEngineSettings.RedisAddress = TEXT("127.0.0.1");
 	StorageEngineSettings.RedisPort = 6379;
 	StorageEngineSettings.RedisPassword = TEXT("");
+	StorageEngineSettings.Namespace = TEXT("tinylab");
 
 	GameStorageEngine = CreateStorageEngine(StorageEngineSettings);
 }

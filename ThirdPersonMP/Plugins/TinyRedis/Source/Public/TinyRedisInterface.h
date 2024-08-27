@@ -58,6 +58,14 @@ public:
 	virtual bool AsyncExecCommand(const FString& InCommand, const FOnRedisReplyDelegate& OnReply);
 
 public:
+	// 
+	// Key APIs
+	//
+	int32 DeleteKey(const FString& Key);
+	int32 DeleteKeys(const TArray<FString>& Keys);
+	TArray<FString> GetKeys(const FString& Pattern);
+
+public:
 	//
 	// String Get/Set
 	//  [Sync API]

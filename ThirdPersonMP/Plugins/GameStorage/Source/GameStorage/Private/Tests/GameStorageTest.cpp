@@ -15,48 +15,61 @@ bool FGameStorageTest_Basic::RunTest(const FString& Param)
 		// Save
 		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Save ------ "));
 		{
+			// 1
 			auto User = NewObject<UGameStorageTestUser>();
 			User->UserName = TEXT("david");
 			User->UserAge = 100;
 			User->UserSex = EGameStorageTestUserSexType::Male;
+			StorageEngine->SaveEntity(User, FGameEntityStorageKey(TEXT("user"), User->UserName));
 
-			StorageEngine->SaveEntity(User, FGameStorageEntityKey(TEXT("user"), User->UserName));
+			// 2
+			User->UserName = TEXT("jessie");
+			User->UserSex = EGameStorageTestUserSexType::Female;
+			StorageEngine->SaveEntity(User, FGameEntityStorageKey(TEXT("user"), User->UserName));
 		}
 
 		// Load
 		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Load ------ "));
 		{
 			auto User = NewObject<UGameStorageTestUser>();
-			StorageEngine->LoadEntity(User, FGameStorageEntityKey(TEXT("user"), TEXT("david")));
+			StorageEngine->LoadEntity(User, FGameEntityStorageKey(TEXT("user"), TEXT("david")));
 
-			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Name=%s"), *User->UserName);
-			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Age=%d"), User->UserAge);
-			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Sex=%s"), LexToString(User->UserSex));
+			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load1 : User.Name=%s"), *User->UserName);
+			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load1 : User.Age=%d"), User->UserAge);
+			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load1 : User.Sex=%s"), LexToString(User->UserSex));
+		}
+
+		// Load and create
+		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Load and create ------ "));
+		{
+			auto User = StorageEngine->LoadAndCreateEntity<UGameStorageTestUser>(FGameEntityStorageKey(TEXT("user"), TEXT("jessie")));
+			if (User)
+			{
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Name=%s"), *User->UserName);
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Age=%d"), User->UserAge);
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Sex=%s"), LexToString(User->UserSex));
+			}
 		}
 
 		// Load all
 		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- LoadAll ------ "));
 		{
-			TArray<UObject*> Users;
-			StorageEngine->LoadEntities(Users, UGameStorageTestUser::StaticClass(), TEXT("user"));
+			TArray<UGameStorageTestUser*> Users;
+			StorageEngine->LoadEntities<UGameStorageTestUser>(Users, TEXT("user"));
 
-			for (auto Object : Users)
+			for (auto User : Users)
 			{
-				UGameStorageTestUser* User = Cast<UGameStorageTestUser>(Object);
-				if (User)
-				{
-					UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Name=%s"), *User->UserName);
-					UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Age=%d"), User->UserAge);
-					UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Sex=%s"), LexToString(User->UserSex));
-				}
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load3 : User.Name=%s"), *User->UserName);
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load3 : User.Age=%d"), User->UserAge);
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load3 : User.Sex=%s"), LexToString(User->UserSex));
 			}
 		}
 
 		// Delete
-		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Delete ------ "));
-		{
-			StorageEngine->DeleteEntity(FGameStorageEntityKey(TEXT("user"), TEXT("david")));
-		}
+		// UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Delete ------ "));
+		// {
+		// 	StorageEngine->DeleteEntity(FGameEntityStorageKey(TEXT("user"), TEXT("david")));
+		// }
 
 		// StorageEngine->AsyncSaveEntity(User, FNativeOnStorageEntitySaveDelegate::CreateLambda([](IGameStorageEntityPtr Entity, const FString& ErrorMsg)
 		// {
@@ -104,7 +117,7 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 				User->Items.Add(Item);
 			}
 
-			FGameStorageEntityKey EntityKey(TEXT("user"), User->UserName);
+			FGameEntityStorageKey EntityKey(TEXT("user"), User->UserName);
 
 			StorageEngine->SaveEntity(User, EntityKey);
 			StorageEngine->SaveEntityObject(User->Profile, EntityKey, TEXT("profile"));
@@ -118,7 +131,7 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 			auto User = NewObject<UGameStorageTestUser>();
 
 
-			FGameStorageEntityKey EntityKey(TEXT("user"), User->UserName);
+			FGameEntityStorageKey EntityKey(TEXT("user"), User->UserName);
 
 			StorageEngine->LoadEntity(User, EntityKey);
 			StorageEngine->LoadEntityObject(User->Profile, EntityKey, TEXT("profile"));

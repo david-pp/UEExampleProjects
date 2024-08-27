@@ -1,6 +1,5 @@
 #include "GameStorage.h"
 #include "GameStorageEngine.h"
-#include "GameStorageEntity.h"
 #include "GameStorageTestUser.h"
 
 
@@ -87,6 +86,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_EntityObjects, "GameStorage.En
 
 bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 {
+	//
+	// Warning !!!! will crash !!
+	// 
 	auto StorageEngine = IGameStorageEngine::GetDefault();
 	if (StorageEngine)
 	{
@@ -117,12 +119,12 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 				User->Items.Add(Item);
 			}
 
-			FGameEntityStorageKey EntityKey(TEXT("user"), User->UserName);
+			FGameEntityStorageKey EntityKey(TEXT("player"), User->UserName);
 
 			StorageEngine->SaveEntity(User, EntityKey);
-			StorageEngine->SaveEntityObject(User->Profile, EntityKey, TEXT("profile"));
-			StorageEngine->SaveEntityObject(User->Items[0], EntityKey, TEXT("item:1"));
-			StorageEngine->SaveEntityObject(User->Items[1], EntityKey, TEXT("item:2"));
+			// StorageEngine->SaveEntity(User, FGameEntityFieldStorageKey(EntityKey, TEXT("profile")));
+			// StorageEngine->SaveEntity(User->Items[0], FGameEntityFieldStorageKey(EntityKey, TEXT("item:1")));
+			// StorageEngine->SaveEntity(User->Items[0], FGameEntityFieldStorageKey(EntityKey, TEXT("item:2")));
 		}
 
 		// Load
@@ -131,11 +133,11 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 			auto User = NewObject<UGameStorageTestUser>();
 
 
-			FGameEntityStorageKey EntityKey(TEXT("user"), User->UserName);
+			FGameEntityStorageKey EntityKey(TEXT("player"), TEXT("david2"));
 
 			StorageEngine->LoadEntity(User, EntityKey);
-			StorageEngine->LoadEntityObject(User->Profile, EntityKey, TEXT("profile"));
-			StorageEngine->LoadEntityObjects<UGameStorageTestUserItem>(User->Items, EntityKey, TEXT("item"));
+			// StorageEngine->LoadEntityObject(User->Profile, EntityKey, TEXT("profile"));
+			// StorageEngine->LoadEntityObjects<UGameStorageTestUserItem>(User->Items, EntityKey, TEXT("item"));
 
 
 			UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Name=%s"), *User->UserName);
@@ -149,7 +151,7 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 
 			for (auto Item : User->Items)
 			{
-				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Item=%s,%s=d"), *Item->ItemName, Item->ItemCount);
+				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Item=%s,%d"), *Item->ItemName, Item->ItemCount);
 			}
 		}
 	}

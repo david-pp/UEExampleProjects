@@ -41,7 +41,9 @@ public class GameStorage : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"TinyRedis"
+				"TinyRedis",
+				"Json",
+				"JsonUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 		);

@@ -19,6 +19,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FNativeOnStorageEntitySave, IGameStorageEnt
 typedef FNativeOnStorageEntitySave::FDelegate FNativeOnStorageEntitySaveDelegate;
 
 
+
 USTRUCT(BlueprintType)
 struct FGameStorageEngineSettings
 {
@@ -29,11 +30,15 @@ struct FGameStorageEngineSettings
 	FString Namespace;
 
 	UPROPERTY()
+	bool bEnableRedisBackend = false;
+	UPROPERTY()
 	FString RedisAddress;
 	UPROPERTY()
 	int RedisPort;
 	UPROPERTY()
 	FString RedisPassword;
+	UPROPERTY()
+	bool bSaveEntityAsHash = false;
 };
 
 
@@ -50,9 +55,9 @@ struct FGameEntityStorageKey
 	{
 	}
 
-	// FGameEntityStorageKey(const FString& InType) : Type(InType), Id(TEXT("*"))
-	// {
-	// }
+	virtual ~FGameEntityStorageKey()
+	{
+	}
 
 	bool IsValid() const
 	{
@@ -64,10 +69,41 @@ struct FGameEntityStorageKey
 		return FString::Printf(TEXT("%s:%s"), *Type, *Id);
 	}
 
+	virtual FString GetFieldName() const
+	{
+		return TEXT("");
+	}
+
 	UPROPERTY()
 	FString Type;
 	UPROPERTY()
 	FString Id;
+};
+
+USTRUCT()
+struct FGameEntityFieldStorageKey : public FGameEntityStorageKey
+{
+	GENERATED_BODY()
+
+	FGameEntityFieldStorageKey()
+	{
+	}
+
+	FGameEntityFieldStorageKey(const FString& InType, const FString& InId, const FString& InField) : FGameEntityStorageKey(InType, InId), Field(InField)
+	{
+	}
+
+	FGameEntityFieldStorageKey(const FGameEntityStorageKey& EntityKey, const FString& EntityField) : FGameEntityStorageKey(EntityKey.Type, EntityKey.Id), Field(EntityField)
+	{
+	}
+
+	virtual FString GetFieldName() const override
+	{
+		return Field;
+	}
+
+	UPROPERTY()
+	FString Field;
 };
 
 
@@ -141,27 +177,4 @@ public:
 
 	virtual bool AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave = FNativeOnStorageEntitySaveDelegate()) = 0;
 	virtual bool AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad = FNativeOnStorageEntityLoadDelegate()) = 0;
-
-
-	virtual bool SaveEntityObject(UObject* EntityObject, const FGameEntityStorageKey& EntityKey, const FString& EntityObjName) { return false; }
-	virtual bool LoadEntityObject(UObject* EntityObject, const FGameEntityStorageKey& EntityKey, const FString& EntityObjName) { return false; }
-	virtual bool LoadEntityObjects(TArray<UObject*>& EntityObjects, TSubclassOf<UObject> EntityObjectClass, const FGameEntityStorageKey& EntityKey, const FString& EntityObjName) { return false; }
-	virtual bool DeleteEntityObject(const FGameEntityStorageKey& EntityKey, const FString& EntityObjName) { return false; }
-
-
-	template <typename EntityObjectType>
-	bool LoadEntityObjects(TArray<EntityObjectType*>& EntityObjects, const FGameEntityStorageKey& EntityKey, const FString& EntityObjName)
-	{
-		TArray<UObject*> Objects;
-		bool Result = LoadEntityObjects(Objects, EntityObjectType::StaticClass(), EntityKey, EntityObjName);
-		for (auto Object : Objects)
-		{
-			EntityObjectType* ResultObject = Cast<EntityObjectType>(Object);
-			if (ResultObject)
-			{
-				EntityObjects.Add(ResultObject);
-			}
-		}
-		return Result;
-	}
 };

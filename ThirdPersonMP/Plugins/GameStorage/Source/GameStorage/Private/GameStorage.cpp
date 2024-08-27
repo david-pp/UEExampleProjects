@@ -3,7 +3,7 @@
 #include "GameStorage.h"
 
 #include "GameStorageRedis.h"
-#include "GameStorageSave.h"
+#include "GameStorageFile.h"
 
 DEFINE_LOG_CATEGORY(LogGameStorage);
 
@@ -13,13 +13,14 @@ void FGameStorageModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 
-	StorageEngineSettings.bEnableRedisBackend = false;
+	StorageEngineSettings.Namespace = TEXT("tinylab");
+	StorageEngineSettings.SerializerType = EGameStorageSerializerType::Sav;
+
+	StorageEngineSettings.bEnableRedisBackend = true;
 	StorageEngineSettings.RedisAddress = TEXT("127.0.0.1");
 	StorageEngineSettings.RedisPort = 6379;
 	StorageEngineSettings.RedisPassword = TEXT("");
-	StorageEngineSettings.Namespace = TEXT("tinylab");
 	StorageEngineSettings.bSaveEntityAsHash = false;
-
 	GameStorageEngine = CreateStorageEngine(StorageEngineSettings);
 }
 
@@ -44,7 +45,7 @@ IGameStorageEnginePtr FGameStorageModule::CreateStorageEngine(const FGameStorage
 	}
 	else // file system backend
 	{
-		IGameStorageEnginePtr StorageEngine = MakeShared<FGameStorageSave>(Settings);
+		IGameStorageEnginePtr StorageEngine = MakeShared<FGameStorageFile>(Settings);
 		return StorageEngine;
 	}
 }

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameStorageTypes.h"
 #include "UObject/Interface.h"
 #include "GameStorageEntity.h"
 #include "GameFramework/SaveGame.h"
@@ -19,94 +20,6 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FNativeOnStorageEntitySave, IGameStorageEnt
 typedef FNativeOnStorageEntitySave::FDelegate FNativeOnStorageEntitySaveDelegate;
 
 
-
-USTRUCT(BlueprintType)
-struct FGameStorageEngineSettings
-{
-	GENERATED_BODY()
-
-	/** Game Storage Namespace: default is empty */
-	UPROPERTY()
-	FString Namespace;
-
-	UPROPERTY()
-	bool bEnableRedisBackend = false;
-	UPROPERTY()
-	FString RedisAddress;
-	UPROPERTY()
-	int RedisPort;
-	UPROPERTY()
-	FString RedisPassword;
-	UPROPERTY()
-	bool bSaveEntityAsHash = false;
-};
-
-
-USTRUCT()
-struct FGameEntityStorageKey
-{
-	GENERATED_BODY()
-
-	FGameEntityStorageKey()
-	{
-	}
-
-	FGameEntityStorageKey(const FString& InType, const FString& InId) : Type(InType), Id(InId)
-	{
-	}
-
-	virtual ~FGameEntityStorageKey()
-	{
-	}
-
-	bool IsValid() const
-	{
-		return Type.Len() > 0 && Id.Len() > 0;
-	}
-
-	FString ToString() const
-	{
-		return FString::Printf(TEXT("%s:%s"), *Type, *Id);
-	}
-
-	virtual FString GetFieldName() const
-	{
-		return TEXT("");
-	}
-
-	UPROPERTY()
-	FString Type;
-	UPROPERTY()
-	FString Id;
-};
-
-USTRUCT()
-struct FGameEntityFieldStorageKey : public FGameEntityStorageKey
-{
-	GENERATED_BODY()
-
-	FGameEntityFieldStorageKey()
-	{
-	}
-
-	FGameEntityFieldStorageKey(const FString& InType, const FString& InId, const FString& InField) : FGameEntityStorageKey(InType, InId), Field(InField)
-	{
-	}
-
-	FGameEntityFieldStorageKey(const FGameEntityStorageKey& EntityKey, const FString& EntityField) : FGameEntityStorageKey(EntityKey.Type, EntityKey.Id), Field(EntityField)
-	{
-	}
-
-	virtual FString GetFieldName() const override
-	{
-		return Field;
-	}
-
-	UPROPERTY()
-	FString Field;
-};
-
-
 UCLASS()
 class UGameStorageEntity : public USaveGame
 {
@@ -114,7 +27,6 @@ class UGameStorageEntity : public USaveGame
 
 public:
 };
-
 
 // This class does not need to be modified.
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))

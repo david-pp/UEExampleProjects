@@ -1,10 +1,77 @@
-﻿#include "GameStorageSerialization.h"
+﻿#include "GameStorageSerializer.h"
 
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 
-bool FGameStorageSerialization::SaveObjectToJson(UObject* Object, FBufferArchive& Archive)
+IGameStorageSerializerPtr IGameStorageSerializer::Create(EGameStorageSerializerType SerializerType)
+{
+	switch (SerializerType)
+	{
+	case EGameStorageSerializerType::None:
+		{
+			return MakeShared<FGameStorageSerializer_None>();
+		}
+	case EGameStorageSerializerType::Json:
+		{
+			return MakeShared<FGameStorageSerializer_Json>();
+		}
+	case EGameStorageSerializerType::Sav:
+		{
+			return MakeShared<FGameStorageSerializer_SaveGame>();
+		}
+	}
+	return nullptr;
+}
+
+IGameStorageSerializer::~IGameStorageSerializer()
+{
+}
+
+// ------------------ Do nothing  ---------
+
+bool FGameStorageSerializer_None::SaveObject(UObject* Object, TArray<uint8>& OutData)
+{
+	return true;
+}
+
+bool FGameStorageSerializer_None::LoadObject(UObject* Object, const TArray<uint8>& InData)
+{
+	return true;
+}
+
+// ------------------ Json ---------
+
+bool FGameStorageSerializer_Json::SaveObject(UObject* Object, TArray<uint8>& OutData)
+{
+	if (!Object) return false;
+
+	FMemoryWriter Archive(OutData, true);
+	FJsonArchiveOutputFormatter Formatter(Archive);
+	FStructuredArchive StructuredArchive(Formatter);
+	FStructuredArchiveRecord RootRecord = StructuredArchive.Open().EnterRecord();
+	Object->Serialize(RootRecord);
+	StructuredArchive.Close();
+
+	return true;
+}
+
+bool FGameStorageSerializer_Json::LoadObject(UObject* Object, const TArray<uint8>& InData)
+{
+	if (!Object) return false;
+
+	FMemoryReader BinAr(InData, true);
+	FJsonArchiveInputFormatter Formatter(BinAr);
+	FStructuredArchive StructuredArchive(Formatter);
+	Object->Serialize(StructuredArchive.Open().EnterRecord());
+	StructuredArchive.Close();
+
+	return true;
+}
+
+
+// TODO....
+bool FGameStorageSerializer::SaveObjectToJson(UObject* Object, FBufferArchive& Archive)
 {
 	if (!Object) return false;
 
@@ -17,7 +84,7 @@ bool FGameStorageSerialization::SaveObjectToJson(UObject* Object, FBufferArchive
 	return true;
 }
 
-bool FGameStorageSerialization::LoadObjectFromJson(UObject* Object, const TArray<uint8>& JsonBytes)
+bool FGameStorageSerializer::LoadObjectFromJson(UObject* Object, const TArray<uint8>& JsonBytes)
 {
 	if (!Object) return false;
 
@@ -161,7 +228,7 @@ void FSaveObjectHeader::Write(FMemoryWriter& MemoryWriter)
 	MemoryWriter << SaveGameClassName;
 }
 
-bool FGameStorageSerialization::SaveObjectToSav(UObject* SaveGameObject, TArray<uint8>& OutSaveData)
+bool FGameStorageSerializer::SaveObjectToSav(UObject* SaveGameObject, TArray<uint8>& OutSaveData)
 {
 	if (SaveGameObject)
 	{
@@ -179,7 +246,7 @@ bool FGameStorageSerialization::SaveObjectToSav(UObject* SaveGameObject, TArray<
 	return false;
 }
 
-bool FGameStorageSerialization::LoadGameFromSav(UObject* Object, const TArray<uint8>& InSaveData)
+bool FGameStorageSerializer::LoadGameFromSav(UObject* Object, const TArray<uint8>& InSaveData)
 {
 	if (InSaveData.Num() == 0)
 	{
@@ -191,6 +258,41 @@ bool FGameStorageSerialization::LoadGameFromSav(UObject* Object, const TArray<ui
 	FSaveObjectHeader SaveHeader;
 	SaveHeader.Read(MemoryReader);
 
+	FObjectAndNameAsStringProxyArchive Ar(MemoryReader, true);
+	Object->Serialize(Ar);
+	return true;
+}
+
+// ------------------ Save Game ---------
+
+bool FGameStorageSerializer_SaveGame::SaveObject(UObject* Object, TArray<uint8>& OutData)
+{
+	if (!Object) return false;
+
+	FMemoryWriter MemoryWriter(OutData, true);
+
+	// Save header info
+	FSaveObjectHeader SaveHeader(Object->GetClass());
+	SaveHeader.Write(MemoryWriter);
+
+	// Then save the object state, replacing object refs and names with strings
+	FObjectAndNameAsStringProxyArchive Ar(MemoryWriter, false);
+	Object->Serialize(Ar);
+	return true;
+}
+
+bool FGameStorageSerializer_SaveGame::LoadObject(UObject* Object, const TArray<uint8>& InSaveData)
+{
+	if (!Object) return false;
+	if (InSaveData.Num() == 0) return false;
+
+	FMemoryReader MemoryReader(InSaveData, true);
+
+	// Load header info
+	FSaveObjectHeader SaveHeader;
+	SaveHeader.Read(MemoryReader);
+
+	// load object
 	FObjectAndNameAsStringProxyArchive Ar(MemoryReader, true);
 	Object->Serialize(Ar);
 	return true;

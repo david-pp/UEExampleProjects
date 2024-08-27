@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameStorageEngine.h"
+#include "GameStorageSerializer.h"
 #include "TinyRedisInterface.h"
 
 /**
@@ -19,6 +20,10 @@ public:
 	void Shutdown();
 
 	FString MakeRedisEntityKey(const FGameEntityStorageKey& EntityKey) const;
+
+protected:
+	bool SaveEntityToRedis(UObject* Entity, const FString& Key);
+	bool LoadEntityFromRedis(UObject* Entity, const FString& Key);
 
 public:
 	virtual FString GetNamespace() const override
@@ -36,6 +41,7 @@ public:
 
 protected:
 	FGameStorageEngineSettings Settings;
+	IGameStorageSerializerPtr Serializer;
 
 	ITinyRedisPtr TinyRedis;
 };

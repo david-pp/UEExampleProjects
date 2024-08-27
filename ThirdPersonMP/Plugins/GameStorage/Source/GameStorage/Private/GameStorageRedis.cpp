@@ -4,13 +4,13 @@
 #include "GameStorageRedis.h"
 
 #include "GameStorage.h"
-#include "GameStorageSerialization.h"
+#include "GameStorageSerializer.h"
 #include "JsonObjectConverter.h"
-#include "ShaderCompiler.h"
 #include "TinyRedisModule.h"
 
 FGameStorageRedis::FGameStorageRedis(const FGameStorageEngineSettings& InSettings) : Settings(InSettings)
 {
+	Serializer = IGameStorageSerializer::Create(Settings.SerializerType);
 	Startup();
 }
 
@@ -66,29 +66,21 @@ FString FGameStorageRedis::MakeRedisEntityKey(const FGameEntityStorageKey& Entit
 	}
 }
 
-bool FGameStorageRedis::SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageRedis::SaveEntityToRedis(UObject* Entity, const FString& Key)
 {
-	if (!TinyRedis) return false;
-	if (!EntityKey.IsValid())
-	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid key:%s"), *EntityKey.ToString());
-		return false;
-	}
+	if (!Entity || Key.IsEmpty()) return false;
 
-	FString Key = MakeRedisEntityKey(EntityKey);
-
+	// Mapping entity to redis hash
 	if (Settings.bSaveEntityAsHash)
 	{
 		ITinyRedisPipelinePtr Pipeline = TinyRedis->CreatePipeline();
-		// Pipeline start
 		Pipeline->Start();
-		// pipeline the hash set command
 		for (TFieldIterator<FProperty> It(Entity->GetClass()); It; ++It)
 		{
 			FProperty* Property = *It;
 			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Entity);
 
-			// Property -> Json String
+			// Property -> Json
 			FString JsonString;
 			{
 				TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
@@ -99,37 +91,37 @@ bool FGameStorageRedis::SaveEntity(UObject* Entity, const FGameEntityStorageKey&
 
 			Pipeline->Command<TinyRedis::HashSet>(Key, Property->GetName().ToLower(), JsonString);
 		}
-		// sync commit
 		FRedisPipelineReply Reply = Pipeline->Commit();
 		return !Reply.HasError();
 	}
+	// Mapping entity to redis string
 	else
 	{
-		FBufferArchive ValueBuffer;
-		FGameStorageSerialization::SaveObjectToJson(Entity, ValueBuffer);
+		TArray<uint8> SaveData;
+		if (!Serializer->SaveObject(Entity, SaveData))
+		{
+			UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToRedis - seriaize failed: %s"), *Key);
+			return false;
+		}
 
-		FRedisReply Reply = TinyRedis->SetBin(Key, ValueBuffer);
+		FRedisReply Reply = TinyRedis->SetBin(Key, SaveData);
+		if (Reply.HasError())
+		{
+			UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToRedis - redis error:%s"), *Reply.ToDebugString());
+			return false;
+		}
+
 		return Reply.IsStatusOK();
 	}
 }
 
-bool FGameStorageRedis::LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageRedis::LoadEntityFromRedis(UObject* Entity, const FString& Key)
 {
-	if (!TinyRedis) return false;
-	if (!EntityKey.IsValid())
-	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid key:%s"), *EntityKey.ToString());
-		return false;
-	}
-
-	FString Key = MakeRedisEntityKey(EntityKey);
-
+	// Mapping entity to redis hash
 	if (Settings.bSaveEntityAsHash)
 	{
 		ITinyRedisPipelinePtr Pipeline = TinyRedis->CreatePipeline();
-		// Pipeline start
 		Pipeline->Start();
-		// pipeline the hash get command
 		for (TFieldIterator<FProperty> It(Entity->GetClass()); It; ++It)
 		{
 			FProperty* Property = *It;
@@ -137,6 +129,7 @@ bool FGameStorageRedis::LoadEntity(UObject* Entity, const FGameEntityStorageKey&
 
 			Pipeline->Command<TinyRedis::HashGet>(Key, Property->GetName().ToLower())->OnReply.BindLambda([Property, PropertyValue](const FRedisReply& Reply)
 			{
+				// Json -> Property
 				FString JsonString = Reply.String;
 				TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
 				TSharedPtr<FJsonObject> JsonObject;
@@ -151,28 +144,59 @@ bool FGameStorageRedis::LoadEntity(UObject* Entity, const FGameEntityStorageKey&
 				}
 			});
 		}
-		// sync commit
 		FRedisPipelineReply Reply = Pipeline->Commit();
 		return !Reply.HasError();
 	}
+	// Mapping entity to redis string
 	else
 	{
 		FRedisReply Reply = TinyRedis->GetBin(Key);
 		if (Reply.HasError())
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - redis error:%s"), *Reply.ToDebugString());
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - redis error:%s"), *Reply.ToDebugString());
 			return false;
 		}
 
 		if (Reply.IsNil())
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - not exist: %s"), *Key);
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - not exist: %s"), *Key);
 			return false;
 		}
 
-		FGameStorageSerialization::LoadObjectFromJson(Entity, Reply.BinArray);
+		if (!Serializer->LoadObject(Entity, Reply.BinArray))
+		{
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - seriaize failed: %s"), *Key);
+			return false;
+		}
+
 		return true;
 	}
+}
+
+bool FGameStorageRedis::SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+{
+	if (!TinyRedis) return false;
+	if (!EntityKey.IsValid())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid key:%s"), *EntityKey.ToString());
+		return false;
+	}
+
+	FString Key = MakeRedisEntityKey(EntityKey);
+	return SaveEntityToRedis(Entity, Key);
+}
+
+bool FGameStorageRedis::LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+{
+	if (!TinyRedis) return false;
+	if (!EntityKey.IsValid())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid key:%s"), *EntityKey.ToString());
+		return false;
+	}
+
+	FString Key = MakeRedisEntityKey(EntityKey);
+	return LoadEntityFromRedis(Entity, Key);
 }
 
 bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer)
@@ -184,53 +208,10 @@ bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UOb
 	TArray<FString> Keys = TinyRedis->GetKeys(KeyPattern);
 	for (auto& Key : Keys)
 	{
-		if (Settings.bSaveEntityAsHash) // as Hash
+		UObject* Entity = NewObject<UObject>(Outer, EntityClass);
+		if (LoadEntityFromRedis(Entity, Key))
 		{
-			UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-			ITinyRedisPipelinePtr Pipeline = TinyRedis->CreatePipeline();
-			// Pipeline start
-			Pipeline->Start();
-			// pipeline the hash get command
-			for (TFieldIterator<FProperty> It(EntityClass); It; ++It)
-			{
-				FProperty* Property = *It;
-				void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Entity);
-
-				Pipeline->Command<TinyRedis::HashGet>(Key, Property->GetName().ToLower())->OnReply.BindLambda([Property, PropertyValue](const FRedisReply& Reply)
-				{
-					FString JsonString = Reply.String;
-					TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
-					TSharedPtr<FJsonObject> JsonObject;
-					FJsonSerializer::Deserialize(JsonReader, JsonObject);
-					if (JsonObject)
-					{
-						TSharedPtr<FJsonValue> JsonValue = JsonObject->TryGetField(Property->GetName());
-						if (JsonValue)
-						{
-							FJsonObjectConverter::JsonValueToUProperty(JsonValue, Property, PropertyValue);
-						}
-					}
-				});
-			}
-			// sync commit
-			FRedisPipelineReply Reply = Pipeline->Commit();
-			if (!Reply.HasError())
-			{
-				Entities.Add(Entity);
-			}
-		}
-		else // as string
-		{
-			FRedisReply Reply = TinyRedis->GetBin(Key);
-			if (Reply.IsValid())
-			{
-				UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-				if (Entity)
-				{
-					FGameStorageSerialization::LoadObjectFromJson(Entity, Reply.BinArray);
-					Entities.Add(Entity);
-				}
-			}
+			Entities.Add(Entity);
 		}
 	}
 

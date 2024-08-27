@@ -4,18 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "GameStorageEngine.h"
+#include "GameStorageSerializer.h"
 
 /**
  * 
  */
-class GAMESTORAGE_API FGameStorageSave : public IGameStorageEngine
+class GAMESTORAGE_API FGameStorageFile : public IGameStorageEngine
 {
 public:
-	FGameStorageSave(const FGameStorageEngineSettings& InSettings);
-	virtual ~FGameStorageSave() override;
+	FGameStorageFile(const FGameStorageEngineSettings& InSettings);
+	virtual ~FGameStorageFile() override;
 
 	FString GetRootDirPath() const;
 	FString MakeEntityFilePath(const FGameEntityStorageKey& EntityKey) const;
+
+protected:
+	bool SaveEntityToFile(UObject* Entity, const FString& FilePath);
+	bool LoadEntityFromFile(UObject* Entity, const FString& FilePath);
 
 public:
 	virtual FString GetNamespace() const override
@@ -33,4 +38,5 @@ public:
 
 protected:
 	FGameStorageEngineSettings Settings;
+	IGameStorageSerializerPtr Serializer;
 };

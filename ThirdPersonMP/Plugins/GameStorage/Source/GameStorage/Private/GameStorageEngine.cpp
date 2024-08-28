@@ -12,12 +12,43 @@ IGameStorageEnginePtr IGameStorageEngine::GetDefault()
 }
 
 
-UObject* IGameStorageEngine::LoadAndCreateObject(const FString& Path, TSubclassOf<UObject> EntityClass, UObject* Outer)
+UObject* IGameStorageEngine::LoadNewObject(const FString& Path, TSubclassOf<UObject> Class, UObject* Outer)
 {
-	UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-	if (Entity && LoadObject(Entity, Path))
+	UObject* Object = NewObject<UObject>(Outer, Class);
+	if (Object && LoadObject(Object, Path))
 	{
-		return Entity;
+		return Object;
 	}
 	return nullptr;
+}
+
+bool IGameStorageEngine::AsyncSaveObject(UObject* Object, const FString& Path, const FOnStorageObjectSaveDelegate& OnComplete)
+{
+	return false;
+}
+
+bool IGameStorageEngine::AsyncLoadObject(UObject* Object, const FString& Path, const FOnStorageObjectLoadDelegate& OnComplete)
+{
+	return false;
+}
+
+bool IGameStorageEngine::AsyncLoadNewObject(const FString& Path, TSubclassOf<UObject> Class, UObject* Outer, const FOnStorageObjectLoadDelegate& OnComplete)
+{
+	UObject* Object = NewObject<UObject>(Outer, Class);
+	if (Object)
+	{
+		AsyncLoadObject(Object, Path, OnComplete);
+	}
+
+	return false;
+}
+
+bool IGameStorageEngine::AsyncLoadObjects(TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer, const FOnStorageObjectsLoadDelegate& OnComplete)
+{
+	return false;
+}
+
+bool IGameStorageEngine::AsyncDeleteObject(const FString& Path, const FOnStorageObjectsDeleteDelegate& OnComplete)
+{
+	return false;
 }

@@ -3,9 +3,9 @@
 #include "GameStoragePath.h"
 #include "GameStorageTestUser.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_EntityPath, "GameStorage.EntityPath", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_Path, "GameStorage.Path", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGameStorageTest_EntityPath::RunTest(const FString& Param)
+bool FGameStorageTest_Path::RunTest(const FString& Param)
 {
 	auto StorageEngine = IGameStorageEngine::GetDefault();
 	if (!StorageEngine) return false;
@@ -61,9 +61,9 @@ bool FGameStorageTest_EntityPath::RunTest(const FString& Param)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_EntityBasic, "GameStorage.EntityBasic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_ObjectBasic, "GameStorage.ObjectBasic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGameStorageTest_EntityBasic::RunTest(const FString& Param)
+bool FGameStorageTest_ObjectBasic::RunTest(const FString& Param)
 {
 	auto StorageEngine = IGameStorageEngine::GetDefault();
 	if (StorageEngine)
@@ -102,7 +102,7 @@ bool FGameStorageTest_EntityBasic::RunTest(const FString& Param)
 		// Load and create
 		UE_LOG(LogGameStorage, Log, TEXT("Basic --------- Load and create ------ "));
 		{
-			auto User = StorageEngine->LoadAndCreateObject<UGameStorageTestUser>(TEXT("user:jessie"));
+			auto User = StorageEngine->LoadNewObject<UGameStorageTestUser>(TEXT("user:jessie"));
 			if (User)
 			{
 				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load2 : User.Name=%s"), *User->UserName);
@@ -136,9 +136,9 @@ bool FGameStorageTest_EntityBasic::RunTest(const FString& Param)
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_EntityObjects, "GameStorage.EntityObjects", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_ObjectAdvanced, "GameStorage.ObjectAdvanced", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
+bool FGameStorageTest_ObjectAdvanced::RunTest(const FString& Param)
 {
 	auto StorageEngine = IGameStorageEngine::GetDefault();
 	if (StorageEngine)
@@ -182,7 +182,7 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 		UE_LOG(LogGameStorage, Log, TEXT("--------- Load Profile & Items ------ "));
 		{
 			auto User = NewObject<UGameStorageTestUser>();
-			User->Profile = StorageEngine->LoadAndCreateObject<UGameStorageTestUserProfile>(TEXT("player:david2/profile"));
+			User->Profile = StorageEngine->LoadNewObject<UGameStorageTestUserProfile>(TEXT("player:david2/profile"));
 			StorageEngine->LoadObjects(User->Items, TEXT("player:david2/item:*"));
 			if (User->Profile)
 			{
@@ -213,6 +213,109 @@ bool FGameStorageTest_EntityObjects::RunTest(const FString& Param)
 				UE_LOG(LogGameStorage, Log, TEXT("Basic - Load : User.Item=%s,%d"), *Item->ItemName, Item->ItemCount);
 			}
 		}
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameStorageTest_ObjectAsync, "GameStorage.ObjectAsync", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameStorageTest_ObjectAsync::RunTest(const FString& Param)
+{
+	FGameStorageEngineSettings Settings;
+	Settings.Namespace = TEXT("async");
+	Settings.SerializerType = EGameStorageSerializerType::Sav;
+
+	Settings.bEnableRedisBackend = true;
+	Settings.RedisAddress = TEXT("127.0.0.1");
+	Settings.RedisPort = 6379;
+	Settings.RedisPassword = TEXT("");
+	Settings.bSaveEntityAsHash = false;
+	auto StorageEngine = FGameStorageModule::Get()->CreateStorageEngine(Settings);
+
+	if (StorageEngine)
+	{
+		// Save
+		UE_LOG(LogGameStorage, Log, TEXT("Async --------- Save ------ "));
+		{
+			// 1
+			auto User = NewObject<UGameStorageTestUser>();
+			User->UserName = TEXT("david");
+			User->UserAge = 100;
+			User->UserSex = EGameStorageTestUserSexType::Male;
+			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+
+			// 2
+			User->UserName = TEXT("jessie");
+			User->UserSex = EGameStorageTestUserSexType::Female;
+			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+
+			// 3 (delete)
+			User->UserName = TEXT("xxxx");
+			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+
+
+			FPlatformProcess::Sleep(0.1);
+		}
+
+		// Load
+		UE_LOG(LogGameStorage, Log, TEXT("Async --------- Load ------ "));
+		{
+			auto User = NewObject<UGameStorageTestUser>();
+			User->AddToRoot();
+			StorageEngine->AsyncLoadObject(User, TEXT("user:david"), FOnStorageObjectLoadDelegate::CreateLambda([User](UObject* Object, const FString& ErrorMsg)
+			{
+				UE_LOG(LogGameStorage, Log, TEXT("Async - Load : User.Name=%s"), *User->UserName);
+				UE_LOG(LogGameStorage, Log, TEXT("Async - Load : User.Age=%d"), User->UserAge);
+				UE_LOG(LogGameStorage, Log, TEXT("Async - Load : User.Sex=%s"), LexToString(User->UserSex));
+				User->RemoveFromRoot();
+			}));
+		}
+
+		// Load and create
+		UE_LOG(LogGameStorage, Log, TEXT("Async --------- Load and create ------ "));
+		{
+			StorageEngine->AsyncLoadNewObject(TEXT("user:jessie"), UGameStorageTestUser::StaticClass(), GetTransientPackage(), FOnStorageObjectLoadDelegate::CreateLambda([](UObject* Object, const FString& ErrorMsg)
+			{
+				UGameStorageTestUser* User = Cast<UGameStorageTestUser>(Object);
+				if (User)
+				{
+					UE_LOG(LogGameStorage, Log, TEXT("Async - LoadNew : User.Name=%s"), *User->UserName);
+					UE_LOG(LogGameStorage, Log, TEXT("Async - LoadNew : User.Age=%d"), User->UserAge);
+					UE_LOG(LogGameStorage, Log, TEXT("Async - LoadNew : User.Sex=%s"), LexToString(User->UserSex));
+				}
+			}));
+		}
+
+		// Delete
+		UE_LOG(LogGameStorage, Log, TEXT("Async --------- Delete  ------ "));
+		{
+			StorageEngine->AsyncDeleteObject(TEXT("user:xxxx"));
+		}
+
+		// Load all
+		UE_LOG(LogGameStorage, Log, TEXT("Async --------- LoadAll ------ "));
+		{
+			TArray<UGameStorageTestUser*> Users;
+			FOnStorageObjectsLoadDelegate OnLoaded;
+			OnLoaded.BindLambda([](const TArray<UObject*>& Objects, const FString& ErrorMsg)
+			{
+				for (auto Object : Objects)
+				{
+					UGameStorageTestUser* User = Cast<UGameStorageTestUser>(Object);
+					if (User)
+					{
+						UE_LOG(LogGameStorage, Log, TEXT("Async - LoadAll : User.Name=%s"), *User->UserName);
+						UE_LOG(LogGameStorage, Log, TEXT("Async - LoadAll : User.Age=%d"), User->UserAge);
+						UE_LOG(LogGameStorage, Log, TEXT("Async - LoadAll : User.Sex=%s"), LexToString(User->UserSex));
+					}
+				}
+			});
+
+			StorageEngine->AsyncLoadObjects(UGameStorageTestUser::StaticClass(), TEXT("user:*"), GetTransientPackage(), OnLoaded);
+		}
+
+		FPlatformProcess::Sleep(0.1);
 	}
 
 	return true;

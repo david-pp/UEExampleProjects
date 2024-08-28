@@ -215,12 +215,4 @@ bool FGameStorageFile::LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObjec
 	return true;
 }
 
-bool FGameStorageFile::AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave)
-{
-	return true;
-}
 
-bool FGameStorageFile::AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad)
-{
-	return true;
-}

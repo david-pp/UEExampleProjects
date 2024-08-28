@@ -237,13 +237,3 @@ bool FGameStorageRedis::DeleteObject(const FString& Path)
 	return TinyRedis->DeleteKey(Key) > 0;
 }
 
-
-bool FGameStorageRedis::AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave)
-{
-	return true;
-}
-
-bool FGameStorageRedis::AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad)
-{
-	return true;
-}

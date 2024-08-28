@@ -16,7 +16,7 @@ void FGameStorageModule::StartupModule()
 	StorageEngineSettings.Namespace = TEXT("tinylab");
 	StorageEngineSettings.SerializerType = EGameStorageSerializerType::Sav;
 
-	StorageEngineSettings.bEnableRedisBackend = true;
+	StorageEngineSettings.bEnableRedisBackend = false;
 	StorageEngineSettings.RedisAddress = TEXT("127.0.0.1");
 	StorageEngineSettings.RedisPort = 6379;
 	StorageEngineSettings.RedisPassword = TEXT("");

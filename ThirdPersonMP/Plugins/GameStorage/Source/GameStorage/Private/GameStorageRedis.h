@@ -31,10 +31,10 @@ public:
 		return Settings.Namespace;
 	}
 
-	virtual bool SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) override;
-	virtual bool LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) override;
-	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer) override;
-	virtual bool DeleteEntity(const FGameEntityStorageKey& EntityKey) override;
+	virtual bool SaveEntity(UObject* Entity, const FString& Path) override;
+	virtual bool LoadEntity(UObject* Entity, const FString& Path) override;
+	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer) override;
+	virtual bool DeleteEntity(const FString& Path) override;
 
 	virtual bool AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave) override;
 	virtual bool AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad) override;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "GameStorageEngine.h"
+#include "GameStorageTypes.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGameStorage, Log, All);
 

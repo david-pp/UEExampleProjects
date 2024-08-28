@@ -28,6 +28,20 @@ FString FGameStorageFile::GetRootDirPath() const
 	}
 }
 
+FString FGameStorageFile::MakeEntityFilePath(const FGameEntityStoragePath& StoragePath) const
+{
+	if (Settings.SerializerType == EGameStorageSerializerType::Json)
+	{
+		return GetRootDirPath() / StoragePath.ToFilePath(TEXT("json"));
+	}
+	else if (Settings.SerializerType == EGameStorageSerializerType::Sav)
+	{
+		return GetRootDirPath() / StoragePath.ToFilePath(TEXT("sav"));
+	}
+
+	return TEXT("");
+}
+
 FString FGameStorageFile::MakeEntityFilePath(const FGameEntityStorageKey& EntityKey) const
 {
 	if (Settings.SerializerType == EGameStorageSerializerType::Json)
@@ -84,35 +98,51 @@ bool FGameStorageFile::LoadEntityFromFile(UObject* Entity, const FString& FilePa
 	return true;
 }
 
-bool FGameStorageFile::SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageFile::SaveEntity(UObject* Entity, const FString& Path)
 {
-	if (!EntityKey.IsValid())
+	FGameEntityStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid key:%s"), *EntityKey.ToString());
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid path:%s"), *Path);
 		return false;
 	}
 
-	const FString EntityFilePath = MakeEntityFilePath(EntityKey);
+	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
 	if (EntityFilePath.IsEmpty()) return false;
 
 	return SaveEntityToFile(Entity, EntityFilePath);
 }
 
-bool FGameStorageFile::LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageFile::LoadEntity(UObject* Entity, const FString& Path)
 {
-	if (!EntityKey.IsValid())
+	FGameEntityStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid key:%s"), *EntityKey.ToString());
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
 		return false;
 	}
 
-	const FString EntityFilePath = MakeEntityFilePath(EntityKey);
+	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
 	if (EntityFilePath.IsEmpty()) return false;
 
 	return LoadEntityFromFile(Entity, EntityFilePath);
 }
 
-bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer)
+bool FGameStorageFile::DeleteEntity(const FString& Path)
+{
+	FGameEntityStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
+		return false;
+	}
+
+	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
+	if (EntityFilePath.IsEmpty()) return false;
+	return IFileManager::Get().Delete(*EntityFilePath, true, false, true);
+}
+
+bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer)
 {
 	if (Settings.SerializerType == EGameStorageSerializerType::None)
 	{
@@ -120,7 +150,32 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 		return true;
 	}
 
-	FString EntityDir = GetRootDirPath() / EntityType;
+	// Entity Directory & Type
+	//  - PathPattern : key1/key2/.../type:*
+	FString EntityDir;
+	FString EntityType;
+	{
+		// entity file directory is ? 
+		FString DirectorPattern = PathPattern;
+		DirectorPattern.RemoveFromEnd(TEXT(":*"));
+		FGameEntityStoragePath StoragePath(DirectorPattern);
+		EntityDir = GetRootDirPath() / StoragePath.ToFilePath();
+
+		// entity type is ?
+		TArray<FGameEntityStorageKey> Keys;
+		StoragePath.ParseEntityKeys(Keys);
+		if (Keys.Num() > 0)
+		{
+			EntityType = Keys.Last().Type;
+		}
+	}
+
+	if (EntityDir.IsEmpty() || EntityType.IsEmpty())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntities - invalid path pattern:%s"), *PathPattern);
+		return false;
+	}
+
 	IFileManager::Get().IterateDirectory(*EntityDir, [this, &Entities, EntityClass, EntityType, Outer](const TCHAR* Pathname, bool bIsDirectory)
 	{
 		if (!bIsDirectory)
@@ -153,12 +208,6 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 	});
 
 	return true;
-}
-
-bool FGameStorageFile::DeleteEntity(const FGameEntityStorageKey& EntityKey)
-{
-	FString EntityFilePath = MakeEntityFilePath(EntityKey);
-	return IFileManager::Get().Delete(*EntityFilePath, true, false, true);
 }
 
 bool FGameStorageFile::AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave)

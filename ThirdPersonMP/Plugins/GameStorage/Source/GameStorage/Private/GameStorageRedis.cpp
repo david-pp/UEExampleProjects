@@ -41,28 +41,13 @@ void FGameStorageRedis::Shutdown()
 FString FGameStorageRedis::MakeRedisEntityKey(const FGameEntityStorageKey& EntityKey) const
 {
 	FString Namespace = GetNamespace();
-	FString FieldName = EntityKey.GetFieldName();
 	if (Namespace.IsEmpty())
 	{
-		if (FieldName.IsEmpty())
-		{
-			return FString::Printf(TEXT("%s:%s"), *EntityKey.Type, *EntityKey.Id);
-		}
-		else
-		{
-			return FString::Printf(TEXT("%s:%s:%s"), *EntityKey.Type, *EntityKey.Id, *FieldName);
-		}
+		return FString::Printf(TEXT("%s:%s"), *EntityKey.Type, *EntityKey.Id);
 	}
 	else
 	{
-		if (FieldName.IsEmpty())
-		{
-			return FString::Printf(TEXT("%s:%s:%s"), *Namespace, *EntityKey.Type, *EntityKey.Id);
-		}
-		else
-		{
-			return FString::Printf(TEXT("%s:%s:%s:%s"), *Namespace, *EntityKey.Type, *EntityKey.Id, *FieldName);
-		}
+		return FString::Printf(TEXT("%s:%s:%s"), *Namespace, *EntityKey.Type, *EntityKey.Id);
 	}
 }
 
@@ -173,38 +158,51 @@ bool FGameStorageRedis::LoadEntityFromRedis(UObject* Entity, const FString& Key)
 	}
 }
 
-bool FGameStorageRedis::SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageRedis::SaveEntity(UObject* Entity, const FString& PathString)
 {
 	if (!TinyRedis) return false;
-	if (!EntityKey.IsValid())
+
+	FGameEntityStoragePath Path(GetNamespace());
+	Path.AppendPath(PathString);
+	if (!Path.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid key:%s"), *EntityKey.ToString());
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid path:%s"), *PathString);
 		return false;
 	}
 
-	FString Key = MakeRedisEntityKey(EntityKey);
+	FString Key = Path.ToRedisKey();
 	return SaveEntityToRedis(Entity, Key);
 }
 
-bool FGameStorageRedis::LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey)
+bool FGameStorageRedis::LoadEntity(UObject* Entity, const FString& PathString)
 {
 	if (!TinyRedis) return false;
-	if (!EntityKey.IsValid())
+
+	FGameEntityStoragePath Path(GetNamespace());
+	Path.AppendPath(PathString);
+	if (!Path.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid key:%s"), *EntityKey.ToString());
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *PathString);
 		return false;
 	}
 
-	FString Key = MakeRedisEntityKey(EntityKey);
+	FString Key = Path.ToRedisKey();
 	return LoadEntityFromRedis(Entity, Key);
 }
 
-bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer)
+bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer)
 {
 	if (!TinyRedis) return false;
 
-	FString KeyPattern = MakeRedisEntityKey(FGameEntityStorageKey(EntityType, TEXT("*")));
+	FGameEntityStoragePath Path(GetNamespace());
+	Path.AppendPath(PathPattern);
+	if (!Path.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntities - invalid path:%s"), *PathPattern);
+		return false;
+	}
 
+	FString KeyPattern = Path.ToRedisKey(); // Path:*
 	TArray<FString> Keys = TinyRedis->GetKeys(KeyPattern);
 	for (auto& Key : Keys)
 	{
@@ -218,12 +216,19 @@ bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UOb
 	return true;
 }
 
-bool FGameStorageRedis::DeleteEntity(const FGameEntityStorageKey& EntityKey)
+bool FGameStorageRedis::DeleteEntity(const FString& PathString)
 {
 	if (!TinyRedis) return false;
 
-	FString Key = MakeRedisEntityKey(EntityKey);
-	TinyRedis->DeleteKey(Key);
+	FGameEntityStoragePath Path(GetNamespace());
+	Path.AppendPath(PathString);
+	if (!Path.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("DeleteEntity - invalid path:%s"), *PathString);
+		return false;
+	}
+
+	FString Key = Path.ToRedisKey();
 	return TinyRedis->DeleteKey(Key) > 0;
 }
 

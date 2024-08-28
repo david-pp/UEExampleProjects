@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameStorageTypes.h"
 #include "UObject/Interface.h"
+#include "GameStoragePath.h"
 #include "GameStorageEntity.h"
 #include "GameFramework/SaveGame.h"
 #include "GameStorageEngine.generated.h"
@@ -49,15 +49,24 @@ public:
 
 public:
 	// Sync Entity API
-	virtual bool SaveEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) = 0;
-	virtual bool LoadEntity(UObject* Entity, const FGameEntityStorageKey& EntityKey) = 0;
-	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& EntityType, UObject* Outer = GetTransientPackage()) = 0;
-	virtual bool DeleteEntity(const FGameEntityStorageKey& EntityKey) = 0;
+	virtual bool SaveEntity(UObject* Entity, const FString& Path) = 0;
+	virtual bool LoadEntity(UObject* Entity, const FString& Path) = 0;
 
-	UObject* LoadAndCreateEntity(const FGameEntityStorageKey& EntityKey, TSubclassOf<UObject> EntityClass, UObject* Outer = GetTransientPackage())
+	/**
+	 * 
+	 * @param Entities 
+	 * @param EntityClass 
+	 * @param PathPattern - type:id/type:id/type:* 
+	 * @param Outer 
+	 * @return 
+	 */
+	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer = GetTransientPackage()) = 0;
+	virtual bool DeleteEntity(const FString& Path) = 0;
+
+	UObject* LoadAndCreateEntity(const FString& Path, TSubclassOf<UObject> EntityClass, UObject* Outer = GetTransientPackage())
 	{
 		UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-		if (Entity && LoadEntity(Entity, EntityKey))
+		if (Entity && LoadEntity(Entity, Path))
 		{
 			return Entity;
 		}
@@ -65,16 +74,16 @@ public:
 	}
 
 	template <typename EntityClass>
-	EntityClass* LoadAndCreateEntity(const FGameEntityStorageKey& EntityKey, UObject* Outer = GetTransientPackage())
+	EntityClass* LoadAndCreateEntity(const FString& Path, UObject* Outer = GetTransientPackage())
 	{
-		return Cast<EntityClass>(LoadAndCreateEntity(EntityKey, EntityClass::StaticClass(), Outer));
+		return Cast<EntityClass>(LoadAndCreateEntity(Path, EntityClass::StaticClass(), Outer));
 	}
 
 	template <typename EntityClass>
-	bool LoadEntities(TArray<EntityClass*>& Entities, const FString& EntityType)
+	bool LoadEntities(TArray<EntityClass*>& Entities, const FString& PathPattern, UObject* Outer = GetTransientPackage())
 	{
 		TArray<UObject*> Objects;
-		bool Result = LoadEntities(Objects, EntityClass::StaticClass(), EntityType);
+		bool Result = LoadEntities(Objects, EntityClass::StaticClass(), PathPattern, Outer);
 		for (auto Object : Objects)
 		{
 			EntityClass* Entity = Cast<EntityClass>(Object);

@@ -3,30 +3,56 @@
 
 #include "GameStoragePath.h"
 
+// ------------ FGameStoragePath ---------------- 
 
-FGameEntityStoragePath::FGameEntityStoragePath()
+FString FGameStorageKey::ToString() const
+{
+	if (Id.IsEmpty())
+	{
+		return FString::Printf(TEXT("%s"), *Type);
+	}
+	else
+	{
+		return FString::Printf(TEXT("%s:%s"), *Type, *Id);
+	}
+}
+
+bool FGameStorageKey::ParseFromString(const FString& KeyString)
+{
+	if (KeyString.IsEmpty()) return false;
+
+	TArray<FString> OutTokens;
+	KeyString.ParseIntoArray(OutTokens, TEXT(":"), true);
+	if (OutTokens.Num() > 0) Type = OutTokens[0];
+	if (OutTokens.Num() > 1) Id = OutTokens[1];
+	return true;
+}
+
+// ------------ FGameStoragePath ---------------- 
+
+FGameStoragePath::FGameStoragePath()
 {
 }
 
-FGameEntityStoragePath::FGameEntityStoragePath(FString InPath)
+FGameStoragePath::FGameStoragePath(FString InPath)
 	: Path(MoveTemp(InPath))
 {
 	NormalizePath();
 }
 
-const FString& FGameEntityStoragePath::GetPath() const
+const FString& FGameStoragePath::GetPath() const
 {
 	return Path;
 }
 
-bool FGameEntityStoragePath::ParseEntityKeys(TArray<FGameEntityStorageKey>& OutKeys) const
+bool FGameStoragePath::ParseEntityKeys(TArray<FGameStorageKey>& OutKeys) const
 {
 	TArray<FString> KeyStrings;
 	Path.ParseIntoArray(KeyStrings, TEXT("/"), true);
 
 	for (FString& KeyString : KeyStrings)
 	{
-		FGameEntityStorageKey Key;
+		FGameStorageKey Key;
 		if (Key.ParseFromString(KeyString))
 		{
 			OutKeys.Add(Key);
@@ -35,24 +61,24 @@ bool FGameEntityStoragePath::ParseEntityKeys(TArray<FGameEntityStorageKey>& OutK
 	return true;
 }
 
-uint32 FGameEntityStoragePath::ParsePathTokens(TArray<FString>& OutPathTokens) const
+uint32 FGameStoragePath::ParsePathTokens(TArray<FString>& OutPathTokens) const
 {
 	return Path.ParseIntoArray(OutPathTokens, TEXT("/"), true);
 }
 
-void FGameEntityStoragePath::SetPath(const FString& NewPath)
+void FGameStoragePath::SetPath(const FString& NewPath)
 {
 	Path = NewPath;
 	NormalizePath();
 }
 
-void FGameEntityStoragePath::AppendPath(const FString& InPath)
+void FGameStoragePath::AppendPath(const FString& InPath)
 {
 	Path /= InPath;
 	NormalizePath();
 }
 
-bool FGameEntityStoragePath::IsValidPath() const
+bool FGameStoragePath::IsValidPath() const
 {
 	// if (IsRoot())
 	// {
@@ -71,12 +97,12 @@ bool FGameEntityStoragePath::IsValidPath() const
 	return (INDEX_NONE == Path.FindLastCharByPredicate(IsInvalidUriChar));
 }
 
-bool FGameEntityStoragePath::IsRoot() const
+bool FGameStoragePath::IsRoot() const
 {
 	return Path == TEXT("/");
 }
 
-void FGameEntityStoragePath::MakeRelative(const FString& OtherPath)
+void FGameStoragePath::MakeRelative(const FString& OtherPath)
 {
 	const bool bAllowShrinking = false;
 
@@ -97,7 +123,7 @@ void FGameEntityStoragePath::MakeRelative(const FString& OtherPath)
 }
 
 
-void FGameEntityStoragePath::NormalizePath()
+void FGameStoragePath::NormalizePath()
 {
 	if (!IsRoot() && Path.EndsWith(TEXT("/")))
 	{
@@ -105,10 +131,10 @@ void FGameEntityStoragePath::NormalizePath()
 	}
 }
 
-FString FGameEntityStoragePath::ToRedisKey() const
+FString FGameStoragePath::ToRedisKey() const
 {
 	FString Key;
-	TArray<FGameEntityStorageKey> EntityKeys;
+	TArray<FGameStorageKey> EntityKeys;
 	if (ParseEntityKeys(EntityKeys))
 	{
 		for (int I = 0; I < EntityKeys.Num(); ++I)
@@ -123,15 +149,15 @@ FString FGameEntityStoragePath::ToRedisKey() const
 	return Key;
 }
 
-FString FGameEntityStoragePath::ToFilePath(const FString& Ext) const
+FString FGameStoragePath::ToFilePath(const FString& Ext) const
 {
 	FString FilePath;
-	TArray<FGameEntityStorageKey> EntityKeys;
+	TArray<FGameStorageKey> EntityKeys;
 	if (ParseEntityKeys(EntityKeys))
 	{
 		for (int I = 0; I < EntityKeys.Num(); ++I)
 		{
-			FGameEntityStorageKey& Key = EntityKeys[I];
+			FGameStorageKey& Key = EntityKeys[I];
 			FilePath /= Key.Type;
 			if (Key.Id.Len() > 0)
 			{
@@ -149,10 +175,10 @@ FString FGameEntityStoragePath::ToFilePath(const FString& Ext) const
 	return FilePath;
 }
 
-FString FGameEntityStoragePath::ToFlatFilePath() const
+FString FGameStoragePath::ToFlatFilePath() const
 {
 	FString FilePath;
-	TArray<FGameEntityStorageKey> EntityKeys;
+	TArray<FGameStorageKey> EntityKeys;
 	if (ParseEntityKeys(EntityKeys))
 	{
 		for (int I = 0; I < EntityKeys.Num(); ++I)
@@ -162,7 +188,7 @@ FString FGameEntityStoragePath::ToFlatFilePath() const
 				FilePath += TEXT("_");
 			}
 
-			FGameEntityStorageKey& Key = EntityKeys[I];
+			FGameStorageKey& Key = EntityKeys[I];
 			if (Key.Id.Len() > 0)
 			{
 				FilePath += FString::Printf(TEXT("%s_%s"), *Key.Type, *Key.Id);
@@ -176,15 +202,15 @@ FString FGameEntityStoragePath::ToFlatFilePath() const
 	return FilePath;
 }
 
-FString FGameEntityStoragePath::ToRESTFulPath() const
+FString FGameStoragePath::ToRESTFulPath() const
 {
 	FString FilePath;
-	TArray<FGameEntityStorageKey> EntityKeys;
+	TArray<FGameStorageKey> EntityKeys;
 	if (ParseEntityKeys(EntityKeys))
 	{
 		for (int I = 0; I < EntityKeys.Num(); ++I)
 		{
-			FGameEntityStorageKey& Key = EntityKeys[I];
+			FGameStorageKey& Key = EntityKeys[I];
 			FilePath /= Key.Type;
 			if (Key.Id.Len() > 0)
 			{

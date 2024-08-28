@@ -38,32 +38,32 @@ void FGameStorageRedis::Shutdown()
 	TinyRedis.Reset();
 }
 
-FString FGameStorageRedis::MakeRedisEntityKey(const FGameEntityStorageKey& EntityKey) const
+FString FGameStorageRedis::MakeRedisKey(const FGameStorageKey& StorageKey) const
 {
 	FString Namespace = GetNamespace();
 	if (Namespace.IsEmpty())
 	{
-		return FString::Printf(TEXT("%s:%s"), *EntityKey.Type, *EntityKey.Id);
+		return FString::Printf(TEXT("%s:%s"), *StorageKey.Type, *StorageKey.Id);
 	}
 	else
 	{
-		return FString::Printf(TEXT("%s:%s:%s"), *Namespace, *EntityKey.Type, *EntityKey.Id);
+		return FString::Printf(TEXT("%s:%s:%s"), *Namespace, *StorageKey.Type, *StorageKey.Id);
 	}
 }
 
-bool FGameStorageRedis::SaveEntityToRedis(UObject* Entity, const FString& Key)
+bool FGameStorageRedis::SaveObjectToRedis(UObject* Object, const FString& Key)
 {
-	if (!Entity || Key.IsEmpty()) return false;
+	if (!Object || Key.IsEmpty()) return false;
 
 	// Mapping entity to redis hash
 	if (Settings.bSaveEntityAsHash)
 	{
 		ITinyRedisPipelinePtr Pipeline = TinyRedis->CreatePipeline();
 		Pipeline->Start();
-		for (TFieldIterator<FProperty> It(Entity->GetClass()); It; ++It)
+		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 		{
 			FProperty* Property = *It;
-			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Entity);
+			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Object);
 
 			// Property -> Json
 			FString JsonString;
@@ -83,7 +83,7 @@ bool FGameStorageRedis::SaveEntityToRedis(UObject* Entity, const FString& Key)
 	else
 	{
 		TArray<uint8> SaveData;
-		if (!Serializer->SaveObject(Entity, SaveData))
+		if (!Serializer->SaveObject(Object, SaveData))
 		{
 			UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToRedis - seriaize failed: %s"), *Key);
 			return false;
@@ -100,17 +100,17 @@ bool FGameStorageRedis::SaveEntityToRedis(UObject* Entity, const FString& Key)
 	}
 }
 
-bool FGameStorageRedis::LoadEntityFromRedis(UObject* Entity, const FString& Key)
+bool FGameStorageRedis::LoadObjectFromRedis(UObject* Object, const FString& Key)
 {
 	// Mapping entity to redis hash
 	if (Settings.bSaveEntityAsHash)
 	{
 		ITinyRedisPipelinePtr Pipeline = TinyRedis->CreatePipeline();
 		Pipeline->Start();
-		for (TFieldIterator<FProperty> It(Entity->GetClass()); It; ++It)
+		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 		{
 			FProperty* Property = *It;
-			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Entity);
+			void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Object);
 
 			Pipeline->Command<TinyRedis::HashGet>(Key, Property->GetName().ToLower())->OnReply.BindLambda([Property, PropertyValue](const FRedisReply& Reply)
 			{
@@ -148,7 +148,7 @@ bool FGameStorageRedis::LoadEntityFromRedis(UObject* Entity, const FString& Key)
 			return false;
 		}
 
-		if (!Serializer->LoadObject(Entity, Reply.BinArray))
+		if (!Serializer->LoadObject(Object, Reply.BinArray))
 		{
 			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - seriaize failed: %s"), *Key);
 			return false;
@@ -158,77 +158,82 @@ bool FGameStorageRedis::LoadEntityFromRedis(UObject* Entity, const FString& Key)
 	}
 }
 
-bool FGameStorageRedis::SaveEntity(UObject* Entity, const FString& PathString)
+FString FGameStorageRedis::GetNamespace() const
 {
-	if (!TinyRedis) return false;
-
-	FGameEntityStoragePath Path(GetNamespace());
-	Path.AppendPath(PathString);
-	if (!Path.IsValidPath())
-	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid path:%s"), *PathString);
-		return false;
-	}
-
-	FString Key = Path.ToRedisKey();
-	return SaveEntityToRedis(Entity, Key);
+	return Settings.Namespace;
 }
 
-bool FGameStorageRedis::LoadEntity(UObject* Entity, const FString& PathString)
+bool FGameStorageRedis::SaveObject(UObject* Object, const FString& Path)
 {
 	if (!TinyRedis) return false;
 
-	FGameEntityStoragePath Path(GetNamespace());
-	Path.AppendPath(PathString);
-	if (!Path.IsValidPath())
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *PathString);
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveObject - invalid path:%s"), *Path);
 		return false;
 	}
 
-	FString Key = Path.ToRedisKey();
-	return LoadEntityFromRedis(Entity, Key);
+	FString Key = StoragePath.ToRedisKey();
+	return SaveObjectToRedis(Object, Key);
 }
 
-bool FGameStorageRedis::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer)
+bool FGameStorageRedis::LoadObject(UObject* Object, const FString& Path)
 {
 	if (!TinyRedis) return false;
 
-	FGameEntityStoragePath Path(GetNamespace());
-	Path.AppendPath(PathPattern);
-	if (!Path.IsValidPath())
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntities - invalid path:%s"), *PathPattern);
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadObject - invalid path:%s"), *Path);
 		return false;
 	}
 
-	FString KeyPattern = Path.ToRedisKey(); // Path:*
+	FString Key = StoragePath.ToRedisKey();
+	return LoadObjectFromRedis(Object, Key);
+}
+
+bool FGameStorageRedis::LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer)
+{
+	if (!TinyRedis) return false;
+
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(PathPattern);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadObjects - invalid path:%s"), *PathPattern);
+		return false;
+	}
+
+	FString KeyPattern = StoragePath.ToRedisKey(); // Path:*
 	TArray<FString> Keys = TinyRedis->GetKeys(KeyPattern);
 	for (auto& Key : Keys)
 	{
-		UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-		if (LoadEntityFromRedis(Entity, Key))
+		UObject* Entity = NewObject<UObject>(Outer, Class);
+		if (LoadObjectFromRedis(Entity, Key))
 		{
-			Entities.Add(Entity);
+			Objects.Add(Entity);
 		}
 	}
 
 	return true;
 }
 
-bool FGameStorageRedis::DeleteEntity(const FString& PathString)
+bool FGameStorageRedis::DeleteObject(const FString& Path)
 {
 	if (!TinyRedis) return false;
 
-	FGameEntityStoragePath Path(GetNamespace());
-	Path.AppendPath(PathString);
-	if (!Path.IsValidPath())
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("DeleteEntity - invalid path:%s"), *PathString);
+		UE_LOG(LogGameStorage, Warning, TEXT("DeleteObject - invalid path:%s"), *Path);
 		return false;
 	}
 
-	FString Key = Path.ToRedisKey();
+	FString Key = StoragePath.ToRedisKey();
 	return TinyRedis->DeleteKey(Key) > 0;
 }
 

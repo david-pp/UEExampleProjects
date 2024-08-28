@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameStorageEngine.h"
+#include "GameStoragePath.h"
 #include "GameStorageSerializer.h"
 #include "TinyRedisInterface.h"
 
 /**
- * 
+ * Redis Backend
  */
 class GAMESTORAGE_API FGameStorageRedis : public IGameStorageEngine
 {
@@ -19,25 +20,24 @@ public:
 	bool Startup();
 	void Shutdown();
 
-	FString MakeRedisEntityKey(const FGameEntityStorageKey& EntityKey) const;
+	FString MakeRedisKey(const FGameStorageKey& StorageKey) const;
 
 protected:
-	bool SaveEntityToRedis(UObject* Entity, const FString& Key);
-	bool LoadEntityFromRedis(UObject* Entity, const FString& Key);
+	bool SaveObjectToRedis(UObject* Object, const FString& Key);
+	bool LoadObjectFromRedis(UObject* Object, const FString& Key);
 
 public:
-	virtual FString GetNamespace() const override
-	{
-		return Settings.Namespace;
-	}
+	// ~ Impl IGameStorageEngine Begin
+	virtual FString GetNamespace() const override;
 
-	virtual bool SaveEntity(UObject* Entity, const FString& Path) override;
-	virtual bool LoadEntity(UObject* Entity, const FString& Path) override;
-	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer) override;
-	virtual bool DeleteEntity(const FString& Path) override;
+	virtual bool SaveObject(UObject* Object, const FString& Path) override;
+	virtual bool LoadObject(UObject* Object, const FString& Path) override;
+	virtual bool LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer) override;
+	virtual bool DeleteObject(const FString& Path) override;
 
 	virtual bool AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave) override;
 	virtual bool AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad) override;
+	// ~ Impl IGameStorageEngine End
 
 protected:
 	FGameStorageEngineSettings Settings;

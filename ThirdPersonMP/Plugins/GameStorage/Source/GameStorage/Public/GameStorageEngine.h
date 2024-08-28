@@ -4,29 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "GameStoragePath.h"
 #include "GameStorageEntity.h"
-#include "GameFramework/SaveGame.h"
 #include "GameStorageEngine.generated.h"
 
 class IGameStorageEngine;
-class IGameStorageEntity;
-
 typedef TSharedPtr<IGameStorageEngine> IGameStorageEnginePtr;
-
-DECLARE_MULTICAST_DELEGATE_TwoParams(FNativeOnStorageEntityLoad, IGameStorageEntityPtr Entity, const FString& ErrorMsg)
-typedef FNativeOnStorageEntityLoad::FDelegate FNativeOnStorageEntityLoadDelegate;
-DECLARE_MULTICAST_DELEGATE_TwoParams(FNativeOnStorageEntitySave, IGameStorageEntityPtr Entity, const FString& ErrorMsg)
-typedef FNativeOnStorageEntitySave::FDelegate FNativeOnStorageEntitySaveDelegate;
-
-
-UCLASS()
-class UGameStorageEntity : public USaveGame
-{
-	GENERATED_BODY()
-
-public:
-};
 
 // This class does not need to be modified.
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
@@ -36,7 +18,13 @@ class UGameStorageEngine : public UInterface
 };
 
 /**
- * 
+ * Game Storage Engine
+ *
+ * [Features]
+ *  - Save/Load Bytes to storage
+ *  - Save/Load UObject to storage
+ *  - Save/Load IGameStorageEntity to storage
+ *  - ...
  */
 class GAMESTORAGE_API IGameStorageEngine
 {
@@ -48,54 +36,50 @@ public:
 	virtual FString GetNamespace() const = 0;
 
 public:
-	// Sync Entity API
-	virtual bool SaveEntity(UObject* Entity, const FString& Path) = 0;
-	virtual bool LoadEntity(UObject* Entity, const FString& Path) = 0;
+	//
+	// Object -> Game Storage
+	//  - Path : storage path string. examples: 
+	//		user:01
+	//		user:01/profile
+	//		user:01/character:001
+	//  - Path Pattern : for load objects. examples:
+	//		user:*
+	//		user:01/character:* 
+	// 
+	virtual bool SaveObject(UObject* Object, const FString& Path) = 0;
+	virtual bool LoadObject(UObject* Object, const FString& Path) = 0;
+	virtual bool LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer = GetTransientPackage()) = 0;
+	virtual bool DeleteObject(const FString& Path) = 0;
 
-	/**
-	 * 
-	 * @param Entities 
-	 * @param EntityClass 
-	 * @param PathPattern - type:id/type:id/type:* 
-	 * @param Outer 
-	 * @return 
-	 */
-	virtual bool LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer = GetTransientPackage()) = 0;
-	virtual bool DeleteEntity(const FString& Path) = 0;
+	UObject* LoadAndCreateObject(const FString& Path, TSubclassOf<UObject> EntityClass, UObject* Outer = GetTransientPackage());
 
-	UObject* LoadAndCreateEntity(const FString& Path, TSubclassOf<UObject> EntityClass, UObject* Outer = GetTransientPackage())
+	template <typename ObjectClass>
+	ObjectClass* LoadAndCreateObject(const FString& Path, UObject* Outer = GetTransientPackage())
 	{
-		UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-		if (Entity && LoadEntity(Entity, Path))
-		{
-			return Entity;
-		}
-		return nullptr;
+		return Cast<ObjectClass>(LoadAndCreateObject(Path, ObjectClass::StaticClass(), Outer));
 	}
 
-	template <typename EntityClass>
-	EntityClass* LoadAndCreateEntity(const FString& Path, UObject* Outer = GetTransientPackage())
-	{
-		return Cast<EntityClass>(LoadAndCreateEntity(Path, EntityClass::StaticClass(), Outer));
-	}
+	template <typename ObjectClass>
+	bool LoadObjects(TArray<ObjectClass*>& Entities, const FString& PathPattern, UObject* Outer = GetTransientPackage());
 
-	template <typename EntityClass>
-	bool LoadEntities(TArray<EntityClass*>& Entities, const FString& PathPattern, UObject* Outer = GetTransientPackage())
-	{
-		TArray<UObject*> Objects;
-		bool Result = LoadEntities(Objects, EntityClass::StaticClass(), PathPattern, Outer);
-		for (auto Object : Objects)
-		{
-			EntityClass* Entity = Cast<EntityClass>(Object);
-			if (Entity)
-			{
-				Entities.Add(Entity);
-			}
-		}
-		return Result;
-	}
-
-
+	// TODO: Async 
 	virtual bool AsyncSaveEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntitySaveDelegate& OnSave = FNativeOnStorageEntitySaveDelegate()) = 0;
 	virtual bool AsyncLoadEntity(IGameStorageEntityPtr Entity, const FNativeOnStorageEntityLoadDelegate& OnLoad = FNativeOnStorageEntityLoadDelegate()) = 0;
 };
+
+
+template <typename ObjectClass>
+bool IGameStorageEngine::LoadObjects(TArray<ObjectClass*>& Entities, const FString& PathPattern, UObject* Outer)
+{
+	TArray<UObject*> Objects;
+	bool Result = LoadObjects(Objects, ObjectClass::StaticClass(), PathPattern, Outer);
+	for (auto Object : Objects)
+	{
+		ObjectClass* Entity = Cast<ObjectClass>(Object);
+		if (Entity)
+		{
+			Entities.Add(Entity);
+		}
+	}
+	return Result;
+}

@@ -15,7 +15,7 @@ FGameStorageFile::~FGameStorageFile()
 {
 }
 
-FString FGameStorageFile::GetRootDirPath() const
+FString FGameStorageFile::GetRootDir() const
 {
 	FString Namespace = GetNamespace();
 	if (Namespace.IsEmpty())
@@ -28,41 +28,41 @@ FString FGameStorageFile::GetRootDirPath() const
 	}
 }
 
-FString FGameStorageFile::MakeEntityFilePath(const FGameEntityStoragePath& StoragePath) const
+FString FGameStorageFile::MakeFilePath(const FGameStoragePath& StoragePath) const
 {
 	if (Settings.SerializerType == EGameStorageSerializerType::Json)
 	{
-		return GetRootDirPath() / StoragePath.ToFilePath(TEXT("json"));
+		return GetRootDir() / StoragePath.ToFilePath(TEXT("json"));
 	}
 	else if (Settings.SerializerType == EGameStorageSerializerType::Sav)
 	{
-		return GetRootDirPath() / StoragePath.ToFilePath(TEXT("sav"));
+		return GetRootDir() / StoragePath.ToFilePath(TEXT("sav"));
 	}
 
 	return TEXT("");
 }
 
-FString FGameStorageFile::MakeEntityFilePath(const FGameEntityStorageKey& EntityKey) const
+FString FGameStorageFile::MakeFilePath(const FGameStorageKey& EntityKey) const
 {
 	if (Settings.SerializerType == EGameStorageSerializerType::Json)
 	{
-		return GetRootDirPath() / EntityKey.Type / FString::Printf(TEXT("%s_%s.json"), *EntityKey.Type, *EntityKey.Id);
+		return GetRootDir() / EntityKey.Type / FString::Printf(TEXT("%s_%s.json"), *EntityKey.Type, *EntityKey.Id);
 	}
 	else if (Settings.SerializerType == EGameStorageSerializerType::Sav)
 	{
-		return GetRootDirPath() / EntityKey.Type / FString::Printf(TEXT("%s_%s.sav"), *EntityKey.Type, *EntityKey.Id);
+		return GetRootDir() / EntityKey.Type / FString::Printf(TEXT("%s_%s.sav"), *EntityKey.Type, *EntityKey.Id);
 	}
 
 	return TEXT("");
 }
 
-bool FGameStorageFile::SaveEntityToFile(UObject* Entity, const FString& FilePath)
+bool FGameStorageFile::SaveObjectToFile(UObject* Object, const FString& FilePath)
 {
-	if (!Entity) return false;
+	if (!Object) return false;
 	if (FilePath.IsEmpty()) return false;
 
 	TArray<uint8> SaveData;
-	if (!Serializer->SaveObject(Entity, SaveData))
+	if (!Serializer->SaveObject(Object, SaveData))
 	{
 		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToFile - serialize failed: %s"), *FilePath);
 		return false;
@@ -77,9 +77,9 @@ bool FGameStorageFile::SaveEntityToFile(UObject* Entity, const FString& FilePath
 	return true;
 }
 
-bool FGameStorageFile::LoadEntityFromFile(UObject* Entity, const FString& FilePath)
+bool FGameStorageFile::LoadObjectFromFile(UObject* Object, const FString& FilePath)
 {
-	if (!Entity) return false;
+	if (!Object) return false;
 	if (FilePath.IsEmpty()) return false;
 
 	TArray<uint8> SaveData;
@@ -89,7 +89,7 @@ bool FGameStorageFile::LoadEntityFromFile(UObject* Entity, const FString& FilePa
 		return false;
 	}
 
-	if (!Serializer->LoadObject(Entity, SaveData))
+	if (!Serializer->LoadObject(Object, SaveData))
 	{
 		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromFile - serialize failed : %s"), *FilePath);
 		return false;
@@ -98,51 +98,56 @@ bool FGameStorageFile::LoadEntityFromFile(UObject* Entity, const FString& FilePa
 	return true;
 }
 
-bool FGameStorageFile::SaveEntity(UObject* Entity, const FString& Path)
+FString FGameStorageFile::GetNamespace() const
 {
-	FGameEntityStoragePath StoragePath(Path);
+	return Settings.Namespace;
+}
+
+bool FGameStorageFile::SaveObject(UObject* Object, const FString& Path)
+{
+	FGameStoragePath StoragePath(Path);
 	if (!StoragePath.IsValidPath())
 	{
 		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid path:%s"), *Path);
 		return false;
 	}
 
-	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
+	const FString EntityFilePath = MakeFilePath(StoragePath);
 	if (EntityFilePath.IsEmpty()) return false;
 
-	return SaveEntityToFile(Entity, EntityFilePath);
+	return SaveObjectToFile(Object, EntityFilePath);
 }
 
-bool FGameStorageFile::LoadEntity(UObject* Entity, const FString& Path)
+bool FGameStorageFile::LoadObject(UObject* Object, const FString& Path)
 {
-	FGameEntityStoragePath StoragePath(Path);
+	FGameStoragePath StoragePath(Path);
 	if (!StoragePath.IsValidPath())
 	{
 		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
 		return false;
 	}
 
-	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
+	const FString EntityFilePath = MakeFilePath(StoragePath);
 	if (EntityFilePath.IsEmpty()) return false;
 
-	return LoadEntityFromFile(Entity, EntityFilePath);
+	return LoadObjectFromFile(Object, EntityFilePath);
 }
 
-bool FGameStorageFile::DeleteEntity(const FString& Path)
+bool FGameStorageFile::DeleteObject(const FString& Path)
 {
-	FGameEntityStoragePath StoragePath(Path);
+	FGameStoragePath StoragePath(Path);
 	if (!StoragePath.IsValidPath())
 	{
 		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
 		return false;
 	}
 
-	const FString EntityFilePath = MakeEntityFilePath(StoragePath);
+	const FString EntityFilePath = MakeFilePath(StoragePath);
 	if (EntityFilePath.IsEmpty()) return false;
 	return IFileManager::Get().Delete(*EntityFilePath, true, false, true);
 }
 
-bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObject> EntityClass, const FString& PathPattern, UObject* Outer)
+bool FGameStorageFile::LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer)
 {
 	if (Settings.SerializerType == EGameStorageSerializerType::None)
 	{
@@ -158,11 +163,11 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 		// entity file directory is ? 
 		FString DirectorPattern = PathPattern;
 		DirectorPattern.RemoveFromEnd(TEXT(":*"));
-		FGameEntityStoragePath StoragePath(DirectorPattern);
-		EntityDir = GetRootDirPath() / StoragePath.ToFilePath();
+		FGameStoragePath StoragePath(DirectorPattern);
+		EntityDir = GetRootDir() / StoragePath.ToFilePath();
 
 		// entity type is ?
-		TArray<FGameEntityStorageKey> Keys;
+		TArray<FGameStorageKey> Keys;
 		StoragePath.ParseEntityKeys(Keys);
 		if (Keys.Num() > 0)
 		{
@@ -176,7 +181,7 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 		return false;
 	}
 
-	IFileManager::Get().IterateDirectory(*EntityDir, [this, &Entities, EntityClass, EntityType, Outer](const TCHAR* Pathname, bool bIsDirectory)
+	IFileManager::Get().IterateDirectory(*EntityDir, [this, &Objects, Class, EntityType, Outer](const TCHAR* Pathname, bool bIsDirectory)
 	{
 		if (!bIsDirectory)
 		{
@@ -185,10 +190,10 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 			{
 				if (Filename.MatchesWildcard(FString::Printf(TEXT("%s_*.json"), *EntityType)))
 				{
-					UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-					if (LoadEntityFromFile(Entity, Pathname))
+					UObject* Entity = NewObject<UObject>(Outer, Class);
+					if (LoadObjectFromFile(Entity, Pathname))
 					{
-						Entities.Add(Entity);
+						Objects.Add(Entity);
 					}
 				}
 			}
@@ -196,10 +201,10 @@ bool FGameStorageFile::LoadEntities(TArray<UObject*>& Entities, TSubclassOf<UObj
 			{
 				if (Filename.MatchesWildcard(FString::Printf(TEXT("%s_*.sav"), *EntityType)))
 				{
-					UObject* Entity = NewObject<UObject>(Outer, EntityClass);
-					if (LoadEntityFromFile(Entity, Pathname))
+					UObject* Entity = NewObject<UObject>(Outer, Class);
+					if (LoadObjectFromFile(Entity, Pathname))
 					{
-						Entities.Add(Entity);
+						Objects.Add(Entity);
 					}
 				}
 			}

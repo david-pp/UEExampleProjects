@@ -7,22 +7,18 @@
 #include "GameStoragePath.generated.h"
 
 /**
- * Game Entity Key for Query/Update/... (Type + ID )
+ * Game Store Key for Query/Update/... (Type + ID )
  */
 USTRUCT()
-struct FGameEntityStorageKey
+struct FGameStorageKey
 {
 	GENERATED_BODY()
 
-	FGameEntityStorageKey()
+	FGameStorageKey()
 	{
 	}
 
-	FGameEntityStorageKey(const FString& InType, const FString& InId) : Type(InType), Id(InId)
-	{
-	}
-
-	virtual ~FGameEntityStorageKey()
+	FGameStorageKey(const FString& InType, const FString& InId) : Type(InType), Id(InId)
 	{
 	}
 
@@ -31,28 +27,9 @@ struct FGameEntityStorageKey
 		return Type.Len() > 0 && Id.Len() > 0;
 	}
 
-	FString ToString() const
-	{
-		if (Id.IsEmpty())
-		{
-			return FString::Printf(TEXT("%s"), *Type);
-		}
-		else
-		{
-			return FString::Printf(TEXT("%s:%s"), *Type, *Id);
-		}
-	}
+	FString ToString() const;
 
-	bool ParseFromString(const FString& KeyString)
-	{
-		if (KeyString.IsEmpty()) return false;
-
-		TArray<FString> OutTokens;
-		KeyString.ParseIntoArray(OutTokens, TEXT(":"), true);
-		if (OutTokens.Num() > 0) Type = OutTokens[0];
-		if (OutTokens.Num() > 1) Id = OutTokens[1];
-		return true;
-	}
+	bool ParseFromString(const FString& KeyString);
 
 	/** Entity Type */
 	UPROPERTY()
@@ -63,8 +40,9 @@ struct FGameEntityStorageKey
 };
 
 /**
- * Game Entity Path for Storage
- * Examples :
+ * Game Storage Path
+ *
+ * [Examples]
  *  - user:01
  *  - user:01/profile
  *  - user:01/character:001
@@ -73,20 +51,20 @@ struct FGameEntityStorageKey
  *  - game/title
  */
 USTRUCT()
-struct FGameEntityStoragePath
+struct FGameStoragePath
 {
 	GENERATED_BODY()
 
 public:
-	FGameEntityStoragePath();
-	FGameEntityStoragePath(FString InPath);
-	
+	FGameStoragePath();
+	FGameStoragePath(FString InPath);
+
 	void SetPath(const FString& InPath);
 	void AppendPath(const FString& InPath);
 	const FString& GetPath() const;
 	bool IsValidPath() const;
 
-	bool ParseEntityKeys(TArray<FGameEntityStorageKey>& OutKeys) const;
+	bool ParseEntityKeys(TArray<FGameStorageKey>& OutKeys) const;
 	uint32 ParsePathTokens(TArray<FString>& OutPathTokens) const;
 
 	/**
@@ -103,13 +81,13 @@ public:
 	void MakeRelative(const FString& OtherPath);
 
 	// TMap<> Comparer
-	bool operator==(const FGameEntityStoragePath& Other) const
+	bool operator==(const FGameStoragePath& Other) const
 	{
 		bool bEqual = (0 == Path.Compare(Other.Path, ESearchCase::CaseSensitive));
 		return bEqual;
 	}
 
-	friend uint32 GetTypeHash(const FGameEntityStoragePath& InPath)
+	friend uint32 GetTypeHash(const FGameStoragePath& InPath)
 	{
 		return GetTypeHash(InPath.GetPath());
 	}

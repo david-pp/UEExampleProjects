@@ -37,7 +37,7 @@ bool IGameStorageEngine::AsyncLoadNewObject(const FString& Path, TSubclassOf<UOb
 	UObject* Object = NewObject<UObject>(Outer, Class);
 	if (Object)
 	{
-		AsyncLoadObject(Object, Path, OnComplete);
+		return AsyncLoadObject(Object, Path, OnComplete);
 	}
 
 	return false;

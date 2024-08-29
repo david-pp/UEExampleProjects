@@ -3,7 +3,7 @@
 #include "Serialization/BufferArchive.h"
 
 class IGameStorageSerializer;
-typedef TSharedPtr<IGameStorageSerializer> IGameStorageSerializerPtr;
+typedef TSharedPtr<IGameStorageSerializer, ESPMode::ThreadSafe> IGameStorageSerializerPtr;
 
 class IGameStorageSerializer
 {

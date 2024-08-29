@@ -85,14 +85,14 @@ bool FGameStorageRedis::SaveObjectToRedis(UObject* Object, const FString& Key)
 		TArray<uint8> SaveData;
 		if (!Serializer->SaveObject(Object, SaveData))
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToRedis - seriaize failed: %s"), *Key);
+			UE_LOG(LogGameStorage, Warning, TEXT("SaveObjectToRedis - seriaize failed: %s"), *Key);
 			return false;
 		}
 
 		FRedisReply Reply = TinyRedis->SetBin(Key, SaveData);
 		if (Reply.HasError())
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToRedis - redis error:%s"), *Reply.ToDebugString());
+			UE_LOG(LogGameStorage, Warning, TEXT("SaveObjectToRedis - redis error:%s"), *Reply.ToDebugString());
 			return false;
 		}
 
@@ -138,19 +138,19 @@ bool FGameStorageRedis::LoadObjectFromRedis(UObject* Object, const FString& Key)
 		FRedisReply Reply = TinyRedis->GetBin(Key);
 		if (Reply.HasError())
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - redis error:%s"), *Reply.ToDebugString());
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadObjectFromRedis - redis error:%s"), *Reply.ToDebugString());
 			return false;
 		}
 
 		if (Reply.IsNil())
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - not exist: %s"), *Key);
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadObjectFromRedis - not exist: %s"), *Key);
 			return false;
 		}
 
 		if (!Serializer->LoadObject(Object, Reply.BinArray))
 		{
-			UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromRedis - seriaize failed: %s"), *Key);
+			UE_LOG(LogGameStorage, Warning, TEXT("LoadObjectFromRedis - seriaize failed: %s"), *Key);
 			return false;
 		}
 
@@ -237,3 +237,148 @@ bool FGameStorageRedis::DeleteObject(const FString& Path)
 	return TinyRedis->DeleteKey(Key) > 0;
 }
 
+bool FGameStorageRedis::AsyncSaveObject(UObject* Object, const FString& Path, const FOnStorageObjectSaveDelegate& OnComplete)
+{
+	if (!TinyRedis) return false;
+
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("AsyncSaveObject - invalid path:%s"), *Path);
+		return false;
+	}
+
+	FString Key = StoragePath.ToRedisKey();
+
+	TArray<uint8> SaveData;
+	if (!Serializer->SaveObject(Object, SaveData))
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("AsyncSaveObject - seriaize failed: %s"), *Key);
+		return false;
+	}
+
+	TinyRedis->AsyncSetBin(Key, SaveData).Then([Object, OnComplete](TFuture<FRedisReply> Future)
+	{
+		FRedisReply Reply = Future.Get();
+		if (Reply.HasError())
+		{
+			UE_LOG(LogGameStorage, Warning, TEXT("AsyncSaveObject - redis error:%s"), *Reply.ToDebugString());
+		}
+		OnComplete.ExecuteIfBound(Object, Reply.Error);
+	});
+	return true;
+}
+
+bool FGameStorageRedis::AsyncLoadObject(UObject* Object, const FString& Path, const FOnStorageObjectLoadDelegate& OnComplete)
+{
+	if (!TinyRedis) return false;
+
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadObject - invalid path:%s"), *Path);
+		return false;
+	}
+
+	FString Key = StoragePath.ToRedisKey();
+	TinyRedis->AsyncGetBin(Key).Then([Serializer=this->Serializer, Key, Object, OnComplete](TFuture<FRedisReply> Future)
+	{
+		FString Error;
+		FRedisReply Reply = Future.Get();
+		if (Reply.IsValid())
+		{
+			if (!Serializer->LoadObject(Object, Reply.BinArray))
+			{
+				Error = FString::Printf(TEXT("seriaize failed: %s"), *Key);
+			}
+		}
+		else
+		{
+			if (Reply.HasError())
+			{
+				Error = FString::Printf(TEXT("redis error:%s"), *Reply.ToDebugString());
+			}
+
+			if (Reply.IsNil())
+			{
+				Error = FString::Printf(TEXT("not exist: %s"), *Key);
+			}
+		}
+
+		if (!Error.IsEmpty())
+		{
+			UE_LOG(LogGameStorage, Warning, TEXT("AsyncLoadObject - %s"), *Error);
+		}
+
+		OnComplete.ExecuteIfBound(Object, Error);
+	});
+
+	return true;
+}
+
+bool FGameStorageRedis::AsyncLoadObjects(TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer, const FOnStorageObjectsLoadDelegate& OnComplete)
+{
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(PathPattern);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("AsyncLoadObjects - invalid path:%s"), *PathPattern);
+		return false;
+	}
+
+	FString KeyPattern = StoragePath.ToRedisKey(); // Path:*
+	TinyRedis->AsyncExecCommand(FString::Printf(TEXT("KEYS %s"), *KeyPattern)).Then([TinyRedis=this->TinyRedis, Serializer=this->Serializer, Class, Outer, OnComplete, KeyPattern](TFuture<FRedisReply> KeysFuture)
+	{
+		auto Pipeline = TinyRedis->CreatePipeline();
+		Pipeline->Start();
+		for (FString& Key : KeysFuture.Get().Elements)
+		{
+			Pipeline->Command<FTinyRedisCommand_Get>(Key, ERedisCommandType::GET_BIN);
+		}
+
+		Pipeline->AsyncCommit().Then([TinyRedis, Serializer, Class, Outer, OnComplete, KeyPattern](TFuture<FRedisPipelineReply> PipelineFuture)
+		{
+			FString Error;
+			TArray<UObject*> Objects;
+			for (FRedisReply& Reply : PipelineFuture.Get().Replies)
+			{
+				UObject* Object = NewObject<UObject>(Outer, Class);
+				if (Serializer->LoadObject(Object, Reply.BinArray))
+				{
+					Objects.Add(Object);
+				}
+				else
+				{
+					Error = TEXT("seriaize has failure");
+					UE_LOG(LogGameStorage, Warning, TEXT("AsyncLoadObjects - seriaize failed: %s"), *KeyPattern);
+				}
+			}
+			OnComplete.ExecuteIfBound(Objects, Error);
+		});
+	});
+
+	return true;
+}
+
+bool FGameStorageRedis::AsyncDeleteObject(const FString& Path, const FOnStorageObjectsDeleteDelegate& OnComplete)
+{
+	if (!TinyRedis) return false;
+
+	FGameStoragePath StoragePath(GetNamespace());
+	StoragePath.AppendPath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("DeleteObject - invalid path:%s"), *Path);
+		return false;
+	}
+
+	FString Key = StoragePath.ToRedisKey();
+	TinyRedis->AsyncExecCommand(FString::Printf(TEXT("DEL %s"), *Key)).Then([Path, OnComplete](TFuture<FRedisReply> Future)
+	{
+		FString Error = Future.Get().Error;
+		OnComplete.ExecuteIfBound(Path, Error);
+	});
+	return true;
+}

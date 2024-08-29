@@ -10,15 +10,15 @@ IGameStorageSerializerPtr IGameStorageSerializer::Create(EGameStorageSerializerT
 	{
 	case EGameStorageSerializerType::None:
 		{
-			return MakeShared<FGameStorageSerializer_None>();
+			return MakeShared<FGameStorageSerializer_None, ESPMode::ThreadSafe>();
 		}
 	case EGameStorageSerializerType::Json:
 		{
-			return MakeShared<FGameStorageSerializer_Json>();
+			return MakeShared<FGameStorageSerializer_Json, ESPMode::ThreadSafe>();
 		}
 	case EGameStorageSerializerType::Sav:
 		{
-			return MakeShared<FGameStorageSerializer_SaveGame>();
+			return MakeShared<FGameStorageSerializer_SaveGame, ESPMode::ThreadSafe>();
 		}
 	}
 	return nullptr;

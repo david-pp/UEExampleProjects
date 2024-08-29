@@ -315,7 +315,7 @@ bool FGameStorageTest_ObjectAsync::RunTest(const FString& Param)
 			StorageEngine->AsyncLoadObjects(UGameStorageTestUser::StaticClass(), TEXT("user:*"), GetTransientPackage(), OnLoaded);
 		}
 
-		FPlatformProcess::Sleep(0.1);
+		FPlatformProcess::Sleep(3);
 	}
 
 	return true;

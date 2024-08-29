@@ -226,7 +226,7 @@ bool FGameStorageTest_ObjectAsync::RunTest(const FString& Param)
 	Settings.Namespace = TEXT("async");
 	Settings.SerializerType = EGameStorageSerializerType::Sav;
 
-	Settings.bEnableRedisBackend = true;
+	Settings.bEnableRedisBackend = false;
 	Settings.RedisAddress = TEXT("127.0.0.1");
 	Settings.RedisPort = 6379;
 	Settings.RedisPassword = TEXT("");
@@ -239,23 +239,30 @@ bool FGameStorageTest_ObjectAsync::RunTest(const FString& Param)
 		UE_LOG(LogGameStorage, Log, TEXT("Async --------- Save ------ "));
 		{
 			// 1
-			auto User = NewObject<UGameStorageTestUser>();
-			User->UserName = TEXT("david");
-			User->UserAge = 100;
-			User->UserSex = EGameStorageTestUserSexType::Male;
-			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+			{
+				auto User = NewObject<UGameStorageTestUser>();
+				User->UserName = TEXT("david");
+				User->UserAge = 100;
+				User->UserSex = EGameStorageTestUserSexType::Male;
+				StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+			}
 
 			// 2
-			User->UserName = TEXT("jessie");
-			User->UserSex = EGameStorageTestUserSexType::Female;
-			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
-
+			{
+				auto User = NewObject<UGameStorageTestUser>();
+				User->UserName = TEXT("jessie");
+				User->UserSex = EGameStorageTestUserSexType::Female;
+				StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+			}
+		
 			// 3 (delete)
-			User->UserName = TEXT("xxxx");
-			StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+			{
+				auto User = NewObject<UGameStorageTestUser>();
+				User->UserName = TEXT("xxxx");
+				StorageEngine->AsyncSaveObject(User, FString::Printf(TEXT("user:%s"), *User->UserName));
+			}
 
-
-			FPlatformProcess::Sleep(0.1);
+			FPlatformProcess::Sleep(1);
 		}
 
 		// Load

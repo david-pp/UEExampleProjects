@@ -64,13 +64,13 @@ bool FGameStorageFile::SaveObjectToFile(UObject* Object, const FString& FilePath
 	TArray<uint8> SaveData;
 	if (!Serializer->SaveObject(Object, SaveData))
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToFile - serialize failed: %s"), *FilePath);
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveObjectToFile - serialize failed: %s"), *FilePath);
 		return false;
 	}
 
 	if (!FFileHelper::SaveArrayToFile(SaveData, *FilePath))
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntityToFile - save file failed: %s"), *FilePath);
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveObjectToFile - save file failed: %s"), *FilePath);
 		return false;
 	}
 
@@ -85,13 +85,13 @@ bool FGameStorageFile::LoadObjectFromFile(UObject* Object, const FString& FilePa
 	TArray<uint8> SaveData;
 	if (!FFileHelper::LoadFileToArray(SaveData, *FilePath))
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromFile - failed load from file : %s"), *FilePath);
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadObjectFromFile - failed load from file : %s"), *FilePath);
 		return false;
 	}
 
 	if (!Serializer->LoadObject(Object, SaveData))
 	{
-		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntityFromFile - serialize failed : %s"), *FilePath);
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadObjectFromFile - serialize failed : %s"), *FilePath);
 		return false;
 	}
 
@@ -146,6 +146,7 @@ bool FGameStorageFile::DeleteObject(const FString& Path)
 	if (EntityFilePath.IsEmpty()) return false;
 	return IFileManager::Get().Delete(*EntityFilePath, true, false, true);
 }
+
 
 bool FGameStorageFile::LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer)
 {
@@ -216,3 +217,133 @@ bool FGameStorageFile::LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObjec
 }
 
 
+bool FGameStorageFile::AsyncSaveObject(UObject* Object, const FString& Path, const FOnStorageObjectSaveDelegate& OnComplete)
+{
+	FGameStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("SaveEntity - invalid path:%s"), *Path);
+		return false;
+	}
+
+	const FString FilePath = MakeFilePath(StoragePath);
+	if (FilePath.IsEmpty()) return false;
+
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [This = AsShared(), Object, FilePath, OnComplete]()
+	{
+		FString Error;
+		if (!This->SaveObjectToFile(Object, FilePath))
+		{
+			Error = FString::Printf(TEXT("Save object to file failed : %s"), *FilePath);
+		}
+		if (OnComplete.IsBound())
+		{
+			AsyncTask(ENamedThreads::GameThread, [Object, OnComplete, Error]()
+			{
+				OnComplete.ExecuteIfBound(Object, Error);
+			});
+		}
+	});
+
+	return true;
+}
+
+bool FGameStorageFile::AsyncLoadObject(UObject* Object, const FString& Path, const FOnStorageObjectLoadDelegate& OnComplete)
+{
+	FGameStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
+		return false;
+	}
+
+	const FString FilePath = MakeFilePath(StoragePath);
+	if (FilePath.IsEmpty()) return false;
+
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [This = AsShared(), Object, FilePath, OnComplete]()
+	{
+		FString Error;
+		if (!This->LoadObjectFromFile(Object, FilePath))
+		{
+			Error = FString::Printf(TEXT("Load object to file failed : %s"), *FilePath);
+		}
+		if (OnComplete.IsBound())
+		{
+			AsyncTask(ENamedThreads::GameThread, [Object, OnComplete, Error]()
+			{
+				OnComplete.ExecuteIfBound(Object, Error);
+			});
+		}
+	});
+
+	return true;
+}
+
+bool FGameStorageFile::AsyncLoadObjects(TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer, const FOnStorageObjectsLoadDelegate& OnComplete)
+{
+	if (Settings.SerializerType == EGameStorageSerializerType::None)
+	{
+		return true;
+	}
+
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [This = AsShared(),Class, PathPattern, Outer, OnComplete]()
+	{
+		FString Error;
+		TArray<UObject*> Objects;
+		if (!This->LoadObjects(Objects, Class, PathPattern, Outer))
+		{
+			Error = FString::Printf(TEXT("Load objects failed : %s"), *PathPattern);
+		}
+
+		if (OnComplete.IsBound())
+		{
+			// to prevent load object GC
+			for (UObject* Object : Objects)
+			{
+				Object->AddToRoot();
+			}
+			
+			AsyncTask(ENamedThreads::GameThread, [Objects, OnComplete, Error]()
+			{
+				OnComplete.ExecuteIfBound(Objects, Error);
+				for (UObject* Object : Objects)
+				{
+					Object->RemoveFromRoot();
+				}
+			});
+		}
+	});
+
+	return true;
+}
+
+bool FGameStorageFile::AsyncDeleteObject(const FString& Path, const FOnStorageObjectsDeleteDelegate& OnComplete)
+{
+	FGameStoragePath StoragePath(Path);
+	if (!StoragePath.IsValidPath())
+	{
+		UE_LOG(LogGameStorage, Warning, TEXT("LoadEntity - invalid path:%s"), *Path);
+		return false;
+	}
+
+	const FString FilePath = MakeFilePath(StoragePath);
+	if (FilePath.IsEmpty()) return false;
+
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [This = AsShared(), FilePath, Path, OnComplete]()
+	{
+		FString Error;
+		if (!IFileManager::Get().Delete(*FilePath, true, false, true))
+		{
+			Error = FString::Printf(TEXT("delete object file failed : %s"), *FilePath);
+		}
+		if (OnComplete.IsBound())
+		{
+			AsyncTask(ENamedThreads::GameThread, [OnComplete, Path, Error]()
+			{
+				OnComplete.ExecuteIfBound(Path, Error);
+			});
+		}
+	});
+
+	return true;
+}

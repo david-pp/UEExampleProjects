@@ -10,7 +10,7 @@
 /**
  * File System Backend
  */
-class GAMESTORAGE_API FGameStorageFile : public IGameStorageEngine
+class GAMESTORAGE_API FGameStorageFile : public IGameStorageEngine, public TSharedFromThis<FGameStorageFile>
 {
 public:
 	FGameStorageFile(const FGameStorageEngineSettings& InSettings);
@@ -32,6 +32,11 @@ public:
 	virtual bool LoadObject(UObject* Object, const FString& Path) override;
 	virtual bool LoadObjects(TArray<UObject*>& Objects, TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer) override;
 	virtual bool DeleteObject(const FString& Path) override;
+
+	virtual bool AsyncSaveObject(UObject* Object, const FString& Path, const FOnStorageObjectSaveDelegate& OnComplete) override;
+	virtual bool AsyncLoadObject(UObject* Object, const FString& Path, const FOnStorageObjectLoadDelegate& OnComplete) override;
+	virtual bool AsyncLoadObjects(TSubclassOf<UObject> Class, const FString& PathPattern, UObject* Outer, const FOnStorageObjectsLoadDelegate& OnComplete) override;
+	virtual bool AsyncDeleteObject(const FString& Path, const FOnStorageObjectsDeleteDelegate& OnComplete) override;
 
 	// ~ Impl IGameStorageEngine End
 

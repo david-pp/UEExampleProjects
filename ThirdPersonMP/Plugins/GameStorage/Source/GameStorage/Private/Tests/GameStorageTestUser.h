@@ -83,9 +83,9 @@ public:
 	UPROPERTY()
 	EGameStorageTestUserSexType UserSex;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UGameStorageTestUserProfile* Profile;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<UGameStorageTestUserItem*> Items;
 };

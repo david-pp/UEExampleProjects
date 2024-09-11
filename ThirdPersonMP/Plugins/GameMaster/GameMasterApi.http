@@ -1,0 +1,46 @@
+
+###
+GET http://localhost:50000
+Accept: application/json
+
+<> 2024-09-11T162941.404.json
+
+###
+
+GET http://localhost:50000/test
+Accept: application/json
+
+###
+
+GET http://localhost:55555/hb
+Accept: application/text
+
+
+
+###
+
+GET http://localhost:8090/devices
+Accept: application/json
+
+###
+
+GET http://localhost:8090/devices?type=iPhone
+Accept: application/json
+
+###
+
+POST http://localhost:8090/devices
+Content-Type: application/json
+
+{
+  "Device" : {
+    "DeviceName" : "David' Phone",
+    "DeviceType" : "iPhone",
+    "DeviceUsers" : [
+      "David1", "David2"
+    ]
+  }
+}
+
+
+

@@ -67,6 +67,14 @@
 		{
 			"Name": "GameStorage",
 			"Enabled": true
+		},
+		{
+			"Name": "FunctionalTestingEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "GameMaster",
+			"Enabled": true
 		}
 	]
 }

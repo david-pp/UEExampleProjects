@@ -53,6 +53,25 @@ struct FTestDeviceUpdateRequest
 	TArray<FString> DeviceUsers;
 };
 
+// Get Device Details
+USTRUCT()
+struct FTestDeviceGetRequest
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString DeviceID;
+};
+
+USTRUCT()
+struct FTestDeviceGetReply
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FTestDevice Device;
+};
+
 /**
 * GET   /device-management/devices     : Get all devices (filter by params)
 * POST  /device-management/devices     : Create a new device
@@ -74,6 +93,10 @@ public:
 	bool HandleGetDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleUpdateDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleDeleteDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+
+
+	// Advanced Mode
+	int HandleGetDeviceEx(const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error);
 
 protected:
 	TMap<FGuid, FTestDevice> Devices;

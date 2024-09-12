@@ -1,6 +1,5 @@
 #include "TinyHttpRestTest.h"
 
-#include "JsonObjectConverter.h"
 
 /**
 * GET   /device-management/devices     : Get all devices
@@ -29,12 +28,13 @@ void FTinyHttpRestTest::RegisterRoutes()
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleCreateDevice)
 	});
 
-	RegisterRoute({
-		TEXT("Get the device information"),
-		FHttpPath(TEXT("/devices/:device")),
-		EHttpServerRequestVerbs::VERB_GET,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleGetDevice)
-	});
+	// RegisterRoute<FTestDeviceGetRequest,FTestDeviceGetReply> (
+	// 	TEXT("Get the device information"),
+	// 	FHttpPath(TEXT("/devices/:device")),
+	// 	EHttpServerRequestVerbs::VERB_GET, [this](const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error) -> int
+	// 	{
+	// 		return HandleGetDeviceEx(Request, Reply, Error);
+	// 	});
 
 	RegisterRoute({
 		TEXT("Update the device information"),
@@ -96,6 +96,22 @@ bool FTinyHttpRestTest::HandleGetDevice(const FHttpServerRequest& Request, const
 	return true;
 }
 
+int FTinyHttpRestTest::HandleGetDeviceEx(const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error)
+{
+	FGuid DeviceID;
+	FGuid::Parse(Request.DeviceID, DeviceID);
+
+	FTestDevice* Device = Devices.Find(DeviceID);
+	if (!Device)
+	{
+		Error = TEXT("Can't find device");
+		return 100;
+	}
+
+	Reply.Device = *Device;
+	return SERVICE_OK;
+}
+
 bool FTinyHttpRestTest::HandleUpdateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
 {
 	FGuid DeviceID;
@@ -127,6 +143,7 @@ bool FTinyHttpRestTest::HandleDeleteDevice(const FHttpServerRequest& Request, co
 {
 	return true;
 }
+
 
 // ------------------------- Test -----------------------------------
 

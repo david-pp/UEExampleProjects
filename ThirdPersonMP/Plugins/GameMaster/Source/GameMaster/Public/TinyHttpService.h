@@ -23,6 +23,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHttpServiceStoped, uint32 /*Port*/);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTinyHttp, Log, All);
 
+#define SERVICE_OK 0
+
 struct FTinyHttp
 {
 	/**
@@ -159,6 +161,40 @@ public:
 	 */
 	void RegisterRoute(const FHttpRequestRoute& Route);
 	void UnregisterRoute(const FHttpRequestRoute& Route);
+
+	// @formatter:off
+	template <typename RequestType, typename ReplyType>
+	void RegisterRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb,
+		TUniqueFunction<int (const RequestType&, ReplyType&, FString& ErrorMsg)> ServiceWork)
+	{
+	
+		FHttpRequestRoute Route(InRouteDescription, InPath, InVerb, FHttpServiceHandler::CreateLambda(
+			[ServiceWork](const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
+			{
+				RequestType Request;
+				if (!FTinyHttp::DeserializeRequest(HttpRequest, Request))
+				{
+					OnComplete(FTinyHttp::ServiceError(100,TEXT("Invalid Request")));
+				}
+
+				ReplyType Reply;
+				FString ErrorMsg;
+				int ErrorCode = ServiceWork(Request, Reply, ErrorMsg);
+				if(0 == ErrorCode)
+				{
+					OnComplete(FTinyHttp::ServiceOK(Reply));
+				}
+				else
+				{
+					OnComplete(FTinyHttp::ServiceError(ErrorCode, ErrorMsg));
+				}
+				
+				return true;
+			}));
+		
+		RegisterRoute(Route);
+	}
+	// @formatter:on
 
 	/**
 	 * Register/Unregister request preprocessor

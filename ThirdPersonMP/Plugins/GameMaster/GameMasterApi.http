@@ -16,6 +16,22 @@ GET http://localhost:55555/hb
 Accept: application/text
 
 
+### Help
+GET http://localhost:8090/help
+
+### Post Demo
+POST http://localhost:8090/help/post-demo
+Content-Type: application/json
+
+{
+  "Device" : {
+    "DeviceName" : "David' Phone",
+    "DeviceType" : "iPhone",
+    "DeviceUsers" : [
+      "David1", "David2"
+    ]
+  }
+}
 
 ###
 

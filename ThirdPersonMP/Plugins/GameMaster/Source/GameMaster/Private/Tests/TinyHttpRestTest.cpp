@@ -13,6 +13,8 @@
 // @formatter:off
 void FTinyHttpRestTest::RegisterRoutes()
 {
+	FTinyHttpService::RegisterRoutes();
+	
 	RegisterRoute({
 		TEXT("Get all devices"),
 		FHttpPath(TEXT("/devices")),
@@ -76,7 +78,7 @@ bool FTinyHttpRestTest::HandleQueryDevices(const FHttpServerRequest& Request, co
 
 bool FTinyHttpRestTest::HandleCreateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
 {
-	FTinyHttp::DumpServerRequest(HttpRequest);
+	UE_LOG(LogTinyHttp, Warning, TEXT("HandleCreateDevice : \n%s"), *FTinyHttp::RequestToDebugString(HttpRequest));
 
 	FTestDeviceCreateRequest CreateRequest;
 	if (FTinyHttp::DeserializeRequest(HttpRequest, CreateRequest))

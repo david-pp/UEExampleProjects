@@ -63,7 +63,7 @@ void FGameMasterModule::StartHttpServer()
 			EHttpServerRequestVerbs::VERB_GET,
 			FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 			{
-				FTinyHttp::DumpServerRequest(Request);
+				UE_LOG(LogTinyHttp, Warning, TEXT("hb : \n%s"), *FTinyHttp::RequestToDebugString(Request));
 					
 				auto Response = FHttpServerResponse::Create(TEXT("Backend"), TEXT("application/text"));
 				OnComplete(MoveTemp(Response));

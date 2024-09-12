@@ -59,28 +59,84 @@ bool FTinyHttp::UStructToJsonPayload(TArray<uint8>& OutUTF8Payload, const UStruc
 	return true;
 }
 
-void FTinyHttp::DumpServerRequest(const FHttpServerRequest& Request, const FString& LogTitle)
+FString FTinyHttp::RequestVerbToString(EHttpServerRequestVerbs Verb)
 {
-	UE_LOG(LogTinyHttp, Log, TEXT("--- %s ServerRequest : %s"), *LogTitle, *Request.RelativePath.GetPath());
+	switch (Verb)
+	{
+	case EHttpServerRequestVerbs::VERB_GET:
+		return TEXT("GET");
+	case EHttpServerRequestVerbs::VERB_POST:
+		return TEXT("POST");
+	case EHttpServerRequestVerbs::VERB_PUT:
+		return TEXT("PUT");
+	case EHttpServerRequestVerbs::VERB_PATCH:
+		return TEXT("PATCH");
+	case EHttpServerRequestVerbs::VERB_DELETE:
+		return TEXT("DELETE");
+	default:
+		break;
+	}
+	return TEXT("Unkown");
+}
 
+FString FTinyHttp::RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody)
+{
+	FString Result;
+
+	FString QueryParams;
+	for (auto It : Request.QueryParams)
+	{
+		if (!QueryParams.IsEmpty())
+		{
+			QueryParams.InsertAt(0, TEXT("&"));
+		}
+
+		QueryParams += FString::Printf(TEXT("%s=%s"), *It.Key, *It.Value);
+	}
+
+	// VERB URL?QueryParams
+	Result += FString::Printf(TEXT("%s %s?%s\n"), *RequestVerbToString(Request.Verb), *Request.RelativePath.GetPath(), *QueryParams);
+
+	// Header-Key : Value1,Value2
 	for (auto Header : Request.Headers)
 	{
-		UE_LOG(LogTinyHttp, Log, TEXT("- Header : %s"), *Header.Key);
-		for (auto Value : Header.Value)
+		Result += FString::Printf(TEXT("%s : %s\n"), *Header.Key, *FString::Join(Header.Value, TEXT(",")));
+	}
+
+	// Body ?
+	if (bShowBody)
+	{
+		FString ContentTypes = FString::Join(Request.Headers.FindRef(TEXT("Content-Type")), TEXT(","));
+
+		if (ContentTypes.Find(TEXT("json")) != INDEX_NONE || ContentTypes.Find(TEXT("text")) != INDEX_NONE)
 		{
-			UE_LOG(LogTinyHttp, Log, TEXT("-- Value : %s"), *Value);
+			TArray<uint8> TCHARBody;
+			ConvertToTCHAR(Request.Body, TCHARBody);
+
+			FString BodyString(TCHARBody.Num(), (TCHAR*)TCHARBody.GetData());
+			Result += FString::Printf(TEXT("\n%s\n"), *BodyString);
+		}
+		else
+		{
+			Result += FString::Printf(TEXT("\nHex, Length=%d\n"), Request.Body.Num());
 		}
 	}
 
-	for (auto QueryParam : Request.QueryParams)
+	// Query Paths
+	for (auto It : Request.QueryParams)
 	{
-		UE_LOG(LogTinyHttp, Log, TEXT("- QueryParam : %s -> %s"), *QueryParam.Key, *QueryParam.Value);
+		Result += FString::Printf(TEXT("[%s] = %s\n"), *It.Key, *It.Value);
 	}
 
-	for (auto PathParam : Request.PathParams)
-	{
-		UE_LOG(LogTinyHttp, Log, TEXT("- PathParam : %s -> %s"), *PathParam.Key, *PathParam.Value);
-	}
+	return Result;
+}
+
+TUniquePtr<FHttpServerResponse> FTinyHttp::CreateResponse(EHttpServerResponseCodes InResponseCode)
+{
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Code = InResponseCode;
+	Response->Headers.FindOrAdd(TEXT("Content-Type")).Add(TEXT("application/json"));
+	return Response;
 }
 
 FTinyHttpService::FTinyHttpService(uint32 InServicePort, const FString& InServiceName) : ServicePort(InServicePort), ServiceName(InServiceName)
@@ -198,6 +254,16 @@ void FTinyHttpService::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpService::HandleHelpInfo)});
 
+	RegisterRoute({TEXT("Get help information about services"),
+		FHttpPath(TEXT("/help/post-demo")),
+		EHttpServerRequestVerbs::VERB_POST,
+		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+		{
+			UE_LOG(LogTinyHttp, Warning, TEXT("### Post Demo ----\n%s\n"), *FTinyHttp::RequestToDebugString(Request));
+			OnComplete(FTinyHttp::CreateResponse(EHttpServerResponseCodes::Ok));
+			return true;
+		})});
+
 	// @formatter:on
 }
 
@@ -231,7 +297,65 @@ void FTinyHttpService::UnregisterRequestPreprocessor(const FDelegateHandle& Requ
 	}
 }
 
+const char* HelpHtmlTemplate = R"html(
+<!DOCTYPE html>
+<html>
+<style>
+table, th, td {
+  border:1px solid black;
+}
+</style>
+<body>
+<h2>Tiny Http Server</h2>
+<p>Routes :</p>
+
+{{RouteTable}}
+
+</body>
+</html>
+)html";
+
+const char* HelpRouterTableHeader = R"html(
+<table style="width:100%">
+  <tr>
+    <th>Method</th>
+    <th>Path</th>
+    <th>Description</th>
+	<th>Handler</th>
+  </tr>
+)html";
+const char* HelpRouteTableRowTemplate = R"html(
+  <tr>
+    <td>{{Method}}</td>
+    <td>{{Path}}</td>
+    <td>{{Description}}</td>
+	<td>{{Handler}}</td>
+  </tr>
+)html";
+const char* HelpRouterTableBottom = R"html(
+</table>
+)html";
+
 bool FTinyHttpService::HandleHelpInfo(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
+	UE_LOG(LogTinyHttp, Warning, TEXT("### Help  ----\n%s\n"), *FTinyHttp::RequestToDebugString(Request));
+
+	FString RouteTable;
+	RouteTable += HelpRouteTableRowTemplate;
+	for (FHttpRequestRoute& Route : RegisteredHttpRoutes)
+	{
+		FString RouteRow = HelpRouteTableRowTemplate;
+		RouteRow.ReplaceInline(TEXT("{{Method}}"), *FTinyHttp::RequestVerbToString(Route.Verb));
+		RouteRow.ReplaceInline(TEXT("{{Path}}"), *Route.Path.GetPath());
+		RouteRow.ReplaceInline(TEXT("{{Description}}"), *Route.RouteDescription);
+		RouteRow.ReplaceInline(TEXT("{{Handler}}"), TEXT(""));
+
+		RouteTable += RouteRow;
+	}
+	RouteTable += HelpRouterTableBottom;
+
+	FString Body = HelpHtmlTemplate;
+	Body.ReplaceInline(TEXT("{{RouteTable}}"), *RouteTable);
+	OnComplete(FHttpServerResponse::Create(Body, TEXT("text/html")));
 	return true;
 }

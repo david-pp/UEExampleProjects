@@ -15,7 +15,7 @@ void FGameMasterService::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 		{
-			FTinyHttp::DumpServerRequest(Request);
+			UE_LOG(LogTinyHttp, Warning, TEXT("test : \n%s"), *FTinyHttp::RequestToDebugString(Request));
 			
 			auto Response = FHttpServerResponse::Ok();
 			OnComplete(MoveTemp(Response));

@@ -76,7 +76,10 @@ struct FTinyHttp
 		return UStructToJsonPayload(OutResponsePayload, ResponseType::StaticStruct(), &InResponseObject);
 	}
 
-	static void DumpServerRequest(const FHttpServerRequest& Request, const FString& LogTitle = TEXT(""));
+	static FString RequestVerbToString(EHttpServerRequestVerbs Verb);
+	static FString RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody = true);
+
+	static TUniquePtr<FHttpServerResponse> CreateResponse(EHttpServerResponseCodes InResponseCode);
 };
 
 /**

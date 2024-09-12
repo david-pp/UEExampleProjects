@@ -21,17 +21,18 @@ GET http://localhost:8090/help
 
 ### Post Demo
 POST http://localhost:8090/help/post-demo
-Content-Type: application/json
+Content-Type: application/json;charset=utf-8
 
 {
   "Device" : {
     "DeviceName" : "David' Phone",
     "DeviceType" : "iPhone",
     "DeviceUsers" : [
-      "David1", "David2"
+      "David1", "David2", "中文名字"
     ]
   }
 }
+
 
 ###
 
@@ -53,7 +54,7 @@ Content-Type: application/json
     "DeviceName" : "David' Phone",
     "DeviceType" : "iPhone",
     "DeviceUsers" : [
-      "David1", "David2"
+      "David1", "David2", "中文名字"
     ]
   }
 }

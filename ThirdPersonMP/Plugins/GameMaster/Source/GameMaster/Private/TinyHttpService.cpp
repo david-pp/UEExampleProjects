@@ -10,6 +10,12 @@ void FTinyHttp::ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArray<uint
 	FUTF8ToTCHAR_Convert::Convert((TCHAR*)(OutTCHARPayload.GetData() + StartIndex), (OutTCHARPayload.Num() - StartIndex) / sizeof(TCHAR), (ANSICHAR*)InUTF8Payload.GetData(), InUTF8Payload.Num() / sizeof(ANSICHAR));
 }
 
+void FTinyHttp::ConvertToString(TConstArrayView<uint8> InUTF8Payload, FString& OutString)
+{
+	FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(InUTF8Payload.GetData()), InUTF8Payload.Num());
+	OutString = FString(TCHARData.Length(), TCHARData.Get());
+}
+
 void FTinyHttp::ConvertToUTF8(TConstArrayView<uint8> InTCHARPayload, TArray<uint8>& OutUTF8Payload)
 {
 	int32 StartIndex = OutUTF8Payload.Num();
@@ -79,6 +85,13 @@ FString FTinyHttp::RequestVerbToString(EHttpServerRequestVerbs Verb)
 	return TEXT("Unkown");
 }
 
+FString FTinyHttp::RequestBodyToString(const FHttpServerRequest& Request)
+{
+	FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Request.Body.GetData()), Request.Body.Num());
+	FString BodyString(TCHARData.Length(), TCHARData.Get());
+	return MoveTemp(BodyString);
+}
+
 FString FTinyHttp::RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody)
 {
 	FString Result;
@@ -110,11 +123,7 @@ FString FTinyHttp::RequestToDebugString(const FHttpServerRequest& Request, bool 
 
 		if (ContentTypes.Find(TEXT("json")) != INDEX_NONE || ContentTypes.Find(TEXT("text")) != INDEX_NONE)
 		{
-			TArray<uint8> TCHARBody;
-			ConvertToTCHAR(Request.Body, TCHARBody);
-
-			FString BodyString(TCHARBody.Num(), (TCHAR*)TCHARBody.GetData());
-			Result += FString::Printf(TEXT("\n%s\n"), *BodyString);
+			Result += FString::Printf(TEXT("\n%s\n"), *RequestBodyToString(Request));
 		}
 		else
 		{
@@ -306,7 +315,7 @@ table, th, td {
 }
 </style>
 <body>
-<h2>Tiny Http Server</h2>
+<h2>Tiny Http Server : {{ServiceName}} </h2>
 <p>Routes :</p>
 
 {{RouteTable}}
@@ -341,7 +350,7 @@ bool FTinyHttpService::HandleHelpInfo(const FHttpServerRequest& Request, const F
 	UE_LOG(LogTinyHttp, Warning, TEXT("### Help  ----\n%s\n"), *FTinyHttp::RequestToDebugString(Request));
 
 	FString RouteTable;
-	RouteTable += HelpRouteTableRowTemplate;
+	RouteTable += HelpRouterTableHeader;
 	for (FHttpRequestRoute& Route : RegisteredHttpRoutes)
 	{
 		FString RouteRow = HelpRouteTableRowTemplate;
@@ -355,6 +364,7 @@ bool FTinyHttpService::HandleHelpInfo(const FHttpServerRequest& Request, const F
 	RouteTable += HelpRouterTableBottom;
 
 	FString Body = HelpHtmlTemplate;
+	Body.ReplaceInline(TEXT("{{ServiceName}}"), *ServiceName);
 	Body.ReplaceInline(TEXT("{{RouteTable}}"), *RouteTable);
 	OnComplete(FHttpServerResponse::Create(Body, TEXT("text/html")));
 	return true;

@@ -32,6 +32,7 @@ struct FTinyHttp
 	 * @param OutTCHARPayload The converted TCHAR output in binary format.
 	 */
 	static void ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArray<uint8>& OutTCHARPayload);
+	static void ConvertToString(TConstArrayView<uint8> InUTF8Payload, FString& OutString);
 
 	/**
 	 * Convert a TCHAR payload to UTF-8.
@@ -77,6 +78,7 @@ struct FTinyHttp
 	}
 
 	static FString RequestVerbToString(EHttpServerRequestVerbs Verb);
+	static FString RequestBodyToString(const FHttpServerRequest& Request);
 	static FString RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody = true);
 
 	static TUniquePtr<FHttpServerResponse> CreateResponse(EHttpServerResponseCodes InResponseCode);

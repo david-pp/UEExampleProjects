@@ -38,6 +38,21 @@ struct FTestDeviceCreateRequest
 	FTestDevice Device;
 };
 
+
+// Update
+USTRUCT()
+struct FTestDeviceUpdateRequest
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString DeviceName;
+	UPROPERTY()
+	FString DeviceType;
+	UPROPERTY()
+	TArray<FString> DeviceUsers;
+};
+
 /**
 * GET   /device-management/devices     : Get all devices (filter by params)
 * POST  /device-management/devices     : Create a new device

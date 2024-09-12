@@ -66,13 +66,12 @@ bool FTinyHttpRestTest::HandleQueryDevices(const FHttpServerRequest& Request, co
 		}
 	}
 
-	// FString JsonString;
-	// FJsonObjectConverter::UStructToJsonObjectString(DeviceCollection, JsonString);
+	OnComplete(FTinyHttp::ServiceOK(DeviceCollection));
 
-	TArray<uint8> JsonPayload;
-	FTinyHttp::SerializeResponse(DeviceCollection, JsonPayload);
-	auto Response = FHttpServerResponse::Create(JsonPayload, TEXT("application/json"));
-	OnComplete(MoveTemp(Response));
+	// TArray<uint8> JsonPayload;
+	// FTinyHttp::SerializeResponse(DeviceCollection, JsonPayload);
+	// auto Response = FHttpServerResponse::Create(JsonPayload, TEXT("application/json"));
+	// OnComplete(MoveTemp(Response));
 	return true;
 }
 
@@ -97,8 +96,30 @@ bool FTinyHttpRestTest::HandleGetDevice(const FHttpServerRequest& Request, const
 	return true;
 }
 
-bool FTinyHttpRestTest::HandleUpdateDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+bool FTinyHttpRestTest::HandleUpdateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
 {
+	FGuid DeviceID;
+	FString DeviceIDString = HttpRequest.PathParams.FindRef(TEXT("device"));
+	FGuid::Parse(DeviceIDString, DeviceID);
+
+	FTestDeviceUpdateRequest UpdateRequest;
+	if (!FTinyHttp::DeserializeRequest(HttpRequest, UpdateRequest))
+	{
+		OnComplete(FTinyHttp::ServiceError(100, TEXT("Invalid request")));
+		return true;
+	}
+
+	FTestDevice* Device = Devices.Find(DeviceID);
+	if (!Device)
+	{
+		OnComplete(FTinyHttp::ServiceError(101, TEXT("Invalid device"), UpdateRequest));
+		return true;
+	}
+
+	Device->DeviceName = UpdateRequest.DeviceName;
+	Device->DeviceType = UpdateRequest.DeviceType;
+	Device->DeviceUsers = UpdateRequest.DeviceUsers;
+	OnComplete(FTinyHttp::ServiceOK());
 	return true;
 }
 

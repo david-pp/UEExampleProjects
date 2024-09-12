@@ -1,5 +1,6 @@
 ﻿#include "TinyHttpService.h"
 #include "HttpServerModule.h"
+#include "JsonObjectConverter.h"
 
 DEFINE_LOG_CATEGORY(LogTinyHttp);
 
@@ -140,13 +141,120 @@ FString FTinyHttp::RequestToDebugString(const FHttpServerRequest& Request, bool 
 	return Result;
 }
 
-TUniquePtr<FHttpServerResponse> FTinyHttp::CreateResponse(EHttpServerResponseCodes InResponseCode)
+// Json Protocol
+namespace
 {
-	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
-	Response->Code = InResponseCode;
-	Response->Headers.FindOrAdd(TEXT("Content-Type")).Add(TEXT("application/json"));
+	TSharedPtr<FJsonObject> MakeOkJsonObject(const EHttpServerResponseCodes& HttpCode, const TSharedPtr<FJsonObject>& Data = nullptr)
+	{
+		TSharedPtr<FJsonObject> JsonBody = MakeShared<FJsonObject>();
+		JsonBody->SetStringField(TEXT("Code"), FString::Printf(TEXT("%d"), EHttpServerResponseCodes::Ok));
+		JsonBody->SetStringField(TEXT("Status"), TEXT("OK"));
+		if (Data)
+		{
+			JsonBody->SetObjectField(TEXT("Data"), Data);
+		}
+
+		return JsonBody;
+	}
+
+	FString MakeOkJsonString(const EHttpServerResponseCodes& HttpCode, const TSharedPtr<FJsonObject>& Data = nullptr)
+	{
+		FString JsonString;
+		TSharedPtr<FJsonObject> JsonBody = MakeOkJsonObject(HttpCode, Data);
+		if (JsonBody)
+		{
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+			FJsonSerializer::Serialize(JsonBody.ToSharedRef(), Writer);
+		}
+		return MoveTemp(JsonString);
+	}
+
+	TSharedPtr<FJsonObject> MakeErrorJsonObject(const EHttpServerResponseCodes& HttpCode, const int ErrorCode, const FString& ErrorMessage, const TSharedPtr<FJsonObject>& ErrorDetails = nullptr)
+	{
+		TSharedPtr<FJsonObject> JsonBody = MakeShared<FJsonObject>();
+		JsonBody->SetStringField(TEXT("Code"), FString::Printf(TEXT("%d"), EHttpServerResponseCodes::BadRequest));
+		JsonBody->SetStringField(TEXT("Status"), TEXT("BadRequest"));
+
+		if (ErrorCode > 0 || ErrorMessage.Len() > 0)
+		{
+			JsonBody->SetStringField(TEXT("ErrorCode"), LexToString(ErrorCode));
+			JsonBody->SetStringField(TEXT("ErrorMessage"), ErrorMessage.ReplaceCharWithEscapedChar());
+		}
+
+		if (ErrorDetails)
+		{
+			JsonBody->SetObjectField(TEXT("ErrorDetails"), ErrorDetails);
+		}
+
+		return JsonBody;
+	}
+
+	FString MakeErrorJsonString(const EHttpServerResponseCodes& HttpCode, const int ErrorCode, const FString& ErrorMessage, const TSharedPtr<FJsonObject>& ErrorDetails = nullptr)
+	{
+		FString JsonString;
+		TSharedPtr<FJsonObject> JsonBody = MakeErrorJsonObject(HttpCode, ErrorCode, ErrorMessage, ErrorDetails);
+		if (JsonBody)
+		{
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+			FJsonSerializer::Serialize(JsonBody.ToSharedRef(), Writer);
+		}
+		return MoveTemp(JsonString);
+	}
+}
+
+TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceOKInternal(const UStruct* StructDefinition, const void* Struct)
+{
+	FString JsonString;
+	if (StructDefinition && Struct)
+	{
+		TSharedRef<FJsonObject> DataJsonObject = MakeShared<FJsonObject>();
+		if (FJsonObjectConverter::UStructToJsonObject(StructDefinition, Struct, DataJsonObject))
+		{
+			JsonString = MakeOkJsonString(EHttpServerResponseCodes::Ok, DataJsonObject);
+		}
+		else
+		{
+			JsonString = MakeOkJsonString(EHttpServerResponseCodes::Ok);
+			UE_LOG(LogTinyHttp, Warning, TEXT("ServiceOKInternal - Struct to JsonObject Failed: %s"), *StructDefinition->GetName());
+		}
+	}
+	else
+	{
+		JsonString = MakeOkJsonString(EHttpServerResponseCodes::Ok);
+	}
+
+	auto Response = FHttpServerResponse::Create(JsonString, TEXT("application/json"));
+	Response->Code = EHttpServerResponseCodes::Ok;
 	return Response;
 }
+
+TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceErrorInternal(const int ErrorCode, const FString& ErrorMessage, const UStruct* StructDefinition, const void* Struct)
+{
+	FString JsonString;
+	if (StructDefinition && Struct)
+	{
+		TSharedRef<FJsonObject> ErrorDetail = MakeShared<FJsonObject>();
+		if (FJsonObjectConverter::UStructToJsonObject(StructDefinition, Struct, ErrorDetail))
+		{
+			JsonString = MakeErrorJsonString(EHttpServerResponseCodes::BadRequest, ErrorCode, ErrorMessage, ErrorDetail);
+		}
+		else
+		{
+			JsonString = MakeErrorJsonString(EHttpServerResponseCodes::BadRequest, ErrorCode, ErrorMessage);
+			UE_LOG(LogTinyHttp, Warning, TEXT("ServiceErrorInternal - Struct to JsonObject Failed: %s"), *StructDefinition->GetName());
+		}
+	}
+	else
+	{
+		JsonString = MakeErrorJsonString(EHttpServerResponseCodes::BadRequest, ErrorCode, ErrorMessage);
+	}
+
+	auto Response = FHttpServerResponse::Create(JsonString, TEXT("application/json"));
+	Response->Code = EHttpServerResponseCodes::BadRequest;
+	return Response;
+}
+
+// -------------------------------------
 
 FTinyHttpService::FTinyHttpService(uint32 InServicePort, const FString& InServiceName) : ServicePort(InServicePort), ServiceName(InServiceName)
 {
@@ -263,13 +371,32 @@ void FTinyHttpService::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpService::HandleHelpInfo)});
 
-	RegisterRoute({TEXT("Get help information about services"),
+
+	RegisterRoute({TEXT("error response"),
+		FHttpPath(TEXT("/help/error")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+		{
+			OnComplete(FTinyHttp::ServiceError(0,TEXT("InvalidRequest")));
+			return true;
+		})});
+	
+	RegisterRoute({TEXT("ok response"),
+		FHttpPath(TEXT("/help/ok")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+		{
+			OnComplete(FTinyHttp::ServiceOK());
+			return true;
+		})});
+
+	RegisterRoute({TEXT("Post request demo"),
 		FHttpPath(TEXT("/help/post-demo")),
 		EHttpServerRequestVerbs::VERB_POST,
 		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 		{
 			UE_LOG(LogTinyHttp, Warning, TEXT("### Post Demo ----\n%s\n"), *FTinyHttp::RequestToDebugString(Request));
-			OnComplete(FTinyHttp::CreateResponse(EHttpServerResponseCodes::Ok));
+			OnComplete(FTinyHttp::ServiceOK());
 			return true;
 		})});
 

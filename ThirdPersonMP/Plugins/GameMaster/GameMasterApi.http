@@ -19,6 +19,12 @@ Accept: application/text
 ### Help
 GET http://localhost:8090/help
 
+### Error Response
+GET http://localhost:8090/help/error
+
+### OK Response
+GET http://localhost:8090/help/ok
+
 ### Post Demo
 POST http://localhost:8090/help/post-demo
 Content-Type: application/json;charset=utf-8
@@ -61,3 +67,15 @@ Content-Type: application/json
 
 
 
+### Update Device
+
+PUT http://localhost:8090/devices/BA9A2E6844BF65F3BC84D0A2230AE870
+Content-Type: application/json
+
+{
+  "DeviceName" : "David' PC",
+  "DeviceType" : "PC",
+  "DeviceUsers" : [
+    "David1"
+  ]
+}

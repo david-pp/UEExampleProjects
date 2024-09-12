@@ -5,7 +5,6 @@
 #include "HttpServerResponse.h"
 #include "HttpServerRequest.h"
 #include "IHttpRouter.h"
-#include "JsonObjectConverter.h"
 
 /**
  * FHttpServiceHandler 
@@ -81,7 +80,35 @@ struct FTinyHttp
 	static FString RequestBodyToString(const FHttpServerRequest& Request);
 	static FString RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody = true);
 
-	static TUniquePtr<FHttpServerResponse> CreateResponse(EHttpServerResponseCodes InResponseCode);
+
+	/**
+	 * Service Response
+	 */
+	static TUniquePtr<FHttpServerResponse> ServiceOK()
+	{
+		return ServiceOKInternal(nullptr, nullptr);
+	}
+
+	template <typename ResponseDataStruct>
+	static TUniquePtr<FHttpServerResponse> ServiceOK(const ResponseDataStruct& Data)
+	{
+		return ServiceOKInternal(ResponseDataStruct::StaticStruct(), &Data);
+	}
+
+	static TUniquePtr<FHttpServerResponse> ServiceError(const int ErrorCode, const FString& ErrorMessage)
+	{
+		return ServiceErrorInternal(ErrorCode, ErrorMessage, nullptr, nullptr);
+	}
+
+	template <typename ErrorDetailStruct>
+	static TUniquePtr<FHttpServerResponse> ServiceError(const int ErrorCode, const FString& ErrorMessage, const ErrorDetailStruct& ErrorDetail)
+	{
+		return ServiceErrorInternal(ErrorCode, ErrorMessage, ErrorDetailStruct::StaticStruct(), &ErrorDetail);
+	}
+
+protected:
+	static TUniquePtr<FHttpServerResponse> ServiceOKInternal(const UStruct* StructDefinition, const void* Struct);
+	static TUniquePtr<FHttpServerResponse> ServiceErrorInternal(const int ErrorCode, const FString& ErrorMessage, const UStruct* StructDefinition, const void* Struct);
 };
 
 /**

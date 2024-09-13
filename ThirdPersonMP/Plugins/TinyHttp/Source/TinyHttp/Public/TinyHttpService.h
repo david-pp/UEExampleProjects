@@ -30,8 +30,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHttpServiceStoped, uint32 /*Port*/);
  */
 struct FHttpRequestRoute
 {
-	FHttpRequestRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb, FHttpServiceHandler InHandler)
-		: RouteDescription(MoveTemp(InRouteDescription)), Path(MoveTemp(InPath)), Verb(InVerb), Handler(MoveTemp(InHandler))
+	FHttpRequestRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb, FHttpServiceHandler InHandler, bool bInDebugRequest = false)
+		: RouteDescription(MoveTemp(InRouteDescription)), Path(MoveTemp(InPath)), Verb(InVerb), Handler(MoveTemp(InHandler)), bDebugRequest(bInDebugRequest)
 	{
 	}
 
@@ -43,6 +43,8 @@ struct FHttpRequestRoute
 	EHttpServerRequestVerbs Verb = EHttpServerRequestVerbs::VERB_GET;
 	/** The handler called when the route is accessed. */
 	FHttpServiceHandler Handler;
+	/** Dump http request to log ? */
+	bool bDebugRequest;
 
 	friend uint32 GetTypeHash(const FHttpRequestRoute& Route) { return HashCombine(GetTypeHash(Route.Path), GetTypeHash(Route.Verb)); }
 	friend bool operator==(const FHttpRequestRoute& LHS, const FHttpRequestRoute& RHS) { return LHS.Path == RHS.Path && LHS.Verb == RHS.Verb; }

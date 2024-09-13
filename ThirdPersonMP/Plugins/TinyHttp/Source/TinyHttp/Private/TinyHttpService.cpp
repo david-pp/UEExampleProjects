@@ -1,6 +1,7 @@
 ﻿#include "TinyHttpService.h"
 #include "HttpServerModule.h"
 #include "JsonObjectConverter.h"
+#include "TinyHttp.h"
 
 
 // Json Protocol
@@ -264,11 +265,16 @@ void FTinyHttpService::StartRoute(const FHttpRequestRoute& Route)
 	
 	// The handler is wrapped in a lambda since HttpRouter::BindRoute only accepts TFunctions
 	ActiveRouteHandles.Add(GetTypeHash(Route),
-				HttpRouter->BindRoute(Route.Path, Route.Verb,
-				[this, Handler = Route.Handler](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
-						{
-							return Handler.Execute(Request, OnComplete);
-						}));
+	HttpRouter->BindRoute(Route.Path, Route.Verb,
+	[this, Route](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+			{
+				if (Route.bDebugRequest)
+				{
+					UE_LOG(LogTinyHttp, Warning, TEXT("### %s : %s\n%s\n"),
+						*Route.Path.GetPath(), *Route.RouteDescription,  *FTinyHttp::RequestToDebugString(Request));
+				}
+				return Route.Handler.Execute(Request, OnComplete);
+			}));
 	// @formatter:on
 }
 
@@ -279,7 +285,8 @@ void FTinyHttpService::RegisterRoutes()
 	RegisterRoute({TEXT("Get help information about services"),
 		FHttpPath(TEXT("/help")),
 		EHttpServerRequestVerbs::VERB_GET,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpService::HandleHelpInfo)});
+		FHttpServiceHandler::CreateRaw(this, &FTinyHttpService::HandleHelpInfo)
+	});
 
 
 	RegisterRoute({TEXT("error response"),
@@ -289,7 +296,9 @@ void FTinyHttpService::RegisterRoutes()
 		{
 			OnComplete(FTinyHttp::ServiceError(0,TEXT("InvalidRequest")));
 			return true;
-		})});
+		}),
+		true
+	});
 	
 	RegisterRoute({TEXT("ok response"),
 		FHttpPath(TEXT("/help/ok")),
@@ -298,7 +307,9 @@ void FTinyHttpService::RegisterRoutes()
 		{
 			OnComplete(FTinyHttp::ServiceOK());
 			return true;
-		})});
+		}),
+		true
+	});
 
 	RegisterRoute({TEXT("Post request demo"),
 		FHttpPath(TEXT("/help/post-demo")),

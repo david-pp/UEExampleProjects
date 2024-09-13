@@ -93,11 +93,11 @@ public:
 
 	virtual void RegisterRoutes() override;
 
-	bool HandleQueryDevices(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleCreateDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleGetDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleUpdateDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
-	bool HandleDeleteDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleQueryDevices(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete);
+	bool HandleCreateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete);
+	bool HandleGetDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete);
+	bool HandleUpdateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete);
+	bool HandleDeleteDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete);
 
 
 	// Advanced Mode

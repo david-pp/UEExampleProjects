@@ -20,7 +20,8 @@ void FTinyHttpRestTest::RegisterRoutes()
 		TEXT("Get all devices"),
 		FHttpPath(TEXT("/devices")),
 		EHttpServerRequestVerbs::VERB_GET,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleQueryDevices)
+		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleQueryDevices),
+		true
 	});
 
 	// Create
@@ -28,7 +29,8 @@ void FTinyHttpRestTest::RegisterRoutes()
 		TEXT("Create a new device"),
 		FHttpPath(TEXT("/devices")),
 		EHttpServerRequestVerbs::VERB_POST,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleCreateDevice)
+		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleCreateDevice),
+		true
 	});
 
 	// Get
@@ -43,7 +45,8 @@ void FTinyHttpRestTest::RegisterRoutes()
 			FServiceResponsePtr Response = HandleGetDeviceEx(Request);
 			OnComplete(FTinyHttp::ServiceResponse(Response, FTestDeviceGetResponse::StaticStruct()));
 			return true;
-		})
+		}),
+		true
 	});
 	// Get Ex
 	// RegisterRoute<FTestDeviceGetRequest, FTestDeviceGetResponse> (
@@ -60,15 +63,17 @@ void FTinyHttpRestTest::RegisterRoutes()
 		TEXT("Update the device information"),
 		FHttpPath(TEXT("/devices/:device")),
 		EHttpServerRequestVerbs::VERB_PUT,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleUpdateDevice)
+		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleUpdateDevice),
+		true
 	});
 
 	// Delete
 	RegisterRoute({
 		TEXT("Delete the device"),
-		FHttpPath(TEXT("/devices/:devices")),
+		FHttpPath(TEXT("/devices/:device")),
 		EHttpServerRequestVerbs::VERB_DELETE,
-		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleDeleteDevice)
+		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleDeleteDevice),
+		true
 	});
 }
 // @formatter:on
@@ -88,11 +93,6 @@ bool FTinyHttpRestTest::HandleQueryDevices(const FHttpServerRequest& Request, co
 	}
 
 	OnComplete(FTinyHttp::ServiceOK(DeviceCollection));
-
-	// TArray<uint8> JsonPayload;
-	// FTinyHttp::SerializeResponse(DeviceCollection, JsonPayload);
-	// auto Response = FHttpServerResponse::Create(JsonPayload, TEXT("application/json"));
-	// OnComplete(MoveTemp(Response));
 	return true;
 }
 
@@ -118,6 +118,7 @@ bool FTinyHttpRestTest::HandleGetDevice(const FHttpServerRequest& HttpRequest, c
 	if (!FTinyHttp::DeserializeRequest(HttpRequest, Request))
 	{
 		OnComplete(FTinyHttp::ServiceError(100,TEXT("Invalid Request")));
+		return true;
 	}
 
 	FServiceResponsePtr Response = HandleGetDeviceEx(Request);
@@ -158,22 +159,31 @@ bool FTinyHttpRestTest::HandleUpdateDevice(const FHttpServerRequest& HttpRequest
 		return true;
 	}
 
-	FTestDevice* Device = Devices.Find(DeviceID);
-	if (!Device)
-	{
-		OnComplete(FTinyHttp::ServiceError(101, TEXT("Invalid device"), UpdateRequest));
-		return true;
-	}
+	FTestDevice& Device = Devices.FindOrAdd(DeviceID);
+	Device.DeviceId = DeviceID;
+	Device.DeviceName = UpdateRequest.DeviceName;
+	Device.DeviceType = UpdateRequest.DeviceType;
+	Device.DeviceUsers = UpdateRequest.DeviceUsers;
 
-	Device->DeviceName = UpdateRequest.DeviceName;
-	Device->DeviceType = UpdateRequest.DeviceType;
-	Device->DeviceUsers = UpdateRequest.DeviceUsers;
 	OnComplete(FTinyHttp::ServiceOK());
 	return true;
 }
 
-bool FTinyHttpRestTest::HandleDeleteDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+bool FTinyHttpRestTest::HandleDeleteDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
 {
+	FGuid DeviceID;
+	FString DeviceIDString = HttpRequest.PathParams.FindRef(TEXT("device"));
+	FGuid::Parse(DeviceIDString, DeviceID);
+
+	FTestDevice* Device = Devices.Find(DeviceID);
+	if (!Device)
+	{
+		OnComplete(FTinyHttp::ServiceError(101, TEXT("Can't find device")));
+		return true;
+	}
+
+	Devices.Remove(DeviceID);
+	OnComplete(FTinyHttp::ServiceOK());
 	return true;
 }
 

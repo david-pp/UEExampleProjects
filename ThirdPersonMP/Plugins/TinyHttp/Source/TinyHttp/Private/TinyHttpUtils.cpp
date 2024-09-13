@@ -29,6 +29,21 @@ void FTinyHttp::ConvertToUTF8(const FString& InString, TArray<uint8>& OutUTF8Pay
 	FTCHARToUTF8_Convert::Convert((ANSICHAR*)(OutUTF8Payload.GetData() + StartIndex), (OutUTF8Payload.Num() - StartIndex) / sizeof(ANSICHAR), *InString, InString.Len());
 }
 
+TSharedPtr<FJsonObject> FTinyHttp::JsonPayloadToObject(const TArray<uint8>& InUTF8Payload)
+{
+	TArray<uint8> TCHARBody;
+	ConvertToTCHAR(InUTF8Payload, TCHARBody);
+
+	FMemoryReaderView BodyReader(TCHARBody);
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(&BodyReader);
+	if (FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+	{
+		return JsonObject;
+	}
+	return nullptr;
+}
+
 bool FTinyHttp::JsonPayloadToUStruct(const TArray<uint8>& InUTF8Payload, const UStruct* StructDefinition, void* OutStruct)
 {
 	TArray<uint8> TCHARBody;

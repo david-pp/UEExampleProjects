@@ -29,6 +29,7 @@ struct TINYHTTP_API FTinyHttp
 	static void ConvertToUTF8(const FString& InString, TArray<uint8>& OutUTF8Payload);
 
 	/** Json UTF8 <-> UStruct */
+	static TSharedPtr<FJsonObject> JsonPayloadToObject(const TArray<uint8>& InUTF8Payload);
 	static bool JsonPayloadToUStruct(const TArray<uint8>& InUTF8Payload, const UStruct* StructDefinition, void* OutStruct);
 	static bool UStructToJsonPayload(TArray<uint8>& OutUTF8Payload, const UStruct* StructDefinition, const void* Struct);
 
@@ -60,7 +61,6 @@ struct TINYHTTP_API FTinyHttp
 	static FString RequestVerbToString(EHttpServerRequestVerbs Verb);
 	static FString RequestBodyToString(const FHttpServerRequest& Request);
 	static FString RequestToDebugString(const FHttpServerRequest& Request, bool bShowBody = true);
-
 
 	/**
 	 * Service Response
@@ -97,6 +97,11 @@ struct TINYHTTP_API FTinyHttp
 	{
 		return ServiceErrorInternal(ErrorCode, ErrorMessage, ErrorDetailStruct::StaticStruct(), &ErrorDetail);
 	}
+
+	/**
+	 * Client deserialize the service's response
+	 */
+	
 
 protected:
 	static TUniquePtr<FHttpServerResponse> ServiceResponseInternal(const FServiceResponsePtr& ServiceResponse, const UStruct* ServiceResponseStruct);

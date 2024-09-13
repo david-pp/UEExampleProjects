@@ -28,7 +28,8 @@ public class TinyHttp : ModuleRules
 			new string[]
 			{
 				"Core",
-				"HttpServer",
+				"Http",
+				"HTTPServer",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);

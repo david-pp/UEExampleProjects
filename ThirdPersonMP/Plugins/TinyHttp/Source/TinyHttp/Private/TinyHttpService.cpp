@@ -67,12 +67,14 @@ namespace
 
 TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceResponseInternal(const FServiceResponsePtr& ServiceResponse, const UStruct* ServiceResponseStruct)
 {
+	EHttpServerResponseCodes HttpCode = EHttpServerResponseCodes::Ok;
 	TSharedRef<FJsonObject> JsonResponse = MakeShared<FJsonObject>();
 
 	if (ServiceResponse && ServiceResponseStruct)
 	{
 		if (ServiceResponse->HasError())
 		{
+			HttpCode = EHttpServerResponseCodes::BadRequest;
 			JsonResponse->SetStringField(TEXT("Code"), FString::Printf(TEXT("%d"), EHttpServerResponseCodes::BadRequest));
 			JsonResponse->SetStringField(TEXT("Status"), TEXT("BadRequest"));
 
@@ -81,6 +83,7 @@ TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceResponseInternal(const FServic
 		}
 		else // OK
 		{
+			HttpCode = EHttpServerResponseCodes::Ok;
 			JsonResponse->SetStringField(TEXT("Code"), FString::Printf(TEXT("%d"), EHttpServerResponseCodes::Ok));
 			JsonResponse->SetStringField(TEXT("Status"), TEXT("OK"));
 
@@ -97,6 +100,7 @@ TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceResponseInternal(const FServic
 	}
 	else // No response payload
 	{
+		HttpCode = EHttpServerResponseCodes::Ok;
 		JsonResponse->SetStringField(TEXT("Code"), FString::Printf(TEXT("%d"), EHttpServerResponseCodes::Ok));
 		JsonResponse->SetStringField(TEXT("Status"), TEXT("OK"));
 	}
@@ -109,7 +113,7 @@ TUniquePtr<FHttpServerResponse> FTinyHttp::ServiceResponseInternal(const FServic
 	}
 
 	auto Response = FHttpServerResponse::Create(JsonString, TEXT("application/json"));
-	Response->Code = EHttpServerResponseCodes::Ok;
+	Response->Code = HttpCode;
 	return Response;
 }
 

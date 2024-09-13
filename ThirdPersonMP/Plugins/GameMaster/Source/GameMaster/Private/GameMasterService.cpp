@@ -4,6 +4,7 @@
 #include "GameMasterService.h"
 
 #include "GameMaster.h"
+#include "TinyHttpService.h"
 
 // @formatter:off
 void FGameMasterService::RegisterRoutes()
@@ -15,7 +16,7 @@ void FGameMasterService::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FHttpServiceHandler::CreateLambda([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 		{
-			UE_LOG(LogTinyHttp, Warning, TEXT("test : \n%s"), *FTinyHttp::RequestToDebugString(Request));
+			UE_LOG(LogGameMaster, Warning, TEXT("test : \n%s"), *FTinyHttp::RequestToDebugString(Request));
 			
 			auto Response = FHttpServerResponse::Ok();
 			OnComplete(MoveTemp(Response));

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class GameMaster : ModuleRules
+public class TinyHttp : ModuleRules
 {
-	public GameMaster(ReadOnlyTargetRules Target) : base(Target)
+	public TinyHttp(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -28,9 +28,7 @@ public class GameMaster : ModuleRules
 			new string[]
 			{
 				"Core",
-				"HTTPServer",
-				"Json",
-				"JsonUtilities",
+				"HttpServer",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
@@ -43,9 +41,8 @@ public class GameMaster : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"HTTPServer",
-				"TinyHttp",
-				// ... add private dependencies that you statically link with here ...	
+				"Json",
+				"JsonUtilities",
 			}
 		);
 

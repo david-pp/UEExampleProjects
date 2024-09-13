@@ -1,5 +1,7 @@
 #include "TinyHttpRestTest.h"
 
+#include "TinyHttp.h"
+
 
 /**
 * GET   /device-management/devices     : Get all devices
@@ -20,7 +22,8 @@ void FTinyHttpRestTest::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleQueryDevices)
 	});
-		
+
+	// Create
 	RegisterRoute({
 		TEXT("Create a new device"),
 		FHttpPath(TEXT("/devices")),
@@ -28,23 +31,41 @@ void FTinyHttpRestTest::RegisterRoutes()
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleCreateDevice)
 	});
 
-	// RegisterRoute<FTestDeviceGetRequest,FTestDeviceGetReply> (
+	// Get
+	RegisterRoute({
+		TEXT("Get the device information"),
+		FHttpPath(TEXT("/devices/:device")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FHttpServiceHandler::CreateLambda([this](const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
+		{
+			FTestDeviceGetRequest Request;
+			Request.DeviceID = HttpRequest.PathParams.FindRef(TEXT("device"));
+			FServiceResponsePtr Response = HandleGetDeviceEx(Request);
+			OnComplete(FTinyHttp::ServiceResponse(Response, FTestDeviceGetResponse::StaticStruct()));
+			return true;
+		})
+	});
+	// Get Ex
+	// RegisterRoute<FTestDeviceGetRequest, FTestDeviceGetResponse> (
 	// 	TEXT("Get the device information"),
 	// 	FHttpPath(TEXT("/devices/:device")),
-	// 	EHttpServerRequestVerbs::VERB_GET, [this](const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error) -> int
+	// 	EHttpServerRequestVerbs::VERB_GET,
+	// 	[this](const FTestDeviceGetRequest& Request) 
 	// 	{
-	// 		return HandleGetDeviceEx(Request, Reply, Error);
+	// 		return this->HandleGetDeviceEx(Request);
 	// 	});
 
+	// Update
 	RegisterRoute({
 		TEXT("Update the device information"),
 		FHttpPath(TEXT("/devices/:device")),
 		EHttpServerRequestVerbs::VERB_PUT,
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleUpdateDevice)
 	});
-		
+
+	// Delete
 	RegisterRoute({
-		TEXT("Destroy Session"),
+		TEXT("Delete the device"),
 		FHttpPath(TEXT("/devices/:devices")),
 		EHttpServerRequestVerbs::VERB_DELETE,
 		FHttpServiceHandler::CreateRaw(this, &FTinyHttpRestTest::HandleDeleteDevice)
@@ -91,12 +112,24 @@ bool FTinyHttpRestTest::HandleCreateDevice(const FHttpServerRequest& HttpRequest
 	return true;
 }
 
-bool FTinyHttpRestTest::HandleGetDevice(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+bool FTinyHttpRestTest::HandleGetDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)
 {
+	FTestDeviceGetRequest Request;
+	if (!FTinyHttp::DeserializeRequest(HttpRequest, Request))
+	{
+		OnComplete(FTinyHttp::ServiceError(100,TEXT("Invalid Request")));
+	}
+
+	FServiceResponsePtr Response = HandleGetDeviceEx(Request);
+	if (Response)
+	{
+		OnComplete(FTinyHttp::ServiceResponse(Response, FTestDeviceGetResponse::StaticStruct()));
+	}
+
 	return true;
 }
 
-int FTinyHttpRestTest::HandleGetDeviceEx(const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error)
+FServiceResponsePtr FTinyHttpRestTest::HandleGetDeviceEx(const FTestDeviceGetRequest& Request)
 {
 	FGuid DeviceID;
 	FGuid::Parse(Request.DeviceID, DeviceID);
@@ -104,12 +137,12 @@ int FTinyHttpRestTest::HandleGetDeviceEx(const FTestDeviceGetRequest& Request, F
 	FTestDevice* Device = Devices.Find(DeviceID);
 	if (!Device)
 	{
-		Error = TEXT("Can't find device");
-		return 100;
+		return MakeShared<FTestDeviceGetResponse>(100, TEXT("Can't find device"));
 	}
 
-	Reply.Device = *Device;
-	return SERVICE_OK;
+	auto Response = MakeShared<FTestDeviceGetResponse>();
+	Response->Device = *Device;
+	return Response;
 }
 
 bool FTinyHttpRestTest::HandleUpdateDevice(const FHttpServerRequest& HttpRequest, const FHttpResultCallback& OnComplete)

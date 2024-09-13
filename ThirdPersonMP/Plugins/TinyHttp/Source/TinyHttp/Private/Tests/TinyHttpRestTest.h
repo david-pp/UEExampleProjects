@@ -1,5 +1,6 @@
 #pragma once
 #include "TinyHttpService.h"
+#include "TinyHttpTypes.h"
 #include "TinyHttpRestTest.generated.h"
 
 USTRUCT()
@@ -64,13 +65,17 @@ struct FTestDeviceGetRequest
 };
 
 USTRUCT()
-struct FTestDeviceGetReply
+struct FTestDeviceGetResponse : public FServiceResponse
 {
 	GENERATED_BODY()
 
+	using FServiceResponse::FServiceResponse;
+	
 	UPROPERTY()
 	FTestDevice Device;
 };
+
+typedef TFunction<FServiceResponsePtr (const FTestDeviceGetRequest&)> FTestDeviceGetHandler;
 
 /**
 * GET   /device-management/devices     : Get all devices (filter by params)
@@ -96,7 +101,7 @@ public:
 
 
 	// Advanced Mode
-	int HandleGetDeviceEx(const FTestDeviceGetRequest& Request, FTestDeviceGetReply& Reply, FString& Error);
+	FServiceResponsePtr HandleGetDeviceEx(const FTestDeviceGetRequest& Request);
 
 protected:
 	TMap<FGuid, FTestDevice> Devices;

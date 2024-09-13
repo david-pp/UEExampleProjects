@@ -79,3 +79,10 @@ Content-Type: application/json
     "David1"
   ]
 }
+
+
+### Get Device (by Ex Functions)
+
+GET http://localhost:8090/devices/BA9A2E6844BF65F3BC84D0A2230AE870
+Content-Type: application/json
+

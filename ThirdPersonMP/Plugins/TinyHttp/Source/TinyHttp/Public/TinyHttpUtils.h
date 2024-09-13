@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
 #include "HttpServerRequest.h"
 #include "TinyHttpTypes.h"
 
@@ -101,7 +103,7 @@ struct TINYHTTP_API FTinyHttp
 	/**
 	 * Client deserialize the service's response
 	 */
-	
+	static TSharedPtr<FJsonObject> DeserializeServiceResponse(FHttpResponsePtr HttpResponse, FServiceResponse& Result);
 
 protected:
 	static TUniquePtr<FHttpServerResponse> ServiceResponseInternal(const FServiceResponsePtr& ServiceResponse, const UStruct* ServiceResponseStruct);

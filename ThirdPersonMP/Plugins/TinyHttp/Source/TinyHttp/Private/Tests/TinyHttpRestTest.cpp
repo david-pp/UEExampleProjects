@@ -3,6 +3,7 @@
 #include "HttpModule.h"
 #include "JsonObjectConverter.h"
 #include "TinyHttp.h"
+#include "TinyHttpClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 
@@ -254,6 +255,46 @@ void FTinyHttpServiceSpec::Define()
 			GetDeviceTest();
 		});
 	});
+
+	// @formatter:off
+	Describe("Http Request Builder", [this]
+	{
+		It("Put Device", [this]
+		{
+			FTestDeviceUpdateRequest DeviceRequest;
+			DeviceRequest.DeviceName = TEXT("David's PC");
+			DeviceRequest.DeviceType = TEXT("PC");
+			DeviceRequest.DeviceUsers.Append({TEXT("David1"), TEXT("中文名字")});
+			
+			FHttpRequestBuilder(ServiceURL)
+			.Put(TEXT("devices/BA9A2E6844BF65F3BC84D0A2230AE870"))
+			.WithPayload(DeviceRequest)
+			.Handling([](const FString& Error)
+			{
+				UE_LOG(LogTinyHttp, Log, TEXT("Put Device Done : %s"), *Error)
+			});
+		});
+		
+		It("Get Device", [this]
+		{
+			FHttpRequestBuilder(ServiceURL)
+			.Get(TEXT("devices/BA9A2E6844BF65F3BC84D0A2230AE870"))
+			.Handling<FTestDeviceGetResponse>([](const FTestDeviceGetResponse& Response, const FString& Error)
+			{
+				if (Error.IsEmpty())
+				{
+					FTestDevice Device = Response.Device;
+					UE_LOG(LogTinyHttp, Log, TEXT("Get Device Result :%s,%s"), *Device.DeviceId.ToString(), *Device.DeviceName);
+				}
+				else
+				{
+					UE_LOG(LogTinyHttp, Log, TEXT("Get Device Error : %s"), *Error);
+				}
+			});
+		});
+	});
+
+	// @formatter:on
 
 
 	// Service->Stop();

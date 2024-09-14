@@ -1,0 +1,73 @@
+
+### Help
+GET http://localhost:8090/help
+
+### Error Response
+GET http://localhost:8090/help/error
+
+### OK Response
+GET http://localhost:8090/help/ok
+
+### Post Demo
+POST http://localhost:8090/help/post-demo
+Content-Type: application/json;charset=utf-8
+
+{
+  "Device" : {
+    "DeviceName" : "David' Phone",
+    "DeviceType" : "iPhone",
+    "DeviceUsers" : [
+      "David1", "David2", "中文名字"
+    ]
+  }
+}
+
+
+###
+
+GET http://localhost:8090/devices
+Accept: application/json
+
+###
+
+GET http://localhost:8090/devices?type=iPhone
+Accept: application/json
+
+###
+
+POST http://localhost:8090/devices
+Content-Type: application/json
+
+{
+  "Device" : {
+    "DeviceName" : "David' Phone",
+    "DeviceType" : "iPhone",
+    "DeviceUsers" : [
+      "David1", "David2", "中文名字"
+    ]
+  }
+}
+
+
+
+### Put Device
+
+PUT http://localhost:8090/devices/BA9A2E6844BF65F3BC84D0A2230AE870
+Content-Type: application/json
+
+{
+  "DeviceName" : "David' PC",
+  "DeviceType" : "PC",
+  "DeviceUsers" : [
+    "David1"
+  ]
+}
+
+### Get Device
+
+GET http://localhost:8090/devices/BA9A2E6844BF65F3BC84D0A2230AE870
+Content-Type: application/json
+
+### Delete Device
+
+DELETE http://localhost:8090/devices/BA9A2E6844BF65F3BC84D0A2230AE870

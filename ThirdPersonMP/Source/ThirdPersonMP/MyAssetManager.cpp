@@ -19,6 +19,11 @@ bool UMyObject::SaveAsAsset(FString AssetPath, FString PackageName, FString Obje
 	return true;
 }
 
+void UMyObject::PrivateFunction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("This is a Private Function"));
+}
+
 UObject* UMyAssetUtility::DebugLoadObject(FString ObjectPath)
 {
 	UObject* Object = StaticLoadObject(UObject::StaticClass(), nullptr, *ObjectPath);

@@ -30,6 +30,10 @@ class UMyObject : public UObject
 
 public:
 	bool SaveAsAsset(FString AssetPath, FString PackageName, FString ObjectName);
+
+private:
+	FString PrivateName = TEXT("Nothing is Impossible!!");
+	void PrivateFunction();
 	
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Debug)

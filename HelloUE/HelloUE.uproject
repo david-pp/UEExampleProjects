@@ -39,6 +39,10 @@
 		{
 			"Name": "SmoothNormalTool",
 			"Enabled": true
+		},
+		{
+			"Name": "Hello3rd",
+			"Enabled": true
 		}
 	]
 }
